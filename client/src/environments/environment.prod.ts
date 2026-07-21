@@ -17,5 +17,5 @@ export const environment = {
   // resolution to 'workprovider360.runasp.net' currently hits an agency with a
   // broken DB connection (500), so we select the good tenant explicitly.
   // CORS allows this custom header (AllowAnyHeader).
-  tenantDomain: 'work-provider360-front-seven.vercel.app',
+  tenantDomain: 'localhost',
 };

@@ -26,6 +26,12 @@ export class Users {
   readonly formError = signal('');
   readonly showPassword = signal(false);
 
+  // Resend-credentials state
+  readonly confirmResendId = signal<number | null>(null);
+  readonly resendBusyId = signal<number | null>(null);
+  readonly resendNotice = signal('');
+  readonly resendError = signal('');
+
   readonly total = computed(() => this.users().length);
 
   readonly form = this.fb.nonNullable.group({
@@ -95,6 +101,33 @@ export class Users {
           this.saving.set(false);
         },
       });
+  }
+
+  askResend(userId: number): void {
+    this.resendNotice.set('');
+    this.resendError.set('');
+    this.confirmResendId.set(userId);
+  }
+
+  cancelResend(): void {
+    this.confirmResendId.set(null);
+  }
+
+  doResend(userId: number): void {
+    this.confirmResendId.set(null);
+    this.resendBusyId.set(userId);
+    this.resendNotice.set('');
+    this.resendError.set('');
+    this.userService.resendCredentials(userId).subscribe({
+      next: (msg) => {
+        this.resendBusyId.set(null);
+        this.resendNotice.set(msg);
+      },
+      error: (err: Error) => {
+        this.resendBusyId.set(null);
+        this.resendError.set(err.message || 'Could not resend credentials.');
+      },
+    });
   }
 
   initials(name: string): string {

@@ -31,6 +31,13 @@ export class UserService {
       .pipe(map((res) => this.unwrap(res)));
   }
 
+  /** Reset the user's password to a new temporary one and email it to them. */
+  resendCredentials(userId: number): Observable<string> {
+    return this.http
+      .post<ApiResponse<unknown>>(`${this.usersUrl}/${userId}/resend-credentials`, {})
+      .pipe(map((res) => res.message ?? 'Credentials sent.'));
+  }
+
   getRoles(): Observable<RoleDto[]> {
     return this.http
       .get<ApiResponse<RoleDto[]>>(this.rolesUrl)
