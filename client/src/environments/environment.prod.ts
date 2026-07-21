@@ -13,5 +13,9 @@
 export const environment = {
   production: true,
   apiBaseUrl: 'https://workprovider360.runasp.net/api',
-  tenantDomain: '',
+  // The only working tenant is AgencyId 2 (DomainUrl 'localhost'). Host-based
+  // resolution to 'workprovider360.runasp.net' currently hits an agency with a
+  // broken DB connection (500), so we select the good tenant explicitly.
+  // CORS allows this custom header (AllowAnyHeader).
+  tenantDomain: 'work-provider360-front-seven.vercel.app/',
 };
