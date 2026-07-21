@@ -1,0 +1,137 @@
+<section>
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Team members</h1>
+      <p class="mt-1 text-sm text-slate-500">{{ total() }} user(s) in this workspace</p>
+    </div>
+    <button type="button" (click)="openModal()" class="wp-btn-primary self-start sm:self-auto">
+      <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
+      Add team member
+    </button>
+  </div>
+
+  <div class="mt-6">
+    <app-alert type="error" [message]="listError()" />
+
+    @if (loading()) {
+      <div class="wp-card flex items-center justify-center py-16 text-slate-400">
+        <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+        <span class="ml-3 text-sm">Loading team…</span>
+      </div>
+    } @else if (users().length === 0 && !listError()) {
+      <div class="wp-card py-16 text-center">
+        <p class="text-sm text-slate-500">No team members yet.</p>
+        <button type="button" (click)="openModal()" class="wp-link mt-2 text-sm">Add your first member</button>
+      </div>
+    } @else if (users().length) {
+      <div class="wp-card overflow-hidden !p-0">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-sm">
+            <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <tr>
+                <th class="px-6 py-3">Name</th>
+                <th class="px-6 py-3">Email</th>
+                <th class="px-6 py-3">Role</th>
+                <th class="px-6 py-3">Status</th>
+                <th class="px-6 py-3">Joined</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (u of users(); track u.userId) {
+                <tr class="hover:bg-slate-50/60">
+                  <td class="px-6 py-3">
+                    <div class="flex items-center gap-3">
+                      <span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">{{ initials(u.fullName) }}</span>
+                      <span class="font-semibold text-slate-800">{{ u.fullName }}</span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-3 text-slate-600">{{ u.email }}</td>
+                  <td class="px-6 py-3">
+                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="roleBadge(u.roleName)">{{ u.roleName }}</span>
+                  </td>
+                  <td class="px-6 py-3">
+                    @if (u.isActive) {
+                      <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Active</span>
+                    } @else {
+                      <span class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400"><span class="h-1.5 w-1.5 rounded-full bg-slate-300"></span>Inactive</span>
+                    }
+                  </td>
+                  <td class="px-6 py-3 text-slate-500">{{ u.createdOn | date: 'mediumDate' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  </div>
+</section>
+
+<!-- Create user modal -->
+@if (modalOpen()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/50" (click)="closeModal()"></div>
+    <div class="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900">Add team member</h2>
+          <p class="mt-1 text-sm text-slate-500">Create a new account and assign a role.</p>
+        </div>
+        <button type="button" (click)="closeModal()" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close">
+          <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+        </button>
+      </div>
+
+      <app-alert type="error" [message]="formError()" />
+
+      <form [formGroup]="form" (ngSubmit)="save()" class="mt-4 space-y-4" novalidate>
+        <div>
+          <label for="fullName" class="wp-label">Full name</label>
+          <input id="fullName" type="text" formControlName="fullName" class="wp-input" placeholder="Alex Morgan" />
+          @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
+            <p class="mt-1 text-xs font-medium text-red-600">Enter the member’s full name.</p>
+          }
+        </div>
+
+        <div>
+          <label for="cu-email" class="wp-label">Email</label>
+          <input id="cu-email" type="email" formControlName="email" class="wp-input" placeholder="alex@company.com" />
+          @if (form.controls.email.touched && form.controls.email.invalid) {
+            <p class="mt-1 text-xs font-medium text-red-600">Enter a valid email address.</p>
+          }
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label for="cu-password" class="wp-label">Temporary password</label>
+            <div class="relative">
+              <input id="cu-password" [type]="showPassword() ? 'text' : 'password'" formControlName="password" class="wp-input pr-11" placeholder="Min. 8 characters" />
+              <button type="button" (click)="togglePassword()" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
+                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 4C5.5 4 2.2 6.6 1 10c1.2 3.4 4.5 6 9 6s7.8-2.6 9-6c-1.2-3.4-4.5-6-9-6zm0 10a4 4 0 110-8 4 4 0 010 8z"/></svg>
+              </button>
+            </div>
+            @if (form.controls.password.touched && form.controls.password.invalid) {
+              <p class="mt-1 text-xs font-medium text-red-600">At least 8 characters.</p>
+            }
+          </div>
+
+          <div>
+            <label for="cu-role" class="wp-label">Role</label>
+            <select id="cu-role" formControlName="roleId" class="wp-input">
+              @for (role of roles(); track role.roleId) {
+                <option [value]="role.roleId">{{ role.roleName }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" (click)="closeModal()" class="wp-btn-ghost">Cancel</button>
+          <button type="submit" class="wp-btn-primary" [disabled]="saving()">
+            @if (saving()) { Creating… } @else { Create member }
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

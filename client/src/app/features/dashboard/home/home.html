@@ -1,0 +1,75 @@
+<section>
+  <!-- Greeting -->
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <p class="text-sm font-medium text-brand-600">{{ user()?.roleName }} workspace</p>
+      <h1 class="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">
+        Welcome back, {{ firstName() }} 👋
+      </h1>
+      <p class="mt-1 text-sm text-slate-500">{{ headline() }}</p>
+    </div>
+    @if (isAdmin()) {
+      <a routerLink="/dashboard/users" class="wp-btn-primary self-start sm:self-auto">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
+        Add team member
+      </a>
+    }
+  </div>
+
+  <!-- KPIs -->
+  <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    @for (stat of stats(); track stat.label) {
+      <app-stat-card
+        [label]="stat.label"
+        [value]="stat.value"
+        [delta]="stat.delta ?? ''"
+        [icon]="stat.icon"
+        [tone]="stat.tone"
+      />
+    }
+  </div>
+
+  <!-- Content grid -->
+  <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <div class="wp-card lg:col-span-2">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-bold text-slate-900">Recent activity</h2>
+        <span class="text-xs font-medium text-slate-400">Last 7 days</span>
+      </div>
+      <ul class="mt-4 divide-y divide-slate-100">
+        @for (row of activity; track row.text) {
+          <li class="flex items-center gap-3 py-3">
+            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="row.icon" /></svg>
+            </span>
+            <span class="flex-1 text-sm text-slate-700">{{ row.text }}</span>
+            <span class="text-xs text-slate-400">{{ row.time }}</span>
+          </li>
+        }
+      </ul>
+      <p class="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">
+        Sample data — live activity feeds connect once the operations endpoints ship.
+      </p>
+    </div>
+
+    <div class="wp-card">
+      <h2 class="text-base font-bold text-slate-900">Quick actions</h2>
+      <div class="mt-4 space-y-2">
+        <a routerLink="/dashboard/profile" class="wp-btn-ghost w-full justify-start">
+          <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+          Edit my profile
+        </a>
+        @if (isAdmin()) {
+          <a routerLink="/dashboard/users" class="wp-btn-ghost w-full justify-start">
+            <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z" /></svg>
+            Manage team
+          </a>
+        }
+        <a routerLink="/dashboard/profile" class="wp-btn-ghost w-full justify-start">
+          <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zM16 10V7a4 4 0 00-8 0v3" /></svg>
+          Change password
+        </a>
+      </div>
+    </div>
+  </div>
+</section>

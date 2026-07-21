@@ -1,0 +1,12 @@
+<div class="wp-card">
+  <div class="flex items-start justify-between">
+    <span class="flex h-11 w-11 items-center justify-center rounded-xl" [class]="iconWrap">
+      <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="icon()" /></svg>
+    </span>
+    @if (delta()) {
+      <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">{{ delta() }}</span>
+    }
+  </div>
+  <p class="mt-4 text-3xl font-extrabold tracking-tight text-slate-900">{{ value() }}</p>
+  <p class="mt-1 text-sm font-medium text-slate-500">{{ label() }}</p>
+</div>

@@ -1,0 +1,8 @@
+{
+  "/api": {
+    "target": "https://workprovider360.runasp.net",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}

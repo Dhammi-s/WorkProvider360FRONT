@@ -1,0 +1,99 @@
+<div class="min-h-screen bg-slate-50 lg:flex">
+  <!-- Mobile overlay -->
+  @if (sidebarOpen()) {
+    <div class="fixed inset-0 z-30 bg-slate-900/40 lg:hidden" (click)="closeSidebar()"></div>
+  }
+
+  <!-- Sidebar -->
+  <aside
+    class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-brand-panel px-4 py-6 text-white transition-transform lg:static lg:translate-x-0"
+    [class.-translate-x-full]="!sidebarOpen()"
+  >
+    <div class="flex items-center gap-2.5 px-2">
+      <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600">
+        <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
+        </svg>
+      </span>
+      <span class="text-lg font-extrabold tracking-tight">WorkProvider<span class="text-accent-400">360</span></span>
+    </div>
+
+    <nav class="mt-8 flex-1 space-y-1">
+      @for (item of nav(); track item.label) {
+        @if (item.soon) {
+          <span class="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/40">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="item.icon" /></svg>
+            {{ item.label }}
+            <span class="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide">Soon</span>
+          </span>
+        } @else {
+          <a
+            [routerLink]="item.path"
+            routerLinkActive="bg-white/15 text-white"
+            [routerLinkActiveOptions]="{ exact: item.path === '/dashboard' }"
+            (click)="closeSidebar()"
+            class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+          >
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="item.icon" /></svg>
+            {{ item.label }}
+          </a>
+        }
+      }
+    </nav>
+
+    <div class="rounded-xl border border-white/10 bg-white/5 p-4 text-xs text-white/60">
+      <p class="font-semibold text-white/80">Need help?</p>
+      <p class="mt-1">Visit the help center or contact support.</p>
+    </div>
+  </aside>
+
+  <!-- Main column -->
+  <div class="flex min-w-0 flex-1 flex-col">
+    <!-- Topbar -->
+    <header class="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-slate-200 bg-white px-4 lg:px-8">
+      <button
+        type="button"
+        (click)="toggleSidebar()"
+        class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
+        aria-label="Toggle navigation"
+      >
+        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+      </button>
+
+      <div class="min-w-0">
+        <p class="truncate text-sm font-semibold text-slate-900">Agency #{{ user()?.agencyId }}</p>
+        <p class="truncate text-xs text-slate-400">Workspace dashboard</p>
+      </div>
+
+      <div class="relative ml-auto">
+        <button
+          type="button"
+          (click)="toggleMenu()"
+          class="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition hover:bg-slate-100"
+        >
+          <span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">{{ initials() }}</span>
+          <span class="hidden text-left sm:block">
+            <span class="block text-sm font-semibold text-slate-800">{{ user()?.fullName }}</span>
+            <span class="block text-xs text-slate-400">{{ user()?.roleName }}</span>
+          </span>
+          <svg class="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.3 7.3a1 1 0 011.4 0L10 10.6l3.3-3.3a1 1 0 111.4 1.4l-4 4a1 1 0 01-1.4 0l-4-4a1 1 0 010-1.4z" clip-rule="evenodd" /></svg>
+        </button>
+
+        @if (menuOpen()) {
+          <div class="absolute right-0 mt-2 w-56 rounded-xl border border-slate-100 bg-white py-2 shadow-card">
+            <div class="border-b border-slate-100 px-4 py-2">
+              <p class="truncate text-sm font-semibold text-slate-800">{{ user()?.fullName }}</p>
+              <p class="truncate text-xs text-slate-400">{{ user()?.email }}</p>
+            </div>
+            <a routerLink="/dashboard/profile" (click)="toggleMenu()" class="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">My Profile</a>
+            <button type="button" (click)="logout()" class="block w-full px-4 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50">Sign out</button>
+          </div>
+        }
+      </div>
+    </header>
+
+    <main class="flex-1 px-4 py-6 lg:px-8 lg:py-8">
+      <router-outlet />
+    </main>
+  </div>
+</div>

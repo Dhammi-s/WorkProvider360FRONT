@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="workprovider360.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+</Solution>
