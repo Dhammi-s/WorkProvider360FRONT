@@ -1,0 +1,109 @@
+<app-auth-shell>
+  <header class="mb-8">
+    <h2 class="text-3xl font-extrabold tracking-tight text-slate-900">Apply for access</h2>
+    <p class="mt-2 text-sm text-slate-500">
+      Request Admin or Manager access. Our team reviews every application and replies by email.
+    </p>
+  </header>
+
+  @if (submitted()) {
+    <app-alert type="success" message="Thanks! Your application has been received. We'll email you once it's reviewed." />
+    <div class="mt-6 space-y-2">
+      <a routerLink="/login" class="wp-btn-primary w-full">Back to sign in</a>
+    </div>
+  } @else if (loadingConfig()) {
+    <div class="flex items-center justify-center py-16 text-slate-400">
+      <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+      <span class="ml-3 text-sm">Loading form…</span>
+    </div>
+  } @else if (loadError()) {
+    <app-alert type="error" [message]="loadError()" />
+  } @else {
+    <app-alert type="error" [message]="error()" />
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="mt-5 space-y-5" novalidate>
+      <div>
+        <label for="fullName" class="wp-label">Full name</label>
+        <input id="fullName" type="text" formControlName="fullName" placeholder="Alex Morgan" class="wp-input" />
+        @if (form.controls['fullName'].touched && form.controls['fullName'].invalid) {
+          <p class="mt-1 text-xs font-medium text-red-600">Please enter your full name.</p>
+        }
+      </div>
+
+      <div>
+        <label for="email" class="wp-label">Email</label>
+        <input id="email" type="email" formControlName="email" placeholder="you@company.com" class="wp-input" />
+        @if (form.controls['email'].touched && form.controls['email'].invalid) {
+          <p class="mt-1 text-xs font-medium text-red-600">Enter a valid email address.</p>
+        }
+      </div>
+
+      <div>
+        <label for="requestedRoleId" class="wp-label">Requested role</label>
+        <select id="requestedRoleId" formControlName="requestedRoleId" class="wp-input">
+          <option [ngValue]="null" disabled>Select a role…</option>
+          @for (role of config()!.roles; track role.roleId) {
+            <option [ngValue]="role.roleId">{{ role.roleName }}</option>
+          }
+        </select>
+        @if (form.controls['requestedRoleId'].touched && form.controls['requestedRoleId'].invalid) {
+          <p class="mt-1 text-xs font-medium text-red-600">Please choose a role.</p>
+        }
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label for="phone" class="wp-label">
+            Phone @if (!config()!.requirePhone) { <span class="font-normal text-slate-400">(optional)</span> }
+          </label>
+          <input id="phone" type="tel" formControlName="phone" placeholder="+1 555 123 4567" class="wp-input" />
+          @if (form.controls['phone'].touched && form.controls['phone'].invalid) {
+            <p class="mt-1 text-xs font-medium text-red-600">Phone number is required.</p>
+          }
+        </div>
+        <div>
+          <label for="address" class="wp-label">
+            Address @if (!config()!.requireAddress) { <span class="font-normal text-slate-400">(optional)</span> }
+          </label>
+          <input id="address" type="text" formControlName="address" placeholder="City, Country" class="wp-input" />
+          @if (form.controls['address'].touched && form.controls['address'].invalid) {
+            <p class="mt-1 text-xs font-medium text-red-600">Address is required.</p>
+          }
+        </div>
+      </div>
+
+      @if (questions().length) {
+        <div class="space-y-5 border-t border-slate-100 pt-5" formGroupName="answers">
+          @for (q of questions(); track q.questionId) {
+            <div>
+              <label [attr.for]="answerControlName(q)" class="wp-label">
+                {{ q.questionText }}
+                @if (!q.isRequired) { <span class="font-normal text-slate-400">(optional)</span> }
+              </label>
+              <textarea
+                [id]="answerControlName(q)"
+                [formControlName]="answerControlName(q)"
+                rows="2"
+                class="wp-input"
+                placeholder="Your answer…"
+              ></textarea>
+              @if (answersGroup.get(answerControlName(q))?.touched && answersGroup.get(answerControlName(q))?.invalid) {
+                <p class="mt-1 text-xs font-medium text-red-600">This question is required.</p>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <button type="submit" class="wp-btn-primary w-full" [disabled]="submitting()">
+        @if (submitting()) { Submitting… } @else { Submit application }
+      </button>
+    </form>
+
+    <p class="mt-8 text-center text-sm text-slate-500">
+      Just need a standard account?
+      <a routerLink="/register" class="wp-link">Sign up</a>
+      · <a routerLink="/login" class="wp-link">Sign in</a>
+    </p>
+  }
+</app-auth-shell>

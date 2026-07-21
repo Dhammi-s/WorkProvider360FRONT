@@ -28,6 +28,16 @@ export const routes: Routes = [
       import('./features/auth/reset-password/reset-password').then((m) => m.ResetPassword),
     title: 'Reset password · WorkProvider360',
   },
+  {
+    path: 'apply',
+    loadComponent: () => import('./features/apply/apply').then((m) => m.Apply),
+    title: 'Apply for access · WorkProvider360',
+  },
+  {
+    path: 'setup',
+    loadComponent: () => import('./features/auth/setup/setup').then((m) => m.Setup),
+    title: 'Workspace setup · WorkProvider360',
+  },
 
   // Authenticated app shell
   {
@@ -51,6 +61,21 @@ export const routes: Routes = [
         data: { roles: ['SuperAdmin', 'Admin'] },
         loadComponent: () => import('./features/dashboard/users/users').then((m) => m.Users),
         title: 'Team · WorkProvider360',
+      },
+      {
+        path: 'applications',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin'] },
+        loadComponent: () =>
+          import('./features/dashboard/applications/applications').then((m) => m.Applications),
+        title: 'Applications · WorkProvider360',
+      },
+      {
+        path: 'settings',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin'] },
+        loadComponent: () => import('./features/dashboard/settings/settings').then((m) => m.Settings),
+        title: 'Settings · WorkProvider360',
       },
       {
         path: 'profile',

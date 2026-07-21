@@ -6,15 +6,15 @@ import { Alert } from '../../../shared/ui/alert/alert';
 import { AuthShell } from '../auth-shell/auth-shell';
 
 /**
- * Public self-registration — always creates a "User" role account. Admin/Manager
- * access is requested separately through the Application Form (/apply).
+ * One-time workspace setup: bootstraps the first SuperAdmin for a tenant.
+ * The backend self-disables this once any user exists.
  */
 @Component({
-  selector: 'app-register',
+  selector: 'app-setup',
   imports: [ReactiveFormsModule, RouterLink, AuthShell, Alert],
-  templateUrl: './register.html',
+  templateUrl: './setup.html',
 })
-export class Register {
+export class Setup {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
@@ -46,21 +46,16 @@ export class Register {
     this.error.set('');
 
     const { fullName, email, password } = this.form.getRawValue();
-    this.auth.register({ fullName, email, password }).subscribe({
-      next: () => {
-        this.router.navigate(['/login'], {
-          queryParams: { registered: '1' },
-        });
-      },
+    this.auth.bootstrapAdmin({ fullName, email, password }).subscribe({
+      next: () => this.router.navigate(['/login'], { queryParams: { registered: '1' } }),
       error: (err: Error) => {
-        this.error.set(err.message || 'Could not create your account.');
+        this.error.set(err.message || 'Could not create the administrator account.');
         this.loading.set(false);
       },
     });
   }
 }
 
-/** Cross-field validator: password === confirmPassword. */
 function matchPasswords(group: AbstractControl): ValidationErrors | null {
   const password = group.get('password')?.value;
   const confirm = group.get('confirmPassword')?.value;

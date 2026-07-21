@@ -1,0 +1,154 @@
+<section>
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Applications</h1>
+      <p class="mt-1 text-sm text-slate-500">Review requests for Admin / Manager access.</p>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="mt-6 flex flex-wrap gap-2">
+    @for (f of filters; track f) {
+      <button
+        type="button"
+        (click)="setFilter(f)"
+        class="rounded-full px-4 py-1.5 text-sm font-semibold transition"
+        [class]="filter() === f ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50'"
+      >
+        {{ f }}
+      </button>
+    }
+  </div>
+
+  <div class="mt-5">
+    <app-alert type="error" [message]="listError()" />
+
+    @if (loading()) {
+      <div class="wp-card flex items-center justify-center py-16 text-slate-400">
+        <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+        <span class="ml-3 text-sm">Loading…</span>
+      </div>
+    } @else if (!items().length) {
+      <div class="wp-card py-16 text-center text-sm text-slate-500">No applications in this view.</div>
+    } @else {
+      <div class="wp-card overflow-hidden !p-0">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-sm">
+            <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <tr>
+                <th class="px-6 py-3">Applicant</th>
+                <th class="px-6 py-3">Requested role</th>
+                <th class="px-6 py-3">Status</th>
+                <th class="px-6 py-3">Submitted</th>
+                <th class="px-6 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (a of items(); track a.applicationId) {
+                <tr class="hover:bg-slate-50/60">
+                  <td class="px-6 py-3">
+                    <div class="font-semibold text-slate-800">{{ a.fullName }}</div>
+                    <div class="text-xs text-slate-500">{{ a.email }}</div>
+                  </td>
+                  <td class="px-6 py-3 text-slate-600">{{ a.requestedRoleName }}</td>
+                  <td class="px-6 py-3">
+                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusBadge(a.status)">{{ a.status }}</span>
+                  </td>
+                  <td class="px-6 py-3 text-slate-500">{{ a.createdOn | date: 'medium' }}</td>
+                  <td class="px-6 py-3 text-right">
+                    <button type="button" (click)="open(a.applicationId)" class="text-sm wp-link">Review</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  </div>
+</section>
+
+<!-- Detail modal -->
+@if (detailLoading() || selected()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/50" (click)="close()"></div>
+    <div class="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+      @if (detailLoading()) {
+        <div class="flex items-center justify-center py-20 text-slate-400">
+          <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+        </div>
+      } @else if (selected(); as app) {
+        <div class="flex items-start justify-between border-b border-slate-100 p-6">
+          <div>
+            <div class="flex items-center gap-3">
+              <h2 class="text-lg font-bold text-slate-900">{{ app.fullName }}</h2>
+              <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusBadge(app.status)">{{ app.status }}</span>
+            </div>
+            <p class="mt-1 text-sm text-slate-500">Requesting <strong>{{ app.requestedRoleName }}</strong> · #{{ app.applicationId }}</p>
+          </div>
+          <div class="flex items-center gap-1">
+            <button type="button" (click)="downloadPdf(app)" [disabled]="pdfBusy()" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-brand-600" title="Download PDF" aria-label="Download PDF">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
+            </button>
+            <button type="button" (click)="close()" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100" aria-label="Close">
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="max-h-[60vh] overflow-y-auto p-6">
+          <app-alert type="success" [message]="actionNotice()" />
+          <app-alert type="error" [message]="actionError()" />
+
+          <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div><dt class="text-xs text-slate-400">Email</dt><dd class="text-sm font-medium text-slate-700">{{ app.email }}</dd></div>
+            <div><dt class="text-xs text-slate-400">Phone</dt><dd class="text-sm font-medium text-slate-700">{{ app.phone || '—' }}</dd></div>
+            <div class="sm:col-span-2"><dt class="text-xs text-slate-400">Address</dt><dd class="text-sm font-medium text-slate-700">{{ app.address || '—' }}</dd></div>
+          </dl>
+
+          @if (app.answers.length) {
+            <div class="mt-6 border-t border-slate-100 pt-5">
+              <h3 class="mb-3 text-sm font-bold text-slate-900">Screening answers</h3>
+              <div class="space-y-4">
+                @for (ans of app.answers; track ans.questionText) {
+                  <div>
+                    <p class="text-sm font-semibold text-slate-700">{{ ans.questionText }}</p>
+                    <p class="text-sm text-slate-600">{{ ans.answerText || '—' }}</p>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          @if (app.status === 'Rejected' && app.rejectionReason) {
+            <div class="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <strong>Rejection reason:</strong> {{ app.rejectionReason }}
+            </div>
+          }
+        </div>
+
+        @if (app.status === 'Pending') {
+          <div class="border-t border-slate-100 p-6">
+            @if (rejecting()) {
+              <label for="reason" class="wp-label">Reason for rejection</label>
+              <textarea id="reason" rows="2" class="wp-input" [ngModel]="rejectReason()" (ngModelChange)="rejectReason.set($event)" placeholder="Let the applicant know why…"></textarea>
+              <div class="mt-3 flex justify-end gap-3">
+                <button type="button" (click)="rejecting.set(false)" class="wp-btn-ghost">Cancel</button>
+                <button type="button" (click)="confirmReject()" [disabled]="actionBusy()" class="wp-btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500">
+                  @if (actionBusy()) { Rejecting… } @else { Confirm reject }
+                </button>
+              </div>
+            } @else {
+              <div class="flex justify-end gap-3">
+                <button type="button" (click)="rejecting.set(true)" [disabled]="actionBusy()" class="wp-btn bg-white text-red-600 ring-1 ring-inset ring-red-200 hover:bg-red-50 focus:ring-red-500">Reject</button>
+                <button type="button" (click)="approve()" [disabled]="actionBusy()" class="wp-btn bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500">
+                  @if (actionBusy()) { Approving… } @else { Approve & create account }
+                </button>
+              </div>
+            }
+          </div>
+        }
+      }
+    </div>
+  </div>
+}

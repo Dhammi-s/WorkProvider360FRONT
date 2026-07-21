@@ -50,6 +50,13 @@ export class AuthService {
       .pipe(map((res) => this.unwrap(res)));
   }
 
+  /** Public self-registration — always creates a "User" role account. */
+  register(request: BootstrapAdminRequest): Observable<UserDto> {
+    return this.http
+      .post<ApiResponse<UserDto>>(`${this.usersUrl}/register`, request)
+      .pipe(map((res) => this.unwrap(res)));
+  }
+
   forgotPassword(request: ForgotPasswordRequest): Observable<string> {
     return this.http
       .post<ApiResponse<unknown>>(`${this.baseUrl}/forgot-password`, request)

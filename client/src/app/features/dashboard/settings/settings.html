@@ -1,0 +1,90 @@
+<section>
+  <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Application settings</h1>
+  <p class="mt-1 text-sm text-slate-500">Control the public application form and screening questions.</p>
+
+  <app-alert type="error" [message]="error()" />
+
+  @if (loading()) {
+    <div class="wp-card mt-6 flex items-center justify-center py-16 text-slate-400">
+      <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+    </div>
+  } @else {
+    <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <!-- Form config -->
+      <div class="wp-card">
+        <h2 class="text-base font-bold text-slate-900">Form configuration</h2>
+        <app-alert type="success" [message]="saveNotice()" />
+
+        <div class="mt-4 space-y-4">
+          <label class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-700">Require phone number</span>
+            <input type="checkbox" [ngModel]="requirePhone()" (ngModelChange)="requirePhone.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+          </label>
+          <label class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-700">Require address</span>
+            <input type="checkbox" [ngModel]="requireAddress()" (ngModelChange)="requireAddress.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+          </label>
+          <label class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-700">Send email notifications</span>
+            <input type="checkbox" [ngModel]="emailNotificationsEnabled()" (ngModelChange)="emailNotificationsEnabled.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+          </label>
+          <div>
+            <label for="notif" class="wp-label">Notification email <span class="font-normal text-slate-400">(optional)</span></label>
+            <input id="notif" type="email" class="wp-input" [ngModel]="notificationEmail()" (ngModelChange)="notificationEmail.set($event)" placeholder="Defaults to all admins" />
+            <p class="mt-1 text-xs text-slate-400">If set, new-application alerts go here. Otherwise all admins are notified.</p>
+          </div>
+        </div>
+
+        <div class="mt-5 flex justify-end">
+          <button type="button" (click)="saveSettings()" [disabled]="saving()" class="wp-btn-primary">
+            @if (saving()) { Saving… } @else { Save settings }
+          </button>
+        </div>
+      </div>
+
+      <!-- Questions -->
+      <div class="wp-card">
+        <h2 class="text-base font-bold text-slate-900">Screening questions</h2>
+        <p class="mt-1 text-sm text-slate-500">Shown on the public application form.</p>
+        <app-alert type="error" [message]="questionError()" />
+
+        <div class="mt-4 space-y-2">
+          @for (q of questions(); track q.questionId) {
+            <div class="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5" [class.opacity-50]="!q.isActive">
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium text-slate-700">{{ q.questionText }}</p>
+                <div class="mt-1 flex gap-3 text-xs">
+                  <button type="button" (click)="toggleRequired(q)" class="font-medium" [class]="q.isRequired ? 'text-brand-600' : 'text-slate-400'">
+                    {{ q.isRequired ? 'Required' : 'Optional' }}
+                  </button>
+                  <button type="button" (click)="toggleActive(q)" class="font-medium" [class]="q.isActive ? 'text-emerald-600' : 'text-slate-400'">
+                    {{ q.isActive ? 'Active' : 'Hidden' }}
+                  </button>
+                </div>
+              </div>
+              <button type="button" (click)="remove(q)" class="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label="Remove question">
+                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 2a1 1 0 00-1 1v1H4a1 1 0 100 2h12a1 1 0 100-2h-3V3a1 1 0 00-1-1H8zM6 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
+              </button>
+            </div>
+          } @empty {
+            <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">No questions yet.</p>
+          }
+        </div>
+
+        <div class="mt-4 border-t border-slate-100 pt-4">
+          <label for="newq" class="wp-label">Add a question</label>
+          <textarea id="newq" rows="2" class="wp-input" [ngModel]="newQuestionText()" (ngModelChange)="newQuestionText.set($event)" placeholder="e.g. Why are you requesting this role?"></textarea>
+          <div class="mt-2 flex items-center justify-between">
+            <label class="flex items-center gap-2 text-sm text-slate-600">
+              <input type="checkbox" [ngModel]="newQuestionRequired()" (ngModelChange)="newQuestionRequired.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+              Required
+            </label>
+            <button type="button" (click)="addQuestion()" [disabled]="questionBusy() || !newQuestionText().trim()" class="wp-btn-primary">
+              @if (questionBusy()) { Adding… } @else { Add question }
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</section>
