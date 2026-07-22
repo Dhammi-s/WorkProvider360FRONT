@@ -7,7 +7,10 @@ import { UserDto } from '../models/user.model';
 import {
   CreateScheduleNoteRequest,
   CreateScheduleRequest,
+  LiveLocation,
+  LocationPing,
   ManualTimeEntryRequest,
+  RecordLocationRequest,
   RespondScheduleRequest,
   Schedule,
   ScheduleDetail,
@@ -140,6 +143,25 @@ export class SchedulerService {
     return this.http
       .put<ApiResponse<TimeEntry>>(`${this.baseUrl}/${id}/time/${entryId}`, request)
       .pipe(map((r) => this.unwrap(r)));
+  }
+
+  // ---- Live location ----
+  recordLocation(id: number, request: RecordLocationRequest): Observable<string> {
+    return this.http
+      .post<ApiResponse<unknown>>(`${this.baseUrl}/${id}/location`, request)
+      .pipe(map((r) => r.message ?? 'Location recorded.'));
+  }
+
+  trail(id: number): Observable<LocationPing[]> {
+    return this.http
+      .get<ApiResponse<LocationPing[]>>(`${this.baseUrl}/${id}/location/trail`)
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  liveLocations(): Observable<LiveLocation[]> {
+    return this.http
+      .get<ApiResponse<LiveLocation[]>>(`${this.baseUrl}/location/live`)
+      .pipe(map((r) => r.data ?? []));
   }
 
   // ---- Reports ----

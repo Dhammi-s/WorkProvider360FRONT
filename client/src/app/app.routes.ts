@@ -85,6 +85,13 @@ export const routes: Routes = [
         title: 'Reports · WorkProvider360',
       },
       {
+        path: 'live-map',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () => import('./features/dashboard/live-map/live-map').then((m) => m.LiveMap),
+        title: 'Live map · WorkProvider360',
+      },
+      {
         path: 'settings',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },

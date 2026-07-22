@@ -24,7 +24,7 @@
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
-            "allowedCommonJsDependencies": ["html2pdf.js", "html2canvas"],
+            "allowedCommonJsDependencies": ["html2pdf.js", "html2canvas", "leaflet"],
             "assets": [
               {
                 "glob": "**/*",
@@ -32,6 +32,7 @@
               }
             ],
             "styles": [
+              "node_modules/leaflet/dist/leaflet.css",
               "src/styles.scss"
             ]
           },

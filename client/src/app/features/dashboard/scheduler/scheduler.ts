@@ -9,6 +9,7 @@ import {
   SchedulingAccess,
 } from '../../../core/models/scheduler.model';
 import { AuthService } from '../../../core/services/auth.service';
+import { LocationTrackingService } from '../../../core/services/location-tracking.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { Alert } from '../../../shared/ui/alert/alert';
 
@@ -79,6 +80,7 @@ const HOUR_PX = 56;
 export class Scheduler {
   private readonly service = inject(SchedulerService);
   private readonly auth = inject(AuthService);
+  readonly locationTracking = inject(LocationTrackingService);
 
   readonly myUserId = this.auth.user()?.userId ?? 0;
 
@@ -582,6 +584,7 @@ export class Scheduler {
       next: (msg) => {
         this.actionBusy.set(false);
         this.actionNotice.set(msg);
+        this.locationTracking.start(d.schedule.scheduleId);
         this.reloadDetail();
       },
       error: (err: Error) => {
@@ -600,6 +603,7 @@ export class Scheduler {
       next: (msg) => {
         this.actionBusy.set(false);
         this.actionNotice.set(msg);
+        this.locationTracking.stop();
         this.reloadDetail();
       },
       error: (err: Error) => {

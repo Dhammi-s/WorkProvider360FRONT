@@ -13,6 +13,8 @@
 export const environment = {
   production: true,
   apiBaseUrl: 'https://workprovider360.runasp.net/api',
+  // SignalR hub for live location — full API origin (no dev proxy in prod).
+  hubBaseUrl: 'https://workprovider360.runasp.net',
   // The only working tenant is AgencyId 2 (DomainUrl 'localhost'). Host-based
   // resolution to 'workprovider360.runasp.net' currently hits an agency with a
   // broken DB connection (500), so we select the good tenant explicitly.

@@ -1,0 +1,50 @@
+<section>
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Live map</h1>
+      <p class="mt-1 text-sm text-slate-500">Real-time location of workers currently clocked in on a job.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
+            [class]="connected() ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
+            [title]="connected() ? 'Real-time updates via SignalR' : 'Live socket unavailable — refreshing every 15s'">
+        <span class="h-2 w-2 rounded-full" [class]="connected() ? 'bg-emerald-500' : 'bg-amber-500'"></span>
+        {{ connected() ? 'Live' : 'Auto-refresh' }}
+      </span>
+      <button type="button" (click)="refresh()" class="wp-btn-ghost">Refresh</button>
+    </div>
+  </div>
+
+  <app-alert type="error" [message]="error()" />
+
+  <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr]">
+    <!-- Active workers list -->
+    <div class="wp-card !p-0 overflow-hidden">
+      <div class="border-b border-slate-100 px-4 py-3">
+        <p class="text-sm font-bold text-slate-900">On shift now</p>
+        <p class="text-xs text-slate-400">{{ live().length }} active</p>
+      </div>
+      <div class="max-h-[64vh] divide-y divide-slate-100 overflow-y-auto">
+        @for (l of live(); track l.scheduleId) {
+          <button type="button" (click)="select(l.scheduleId)"
+            class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
+            [class.bg-brand-50]="selected() === l.scheduleId">
+            <span class="mt-1 h-3 w-3 shrink-0 rounded-full" [style.background]="colorHex(l.userId)"></span>
+            <div class="min-w-0">
+              <p class="truncate text-sm font-semibold text-slate-700">{{ l.userName }}</p>
+              <p class="truncate text-xs text-slate-500">{{ l.title }}{{ l.customerName ? ' · ' + l.customerName : '' }}</p>
+              <p class="mt-0.5 text-[11px] text-slate-400">Updated {{ l.recordedUtc | date:'HH:mm:ss' }}</p>
+            </div>
+          </button>
+        } @empty {
+          <p class="px-4 py-10 text-center text-sm text-slate-400">No one is clocked in right now.</p>
+        }
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div class="wp-card !p-0 overflow-hidden">
+      <div id="live-map" class="h-[64vh] w-full"></div>
+    </div>
+  </div>
+</section>

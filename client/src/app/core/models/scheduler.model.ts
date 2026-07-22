@@ -155,3 +155,35 @@ export interface ScheduleReport {
   totalHours: number;
   totalPay: number;
 }
+
+// ---- Live location tracking ----
+
+export interface RecordLocationRequest {
+  latitude: number;
+  longitude: number;
+  accuracyMeters?: number | null;
+}
+
+export interface LocationPing {
+  pingId: number;
+  scheduleId: number;
+  userId: number;
+  userName: string;
+  latitude: number;
+  longitude: number;
+  accuracyMeters?: number | null;
+  recordedUtc: string;
+}
+
+export interface LiveLocation {
+  scheduleId: number;
+  title: string;
+  userId: number;
+  userName: string;
+  customerName?: string | null;
+  location?: string | null;
+  latitude: number;
+  longitude: number;
+  accuracyMeters?: number | null;
+  recordedUtc: string;
+}
