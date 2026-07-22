@@ -1,0 +1,93 @@
+<section>
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Scheduling reports</h1>
+      <p class="mt-1 text-sm text-slate-500">Hours worked and earnings per user, including overtime.</p>
+    </div>
+    <button type="button" (click)="exportPdf()" [disabled]="pdfBusy() || !report()" class="wp-btn-ghost">
+      @if (pdfBusy()) { Exporting… } @else { Export PDF }
+    </button>
+  </div>
+
+  <app-alert type="error" [message]="error()" />
+
+  <!-- Filters -->
+  <div class="wp-card mt-6">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div>
+        <label class="wp-label">From</label>
+        <input type="date" class="wp-input" [ngModel]="from()" (ngModelChange)="from.set($event)" />
+      </div>
+      <div>
+        <label class="wp-label">To</label>
+        <input type="date" class="wp-input" [ngModel]="to()" (ngModelChange)="to.set($event)" />
+      </div>
+      <div>
+        <label class="wp-label">User</label>
+        <select class="wp-input" [ngModel]="userFilter()" (ngModelChange)="userFilter.set($event)">
+          <option [ngValue]="null">All users</option>
+          @for (r of report()?.rows ?? []; track r.userId) {
+            <option [ngValue]="r.userId">{{ r.userName }}</option>
+          }
+        </select>
+      </div>
+      <div class="flex items-end">
+        <button type="button" (click)="run()" [disabled]="loading()" class="wp-btn-primary w-full">
+          @if (loading()) { Loading… } @else { Run report }
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary tiles -->
+  @if (report()) {
+    <div class="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div class="wp-card"><p class="text-xs font-semibold text-slate-400">Regular hours</p><p class="mt-1 text-2xl font-extrabold text-slate-900">{{ totals().regularHours }}</p></div>
+      <div class="wp-card"><p class="text-xs font-semibold text-slate-400">Overtime hours</p><p class="mt-1 text-2xl font-extrabold text-amber-600">{{ totals().overtimeHours }}</p></div>
+      <div class="wp-card"><p class="text-xs font-semibold text-slate-400">Total hours</p><p class="mt-1 text-2xl font-extrabold text-slate-900">{{ totals().totalHours }}</p></div>
+      <div class="wp-card"><p class="text-xs font-semibold text-slate-400">Total pay</p><p class="mt-1 text-2xl font-extrabold text-brand-600">{{ totals().totalPay | number:'1.2-2' }}</p></div>
+    </div>
+  }
+
+  <!-- Table -->
+  <div class="wp-card mt-4 overflow-hidden !p-0">
+    @if (loading()) {
+      <div class="flex items-center justify-center py-16 text-slate-400">
+        <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+      </div>
+    } @else {
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <tr>
+              <th class="px-4 py-3">User</th>
+              <th class="px-4 py-3 text-right">Jobs</th>
+              <th class="px-4 py-3 text-right">Regular h</th>
+              <th class="px-4 py-3 text-right">OT h</th>
+              <th class="px-4 py-3 text-right">Total h</th>
+              <th class="px-4 py-3 text-right">Regular pay</th>
+              <th class="px-4 py-3 text-right">OT pay</th>
+              <th class="px-4 py-3 text-right">Total pay</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (r of rows(); track r.userId) {
+              <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3 font-semibold text-slate-700">{{ r.userName }}</td>
+                <td class="px-4 py-3 text-right text-slate-600">{{ r.scheduleCount }}</td>
+                <td class="px-4 py-3 text-right text-slate-600">{{ r.regularHours }}</td>
+                <td class="px-4 py-3 text-right text-amber-600">{{ r.overtimeHours }}</td>
+                <td class="px-4 py-3 text-right font-semibold text-slate-700">{{ r.totalHours }}</td>
+                <td class="px-4 py-3 text-right text-slate-600">{{ r.regularPay | number:'1.2-2' }}</td>
+                <td class="px-4 py-3 text-right text-slate-600">{{ r.overtimePay | number:'1.2-2' }}</td>
+                <td class="px-4 py-3 text-right font-bold text-brand-600">{{ r.totalPay | number:'1.2-2' }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="8" class="px-4 py-12 text-center text-sm text-slate-400">No worked time in this period.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</section>

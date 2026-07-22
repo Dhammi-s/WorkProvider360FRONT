@@ -1,10 +1,13 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Question } from '../../../core/models/application.model';
+import { AccessLevel, SchedulingAccess } from '../../../core/models/scheduler.model';
 import { ApplicationService } from '../../../core/services/application.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { SchedulerService } from '../../../core/services/scheduler.service';
 import { Alert } from '../../../shared/ui/alert/alert';
 
-/** SuperAdmin configuration of the public application form. */
+/** Workspace settings: application form (SuperAdmin) + scheduling access & defaults. */
 @Component({
   selector: 'app-settings',
   imports: [FormsModule, Alert],
@@ -12,11 +15,15 @@ import { Alert } from '../../../shared/ui/alert/alert';
 })
 export class Settings {
   private readonly service = inject(ApplicationService);
+  private readonly scheduler = inject(SchedulerService);
+  private readonly auth = inject(AuthService);
+
+  readonly isSuperAdmin = computed(() => this.auth.roleName() === 'SuperAdmin');
 
   readonly loading = signal(true);
   readonly error = signal('');
 
-  // Settings fields
+  // Application settings (SuperAdmin only)
   readonly requirePhone = signal(true);
   readonly requireAddress = signal(true);
   readonly emailNotificationsEnabled = signal(true);
@@ -31,11 +38,38 @@ export class Settings {
   readonly questionBusy = signal(false);
   readonly questionError = signal('');
 
+  // Scheduling access + defaults
+  readonly levels: AccessLevel[] = ['None', 'Read', 'Write'];
+  readonly schedAccess = signal<SchedulingAccess | null>(null);
+  readonly adminAccess = signal<AccessLevel>('Write');
+  readonly managerAccess = signal<AccessLevel>('Read');
+  readonly defRate = signal(0);
+  readonly defOt = signal(1.5);
+  readonly notifyAdmin = signal(false);
+  readonly notifyManager = signal(false);
+  readonly schedError = signal('');
+  readonly accessSaving = signal(false);
+  readonly accessNotice = signal('');
+  readonly defaultsSaving = signal(false);
+  readonly defaultsNotice = signal('');
+
+  readonly canManageSched = computed(() => !!this.schedAccess()?.canManage);
+  readonly showScheduling = computed(() => {
+    const a = this.schedAccess();
+    return !!a && a.accessLevel !== 'None';
+  });
+
   constructor() {
-    this.loadSettings();
-    this.loadQuestions();
+    if (this.isSuperAdmin()) {
+      this.loadSettings();
+      this.loadQuestions();
+    } else {
+      this.loading.set(false);
+    }
+    this.loadScheduling();
   }
 
+  // ---- Application settings ----
   loadSettings(): void {
     this.loading.set(true);
     this.service.getSettings().subscribe({
@@ -106,23 +140,13 @@ export class Settings {
 
   toggleRequired(q: Question): void {
     this.service
-      .updateQuestion(q.questionId, {
-        questionText: q.questionText,
-        isRequired: !q.isRequired,
-        isActive: q.isActive,
-        sortOrder: q.sortOrder,
-      })
+      .updateQuestion(q.questionId, { questionText: q.questionText, isRequired: !q.isRequired, isActive: q.isActive, sortOrder: q.sortOrder })
       .subscribe({ next: () => this.loadQuestions(), error: (e: Error) => this.questionError.set(e.message) });
   }
 
   toggleActive(q: Question): void {
     this.service
-      .updateQuestion(q.questionId, {
-        questionText: q.questionText,
-        isRequired: q.isRequired,
-        isActive: !q.isActive,
-        sortOrder: q.sortOrder,
-      })
+      .updateQuestion(q.questionId, { questionText: q.questionText, isRequired: q.isRequired, isActive: !q.isActive, sortOrder: q.sortOrder })
       .subscribe({ next: () => this.loadQuestions(), error: (e: Error) => this.questionError.set(e.message) });
   }
 
@@ -131,5 +155,69 @@ export class Settings {
       next: () => this.loadQuestions(),
       error: (e: Error) => this.questionError.set(e.message),
     });
+  }
+
+  // ---- Scheduling ----
+  loadScheduling(): void {
+    this.scheduler.getAccess().subscribe({
+      next: (a) => {
+        this.schedAccess.set(a);
+        if (a.accessLevel !== 'None') this.loadSchedSettings();
+      },
+      error: () => this.schedAccess.set(null),
+    });
+  }
+
+  loadSchedSettings(): void {
+    this.scheduler.getSettings().subscribe({
+      next: (s) => {
+        this.adminAccess.set(s.adminAccess === 'Self' ? 'Write' : s.adminAccess);
+        this.managerAccess.set(s.managerAccess === 'Self' ? 'Read' : s.managerAccess);
+        this.defRate.set(s.defaultPayRatePerHour);
+        this.defOt.set(s.defaultOvertimeMultiplier);
+        this.notifyAdmin.set(s.notifyAdminOnCreate);
+        this.notifyManager.set(s.notifyManagerOnCreate);
+      },
+      error: (err: Error) => this.schedError.set(err.message || 'Could not load scheduling settings.'),
+    });
+  }
+
+  saveAccess(): void {
+    this.accessSaving.set(true);
+    this.accessNotice.set('');
+    this.schedError.set('');
+    this.scheduler.updateAccess({ adminAccess: this.adminAccess(), managerAccess: this.managerAccess() }).subscribe({
+      next: () => {
+        this.accessSaving.set(false);
+        this.accessNotice.set('Access settings saved.');
+      },
+      error: (err: Error) => {
+        this.schedError.set(err.message || 'Could not save access settings.');
+        this.accessSaving.set(false);
+      },
+    });
+  }
+
+  saveDefaults(): void {
+    this.defaultsSaving.set(true);
+    this.defaultsNotice.set('');
+    this.schedError.set('');
+    this.scheduler
+      .updateDefaults({
+        defaultPayRatePerHour: Number(this.defRate()) || 0,
+        defaultOvertimeMultiplier: Number(this.defOt()) || 1.5,
+        notifyAdminOnCreate: this.notifyAdmin(),
+        notifyManagerOnCreate: this.notifyManager(),
+      })
+      .subscribe({
+        next: () => {
+          this.defaultsSaving.set(false);
+          this.defaultsNotice.set('Defaults saved.');
+        },
+        error: (err: Error) => {
+          this.schedError.set(err.message || 'Could not save defaults.');
+          this.defaultsSaving.set(false);
+        },
+      });
   }
 }

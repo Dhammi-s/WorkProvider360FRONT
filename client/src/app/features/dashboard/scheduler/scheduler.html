@@ -1,0 +1,401 @@
+<section>
+  <!-- Header -->
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Scheduler</h1>
+      <p class="mt-1 text-sm text-slate-500">
+        {{ periodLabel() }} · {{ visible().length }} job{{ visible().length === 1 ? '' : 's' }}
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="flex items-center gap-1">
+        <button type="button" (click)="prev()" class="wp-btn-ghost !px-2.5" aria-label="Previous">
+          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.7 5.3a1 1 0 010 1.4L9.4 10l3.3 3.3a1 1 0 01-1.4 1.4l-4-4a1 1 0 010-1.4l4-4a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
+        </button>
+        <button type="button" (click)="today()" class="wp-btn-ghost">Today</button>
+        <button type="button" (click)="next()" class="wp-btn-ghost !px-2.5" aria-label="Next">
+          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.3 14.7a1 1 0 010-1.4L10.6 10 7.3 6.7a1 1 0 011.4-1.4l4 4a1 1 0 010 1.4l-4 4a1 1 0 01-1.4 0z" clip-rule="evenodd"/></svg>
+        </button>
+      </div>
+
+      <div class="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 text-sm font-semibold">
+        @for (v of ['month','week','day']; track v) {
+          <button type="button" (click)="setView($any(v))"
+            class="rounded-lg px-3 py-1.5 capitalize transition"
+            [class]="view() === v ? 'bg-brand-600 text-white' : 'text-slate-500 hover:text-slate-800'">
+            {{ v }}
+          </button>
+        }
+      </div>
+
+      @if (canManage()) {
+        <button type="button" (click)="openCreate()" class="wp-btn-primary">+ Add Job</button>
+      }
+    </div>
+  </div>
+
+  <!-- Tech filter pills -->
+  @if (techs().length) {
+    <div class="mt-5 flex flex-wrap items-center gap-2">
+      <span class="text-sm font-semibold text-slate-400">Techs:</span>
+      @for (t of techs(); track t.userId) {
+        <button type="button" (click)="toggleTech(t.userId)"
+          class="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold transition"
+          [class]="isTechActive(t.userId) ? 'border-slate-200 bg-white text-slate-700 ring-2 ' + t.color.ring : 'border-slate-200 bg-slate-50 text-slate-400'">
+          <span class="h-2 w-2 rounded-full" [class]="t.color.dot"></span>
+          {{ t.name }}
+        </button>
+      }
+    </div>
+  }
+
+  <app-alert type="error" [message]="error()" />
+
+  @if (loading()) {
+    <div class="wp-card mt-6 flex items-center justify-center py-16 text-slate-400">
+      <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+    </div>
+  } @else if (access()?.accessLevel === 'None') {
+    <div class="wp-card mt-6 py-16 text-center">
+      <p class="text-sm font-semibold text-slate-700">No scheduling access</p>
+      <p class="mt-1 text-sm text-slate-400">A Super Admin has not granted your role access to the scheduler.</p>
+    </div>
+  } @else {
+
+    <!-- ============================= WEEK / DAY ============================ -->
+    @if (view() !== 'month') {
+      @let days = view() === 'day' ? [anchor()] : weekDays();
+      <div class="wp-card mt-6 !p-0 overflow-hidden">
+        <!-- Day headers -->
+        <div class="grid border-b border-slate-100" [style.grid-template-columns]="'3.5rem repeat(' + days.length + ', minmax(0,1fr))'">
+          <div></div>
+          @for (day of days; track day.getTime()) {
+            <div class="border-l border-slate-100 py-2 text-center">
+              <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{{ day | date:'EEE' }}</div>
+              <div class="mx-auto mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold"
+                   [class]="isToday(day) ? 'bg-brand-600 text-white' : 'text-slate-700'">
+                {{ day | date:'d' }}
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Time grid -->
+        <div class="grid max-h-[68vh] overflow-y-auto" [style.grid-template-columns]="'3.5rem repeat(' + days.length + ', minmax(0,1fr))'">
+          <!-- Hour gutter -->
+          <div>
+            @for (h of hours; track h) {
+              <div class="h-14 pr-2 text-right text-[11px] text-slate-400">
+                <span class="relative -top-1.5">{{ hourLabel(h) }}</span>
+              </div>
+            }
+          </div>
+
+          <!-- Day columns -->
+          @for (day of days; track day.getTime()) {
+            <div class="relative border-l border-slate-100" [style.height.px]="gridHeight"
+                 [class.cursor-pointer]="canManage()" (click)="canManage() && openCreate(day)">
+              @for (h of hours; track h) {
+                <div class="h-14 border-b border-slate-100"></div>
+              }
+              @for (b of blocksForDay(day); track b.schedule.scheduleId) {
+                <button type="button"
+                  class="absolute overflow-hidden rounded-md border-l-4 px-2 py-1 text-left shadow-sm transition hover:shadow-md"
+                  [class]="colorFor(b.schedule.assignedUserId).bar"
+                  [style.top.px]="b.top" [style.height.px]="b.height"
+                  [style.left]="'calc(' + b.leftPct + '% + 2px)'"
+                  [style.width]="'calc(' + b.widthPct + '% - 4px)'"
+                  (click)="$event.stopPropagation(); open(b.schedule.scheduleId)">
+                  <span class="block truncate text-xs font-bold" [class]="colorFor(b.schedule.assignedUserId).text">{{ b.schedule.title }}</span>
+                  @if (b.height > 38) {
+                    <span class="block truncate text-[11px] text-slate-500">{{ b.schedule.customerName || b.schedule.location }}</span>
+                  }
+                  @if (b.height > 54) {
+                    <span class="block truncate text-[11px] text-slate-400">{{ b.schedule.assignedUserName }}</span>
+                  }
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- ================================ MONTH ============================= -->
+    @if (view() === 'month') {
+      <div class="wp-card mt-6 !p-0 overflow-hidden">
+        <div class="grid grid-cols-7 border-b border-slate-100 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          @for (d of ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']; track d) {
+            <div class="py-2">{{ d }}</div>
+          }
+        </div>
+        <div class="grid grid-cols-7">
+          @for (week of monthWeeks(); track $index) {
+            @for (day of week; track day.getTime()) {
+              <div class="min-h-[104px] border-b border-l border-slate-100 p-1.5"
+                   [class.bg-slate-50]="!inCurrentMonth(day)"
+                   [class.cursor-pointer]="canManage()"
+                   (click)="canManage() && openCreate(day)">
+                <div class="flex items-center justify-between">
+                  <span class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold"
+                        [class]="isToday(day) ? 'bg-brand-600 text-white' : (inCurrentMonth(day) ? 'text-slate-700' : 'text-slate-300')">
+                    {{ day | date:'d' }}
+                  </span>
+                </div>
+                <div class="mt-1 space-y-1">
+                  @for (s of schedulesOn(day).slice(0, 3); track s.scheduleId) {
+                    <button type="button" (click)="$event.stopPropagation(); open(s.scheduleId)"
+                      class="flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[11px] hover:bg-slate-100">
+                      <span class="h-1.5 w-1.5 shrink-0 rounded-full" [class]="colorFor(s.assignedUserId).dot"></span>
+                      <span class="shrink-0 text-slate-400">{{ timeLabel(s.startUtc) }}</span>
+                      <span class="truncate font-medium text-slate-600">{{ s.title }}</span>
+                    </button>
+                  }
+                  @if (schedulesOn(day).length > 3) {
+                    <p class="px-1 text-[10px] font-semibold text-slate-400">+{{ schedulesOn(day).length - 3 }} more</p>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    }
+  }
+
+  <!-- ============================ CREATE / EDIT ============================ -->
+  @if (formOpen()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-slate-900/50" (click)="closeForm()"></div>
+      <div class="relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <h2 class="text-lg font-bold text-slate-900">{{ editingId() ? 'Edit schedule' : 'Add job' }}</h2>
+          <button type="button" (click)="closeForm()" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z"/></svg>
+          </button>
+        </div>
+
+        <div class="max-h-[70vh] overflow-y-auto px-6 py-5">
+          <app-alert type="error" [message]="formError()" />
+          <div class="space-y-4">
+            <div>
+              <label class="wp-label">Job title</label>
+              <input class="wp-input" [ngModel]="fTitle()" (ngModelChange)="fTitle.set($event)" placeholder="e.g. AC Installation" />
+            </div>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label class="wp-label">Customer <span class="font-normal text-slate-400">(optional)</span></label>
+                <input class="wp-input" [ngModel]="fCustomer()" (ngModelChange)="fCustomer.set($event)" placeholder="e.g. Summit Corp" />
+              </div>
+              <div>
+                <label class="wp-label">Location <span class="font-normal text-slate-400">(optional)</span></label>
+                <input class="wp-input" [ngModel]="fLocation()" (ngModelChange)="fLocation.set($event)" placeholder="e.g. Harbor View" />
+              </div>
+            </div>
+            <div>
+              <label class="wp-label">Assign to</label>
+              <select class="wp-input" [ngModel]="fAssignee()" (ngModelChange)="fAssignee.set($event)">
+                <option [ngValue]="null" disabled>Select a user…</option>
+                @for (u of assignableUsers(); track u.userId) {
+                  <option [ngValue]="u.userId">{{ u.fullName }} — {{ u.roleName }}</option>
+                }
+              </select>
+            </div>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <label class="wp-label">Date</label>
+                <input type="date" class="wp-input" [ngModel]="fDate()" (ngModelChange)="fDate.set($event)" />
+              </div>
+              <div>
+                <label class="wp-label">Start</label>
+                <input type="time" class="wp-input" [ngModel]="fStart()" (ngModelChange)="fStart.set($event)" />
+              </div>
+              <div>
+                <label class="wp-label">End</label>
+                <input type="time" class="wp-input" [ngModel]="fEnd()" (ngModelChange)="fEnd.set($event)" />
+              </div>
+            </div>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label class="wp-label">Pay rate / hour</label>
+                <input type="number" min="0" step="0.5" class="wp-input" [ngModel]="fRate()" (ngModelChange)="fRate.set($event)" />
+              </div>
+              <div>
+                <label class="wp-label">Overtime multiplier</label>
+                <input type="number" min="1" step="0.1" class="wp-input" [ngModel]="fOt()" (ngModelChange)="fOt.set($event)" />
+              </div>
+            </div>
+
+            @if (!editingId()) {
+              <div class="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <p class="text-xs font-semibold text-slate-500">Notifications</p>
+                <p class="mt-0.5 text-xs text-slate-400">The assigned user is always emailed. Optionally also notify:</p>
+                <div class="mt-2 flex gap-5">
+                  <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" [ngModel]="fNotifyAdmin()" (ngModelChange)="fNotifyAdmin.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                    Admins
+                  </label>
+                  <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" [ngModel]="fNotifyManager()" (ngModelChange)="fNotifyManager.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                    Managers
+                  </label>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
+          <button type="button" (click)="closeForm()" class="wp-btn-ghost">Cancel</button>
+          <button type="button" (click)="saveForm()" [disabled]="formBusy()" class="wp-btn-primary">
+            @if (formBusy()) { Saving… } @else { {{ editingId() ? 'Save changes' : 'Create schedule' }} }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- =============================== DETAIL =============================== -->
+  @if (detail(); as d) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-slate-900/50" (click)="closeDetail()"></div>
+      <div class="relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+        <div class="flex items-start justify-between border-b border-slate-100 px-6 py-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-full" [class]="colorFor(d.schedule.assignedUserId).dot"></span>
+              <h2 class="text-lg font-bold text-slate-900">{{ d.schedule.title }}</h2>
+            </div>
+            <span class="mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold" [class]="statusBadge(d.schedule.status)">{{ d.schedule.status }}</span>
+          </div>
+          <button type="button" (click)="closeDetail()" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z"/></svg>
+          </button>
+        </div>
+
+        <div class="max-h-[68vh] overflow-y-auto px-6 py-5">
+          @if (detailLoading()) {
+            <div class="flex justify-center py-10 text-slate-400">
+              <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+            </div>
+          } @else {
+            <app-alert type="error" [message]="detailError()" />
+            <app-alert type="success" [message]="actionNotice()" />
+
+            <!-- Summary -->
+            <dl class="grid grid-cols-2 gap-3 text-sm">
+              <div><dt class="text-xs text-slate-400">Assigned to</dt><dd class="font-semibold text-slate-700">{{ d.schedule.assignedUserName }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Customer</dt><dd class="font-semibold text-slate-700">{{ d.schedule.customerName || '—' }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Start</dt><dd class="font-semibold text-slate-700">{{ d.schedule.startUtc | date:'EEE d MMM, HH:mm' }}</dd></div>
+              <div><dt class="text-xs text-slate-400">End</dt><dd class="font-semibold text-slate-700">{{ d.schedule.endUtc | date:'EEE d MMM, HH:mm' }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Location</dt><dd class="font-semibold text-slate-700">{{ d.schedule.location || '—' }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Pay</dt><dd class="font-semibold text-slate-700">{{ d.schedule.payRatePerHour | number:'1.2-2' }}/hr · OT ×{{ d.schedule.overtimeMultiplier }}</dd></div>
+            </dl>
+
+            @if (d.schedule.rejectionReason) {
+              <div class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700"><strong>Rejected:</strong> {{ d.schedule.rejectionReason }}</div>
+            }
+
+            <!-- Assigned-user actions -->
+            @if (isMine(d.schedule)) {
+              <div class="mt-5 rounded-xl border border-slate-100 p-4">
+                <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Your actions</p>
+
+                @if (d.schedule.status === 'Scheduled') {
+                  <div class="mt-3 flex gap-2">
+                    <button type="button" (click)="respond('Accept')" [disabled]="actionBusy()" class="wp-btn-primary flex-1">Accept</button>
+                    <button type="button" (click)="rejecting.set(!rejecting())" class="wp-btn-ghost flex-1">Reject</button>
+                  </div>
+                  @if (rejecting()) {
+                    <div class="mt-2">
+                      <textarea rows="2" class="wp-input" [ngModel]="rejectReason()" (ngModelChange)="rejectReason.set($event)" placeholder="Reason for rejecting…"></textarea>
+                      <button type="button" (click)="respond('Reject')" [disabled]="actionBusy()" class="wp-btn-primary mt-2 w-full">Confirm reject</button>
+                    </div>
+                  }
+                }
+
+                <!-- Time tracking -->
+                <div class="mt-3 flex items-center gap-2">
+                  @if (hasOpenTimer()) {
+                    <button type="button" (click)="clockOut()" [disabled]="actionBusy()" class="wp-btn-primary flex-1">Clock out</button>
+                  } @else {
+                    <button type="button" (click)="clockIn()" [disabled]="actionBusy()" class="wp-btn-primary flex-1">Clock in</button>
+                  }
+                  <button type="button" (click)="openManual()" class="wp-btn-ghost">Add hours</button>
+                </div>
+
+                @if (showManual()) {
+                  <div class="mt-3 grid grid-cols-3 gap-2">
+                    <input type="date" class="wp-input" [ngModel]="manualDate()" (ngModelChange)="manualDate.set($event)" />
+                    <input type="time" class="wp-input" [ngModel]="manualStart()" (ngModelChange)="manualStart.set($event)" />
+                    <input type="time" class="wp-input" [ngModel]="manualEnd()" (ngModelChange)="manualEnd.set($event)" />
+                    <button type="button" (click)="saveManual()" [disabled]="actionBusy()" class="wp-btn-primary col-span-3">Save hours</button>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Time entries -->
+            <div class="mt-5">
+              <div class="flex items-center justify-between">
+                <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Time logged</p>
+                <span class="text-sm font-bold text-slate-700">{{ totalLogged() }} h</span>
+              </div>
+              <div class="mt-2 space-y-1.5">
+                @for (t of d.timeEntries; track t.timeEntryId) {
+                  <div class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
+                    <span class="text-slate-600">{{ t.clockInUtc | date:'d MMM HH:mm' }} → {{ t.clockOutUtc ? (t.clockOutUtc | date:'HH:mm') : 'running…' }}</span>
+                    <span class="font-semibold text-slate-700">{{ t.source }} · {{ t.hours }} h</span>
+                  </div>
+                } @empty {
+                  <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">No time logged yet.</p>
+                }
+              </div>
+            </div>
+
+            <!-- Notes / injuries -->
+            <div class="mt-5">
+              <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Notes &amp; injury reports</p>
+              <div class="mt-2 space-y-1.5">
+                @for (n of d.notes; track n.noteId) {
+                  <div class="rounded-lg px-3 py-2 text-xs" [class]="n.noteType === 'Injury' ? 'bg-red-50' : 'bg-slate-50'">
+                    <div class="flex items-center justify-between">
+                      <span class="font-semibold" [class]="n.noteType === 'Injury' ? 'text-red-700' : 'text-slate-700'">
+                        {{ n.authorName }} @if (n.noteType === 'Injury') { · Injury }
+                      </span>
+                      <span class="text-slate-400">{{ n.createdOn | date:'d MMM HH:mm' }}</span>
+                    </div>
+                    <p class="mt-0.5 text-slate-600">{{ n.message }}</p>
+                  </div>
+                } @empty {
+                  <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">No notes yet.</p>
+                }
+              </div>
+
+              @if (isMine(d.schedule) || canManage()) {
+                <div class="mt-3">
+                  <textarea rows="2" class="wp-input" [ngModel]="noteText()" (ngModelChange)="noteText.set($event)" placeholder="Add a note…"></textarea>
+                  <div class="mt-2 flex items-center justify-between">
+                    <label class="flex items-center gap-2 text-sm text-slate-600">
+                      <input type="checkbox" [ngModel]="noteIsInjury()" (ngModelChange)="noteIsInjury.set($event)" class="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                      Report as injury
+                    </label>
+                    <button type="button" (click)="addNote()" [disabled]="actionBusy() || !noteText().trim()" class="wp-btn-primary">Add note</button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        @if (canManage() && !detailLoading()) {
+          <div class="flex justify-between gap-2 border-t border-slate-100 px-6 py-4">
+            <button type="button" (click)="deleteSchedule()" [disabled]="actionBusy()" class="text-sm font-semibold text-red-600 hover:text-red-700">Delete</button>
+            <button type="button" (click)="openEdit(d.schedule)" class="wp-btn-primary">Edit schedule</button>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</section>
