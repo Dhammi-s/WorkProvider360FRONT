@@ -1,6 +1,6 @@
 <section>
   <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Settings</h1>
-  <p class="mt-1 text-sm text-slate-500">Configure the application form and the scheduling module.</p>
+  <p class="mt-1 text-sm text-slate-500">Manage your workspace</p>
 
   <app-alert type="error" [message]="error()" />
 
@@ -9,92 +9,74 @@
       <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
     </div>
   } @else {
+    <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[240px_1fr]">
 
-    @if (isSuperAdmin()) {
-      <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <!-- Form config -->
-        <div class="wp-card">
-          <h2 class="text-base font-bold text-slate-900">Form configuration</h2>
-          <app-alert type="success" [message]="saveNotice()" />
-          <div class="mt-4 space-y-4">
-            <label class="flex items-center justify-between">
-              <span class="text-sm font-medium text-slate-700">Require phone number</span>
-              <input type="checkbox" [ngModel]="requirePhone()" (ngModelChange)="requirePhone.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-            </label>
-            <label class="flex items-center justify-between">
-              <span class="text-sm font-medium text-slate-700">Require address</span>
-              <input type="checkbox" [ngModel]="requireAddress()" (ngModelChange)="requireAddress.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-            </label>
-            <label class="flex items-center justify-between">
-              <span class="text-sm font-medium text-slate-700">Send email notifications</span>
-              <input type="checkbox" [ngModel]="emailNotificationsEnabled()" (ngModelChange)="emailNotificationsEnabled.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-            </label>
-            <div>
-              <label for="notif" class="wp-label">Notification email <span class="font-normal text-slate-400">(optional)</span></label>
-              <input id="notif" type="email" class="wp-input" [ngModel]="notificationEmail()" (ngModelChange)="notificationEmail.set($event)" placeholder="Defaults to all admins" />
-              <p class="mt-1 text-xs text-slate-400">If set, new-application alerts go here. Otherwise all admins are notified.</p>
-            </div>
-          </div>
-          <div class="mt-5 flex justify-end">
-            <button type="button" (click)="saveSettings()" [disabled]="saving()" class="wp-btn-primary">
-              @if (saving()) { Saving… } @else { Save settings }
-            </button>
-          </div>
-        </div>
+      <!-- Left sub-nav -->
+      <nav class="wp-card h-fit !p-2">
+        @for (tab of tabs(); track tab.id) {
+          <button type="button" (click)="setTab(tab.id)"
+            class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition"
+            [class]="activeTab() === tab.id ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50'">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="tab.icon" /></svg>
+            {{ tab.label }}
+          </button>
+        }
+      </nav>
 
-        <!-- Questions -->
-        <div class="wp-card">
-          <h2 class="text-base font-bold text-slate-900">Screening questions</h2>
-          <p class="mt-1 text-sm text-slate-500">Shown on the public application form.</p>
-          <app-alert type="error" [message]="questionError()" />
-          <div class="mt-4 space-y-2">
-            @for (q of questions(); track q.questionId) {
-              <div class="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5" [class.opacity-50]="!q.isActive">
-                <div class="min-w-0 flex-1">
-                  <p class="truncate text-sm font-medium text-slate-700">{{ q.questionText }}</p>
-                  <div class="mt-1 flex gap-3 text-xs">
-                    <button type="button" (click)="toggleRequired(q)" class="font-medium" [class]="q.isRequired ? 'text-brand-600' : 'text-slate-400'">{{ q.isRequired ? 'Required' : 'Optional' }}</button>
-                    <button type="button" (click)="toggleActive(q)" class="font-medium" [class]="q.isActive ? 'text-emerald-600' : 'text-slate-400'">{{ q.isActive ? 'Active' : 'Hidden' }}</button>
-                  </div>
-                </div>
-                <button type="button" (click)="remove(q)" class="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label="Remove question">
-                  <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 2a1 1 0 00-1 1v1H4a1 1 0 100 2h12a1 1 0 100-2h-3V3a1 1 0 00-1-1H8zM6 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
-                </button>
-              </div>
-            } @empty {
-              <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">No questions yet.</p>
-            }
-          </div>
-          <div class="mt-4 border-t border-slate-100 pt-4">
-            <label for="newq" class="wp-label">Add a question</label>
-            <textarea id="newq" rows="2" class="wp-input" [ngModel]="newQuestionText()" (ngModelChange)="newQuestionText.set($event)" placeholder="e.g. Why are you requesting this role?"></textarea>
-            <div class="mt-2 flex items-center justify-between">
-              <label class="flex items-center gap-2 text-sm text-slate-600">
-                <input type="checkbox" [ngModel]="newQuestionRequired()" (ngModelChange)="newQuestionRequired.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-                Required
-              </label>
-              <button type="button" (click)="addQuestion()" [disabled]="questionBusy() || !newQuestionText().trim()" class="wp-btn-primary">
-                @if (questionBusy()) { Adding… } @else { Add question }
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    }
+      <!-- Right panel -->
+      <div class="min-w-0">
 
-    <!-- ===================== Scheduling ===================== -->
-    @if (showScheduling()) {
-      <h2 class="mt-8 text-lg font-extrabold tracking-tight text-slate-900">Scheduling</h2>
-      <app-alert type="error" [message]="schedError()" />
-
-      <div class="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <!-- Access control (SuperAdmin only) -->
-        @if (schedAccess()?.canManageAccess) {
+        <!-- ===================== Company Profile ===================== -->
+        @if (activeTab() === 'profile') {
           <div class="wp-card">
-            <h3 class="text-base font-bold text-slate-900">Role access</h3>
+            <h2 class="text-base font-bold text-slate-900">Company Profile</h2>
+            <p class="mt-1 text-sm text-slate-500">Your workspace and account details.</p>
+            <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label class="wp-label">Workspace</label>
+                <input class="wp-input bg-slate-50" [value]="'Agency #' + (user()?.agencyId ?? '')" disabled />
+              </div>
+              <div>
+                <label class="wp-label">Your role</label>
+                <input class="wp-input bg-slate-50" [value]="user()?.roleName ?? ''" disabled />
+              </div>
+              <div>
+                <label class="wp-label">Your name</label>
+                <input class="wp-input bg-slate-50" [value]="user()?.fullName ?? ''" disabled />
+              </div>
+              <div>
+                <label class="wp-label">Email</label>
+                <input class="wp-input bg-slate-50" [value]="user()?.email ?? ''" disabled />
+              </div>
+            </div>
+            <p class="mt-4 text-xs text-slate-400">Editable company details (logo, address, tax number) aren't wired to the backend yet — say the word and I can add them.</p>
+          </div>
+        }
+
+        <!-- ===================== Team Members ===================== -->
+        @if (activeTab() === 'team') {
+          <div class="wp-card">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-base font-bold text-slate-900">Team Members</h2>
+                <p class="mt-1 text-sm text-slate-500">Invite people, set roles, and resend credentials.</p>
+              </div>
+              <a routerLink="/dashboard/users" class="wp-btn-primary">Open team →</a>
+            </div>
+            <div class="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+              Team management lives on the Team page, where you can add users, assign roles (Admin, Manager, User) and resend login details.
+            </div>
+          </div>
+        }
+
+        <!-- ===================== Roles & Permissions ===================== -->
+        @if (activeTab() === 'roles') {
+          <div class="wp-card">
+            <h2 class="text-base font-bold text-slate-900">Scheduling access</h2>
             <p class="mt-1 text-sm text-slate-500">Control what Admins and Managers can do in the scheduler.</p>
+            <app-alert type="error" [message]="schedError()" />
             <app-alert type="success" [message]="accessNotice()" />
-            <div class="mt-4 space-y-4">
+            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label class="wp-label">Admin access</label>
                 <select class="wp-input" [ngModel]="adminAccess()" (ngModelChange)="adminAccess.set($event)">
@@ -107,7 +89,6 @@
                   @for (l of levels; track l) { <option [ngValue]="l">{{ l === 'Write' ? 'Write — create & edit' : (l === 'Read' ? 'Read only' : 'No access') }}</option> }
                 </select>
               </div>
-              <p class="text-xs text-slate-400">Super Admin always has full access. Team members can always see and act on their own schedules.</p>
             </div>
             <div class="mt-5 flex justify-end">
               <button type="button" (click)="saveAccess()" [disabled]="accessSaving()" class="wp-btn-primary">
@@ -115,44 +96,153 @@
               </button>
             </div>
           </div>
+
+          <!-- Capability overview -->
+          <div class="wp-card mt-4 space-y-4">
+            <h3 class="text-base font-bold text-slate-900">What each role can do</h3>
+            <div class="rounded-xl border border-slate-100 p-4">
+              <p class="text-sm font-bold text-brand-700">Super Admin</p>
+              <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                <span class="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">✓ Full scheduling access</span>
+                <span class="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">✓ Set role access</span>
+                <span class="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">✓ Reports &amp; live map</span>
+              </div>
+            </div>
+            <div class="rounded-xl border border-slate-100 p-4">
+              <p class="text-sm font-bold text-slate-700">Admin — <span class="font-semibold text-brand-600">{{ adminAccess() }}</span></p>
+              <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">View schedules</span>
+                <span class="rounded-full px-2.5 py-1 font-semibold" [class]="adminAccess() === 'Write' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'">Create &amp; edit</span>
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">Reports &amp; live map</span>
+              </div>
+            </div>
+            <div class="rounded-xl border border-slate-100 p-4">
+              <p class="text-sm font-bold text-slate-700">Manager — <span class="font-semibold text-brand-600">{{ managerAccess() }}</span></p>
+              <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">View schedules</span>
+                <span class="rounded-full px-2.5 py-1 font-semibold" [class]="managerAccess() === 'Write' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'">Create &amp; edit</span>
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">Reports &amp; live map</span>
+              </div>
+            </div>
+            <div class="rounded-xl border border-slate-100 p-4">
+              <p class="text-sm font-bold text-slate-700">Team Member (User)</p>
+              <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                <span class="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">✓ Own jobs</span>
+                <span class="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">✓ Accept / reject</span>
+                <span class="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">✓ Clock in/out</span>
+                <span class="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">✓ Notes &amp; injury</span>
+              </div>
+            </div>
+          </div>
         }
 
-        <!-- Defaults -->
-        <div class="wp-card">
-          <h3 class="text-base font-bold text-slate-900">Schedule defaults</h3>
-          <p class="mt-1 text-sm text-slate-500">Pre-filled when creating a new schedule.</p>
-          <app-alert type="success" [message]="defaultsNotice()" />
-          <div class="mt-4 space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="wp-label">Default pay / hour</label>
-                <input type="number" min="0" step="0.5" class="wp-input" [ngModel]="defRate()" (ngModelChange)="defRate.set($event)" [disabled]="!canManageSched()" />
+        <!-- ===================== Scheduling ===================== -->
+        @if (activeTab() === 'scheduling') {
+          <div class="wp-card">
+            <h2 class="text-base font-bold text-slate-900">Schedule defaults</h2>
+            <p class="mt-1 text-sm text-slate-500">Pre-filled when creating a new schedule, and used for notifications.</p>
+            <app-alert type="error" [message]="schedError()" />
+            <app-alert type="success" [message]="defaultsNotice()" />
+            <div class="mt-4 space-y-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="wp-label">Default pay / hour</label>
+                  <input type="number" min="0" step="0.5" class="wp-input" [ngModel]="defRate()" (ngModelChange)="defRate.set($event)" [disabled]="!canManageSched()" />
+                </div>
+                <div>
+                  <label class="wp-label">Overtime multiplier</label>
+                  <input type="number" min="1" step="0.1" class="wp-input" [ngModel]="defOt()" (ngModelChange)="defOt.set($event)" [disabled]="!canManageSched()" />
+                </div>
               </div>
+              <label class="flex items-center justify-between">
+                <span class="text-sm font-medium text-slate-700">Notify admins on new schedule</span>
+                <input type="checkbox" [ngModel]="notifyAdmin()" (ngModelChange)="notifyAdmin.set($event)" [disabled]="!canManageSched()" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+              </label>
+              <label class="flex items-center justify-between">
+                <span class="text-sm font-medium text-slate-700">Notify managers on new schedule</span>
+                <input type="checkbox" [ngModel]="notifyManager()" (ngModelChange)="notifyManager.set($event)" [disabled]="!canManageSched()" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+              </label>
+            </div>
+            @if (canManageSched()) {
+              <div class="mt-5 flex justify-end">
+                <button type="button" (click)="saveDefaults()" [disabled]="defaultsSaving()" class="wp-btn-primary">
+                  @if (defaultsSaving()) { Saving… } @else { Save defaults }
+                </button>
+              </div>
+            } @else {
+              <p class="mt-4 text-xs text-slate-400">You have read-only access to scheduling settings.</p>
+            }
+          </div>
+        }
+
+        <!-- ===================== Application Form ===================== -->
+        @if (activeTab() === 'application') {
+          <div class="wp-card">
+            <h2 class="text-base font-bold text-slate-900">Form configuration</h2>
+            <app-alert type="success" [message]="saveNotice()" />
+            <div class="mt-4 space-y-4">
+              <label class="flex items-center justify-between">
+                <span class="text-sm font-medium text-slate-700">Require phone number</span>
+                <input type="checkbox" [ngModel]="requirePhone()" (ngModelChange)="requirePhone.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+              </label>
+              <label class="flex items-center justify-between">
+                <span class="text-sm font-medium text-slate-700">Require address</span>
+                <input type="checkbox" [ngModel]="requireAddress()" (ngModelChange)="requireAddress.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+              </label>
+              <label class="flex items-center justify-between">
+                <span class="text-sm font-medium text-slate-700">Send email notifications</span>
+                <input type="checkbox" [ngModel]="emailNotificationsEnabled()" (ngModelChange)="emailNotificationsEnabled.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+              </label>
               <div>
-                <label class="wp-label">Overtime multiplier</label>
-                <input type="number" min="1" step="0.1" class="wp-input" [ngModel]="defOt()" (ngModelChange)="defOt.set($event)" [disabled]="!canManageSched()" />
+                <label for="notif" class="wp-label">Notification email <span class="font-normal text-slate-400">(optional)</span></label>
+                <input id="notif" type="email" class="wp-input" [ngModel]="notificationEmail()" (ngModelChange)="notificationEmail.set($event)" placeholder="Defaults to all admins" />
               </div>
             </div>
-            <label class="flex items-center justify-between">
-              <span class="text-sm font-medium text-slate-700">Notify admins on new schedule</span>
-              <input type="checkbox" [ngModel]="notifyAdmin()" (ngModelChange)="notifyAdmin.set($event)" [disabled]="!canManageSched()" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-            </label>
-            <label class="flex items-center justify-between">
-              <span class="text-sm font-medium text-slate-700">Notify managers on new schedule</span>
-              <input type="checkbox" [ngModel]="notifyManager()" (ngModelChange)="notifyManager.set($event)" [disabled]="!canManageSched()" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-            </label>
-          </div>
-          @if (canManageSched()) {
             <div class="mt-5 flex justify-end">
-              <button type="button" (click)="saveDefaults()" [disabled]="defaultsSaving()" class="wp-btn-primary">
-                @if (defaultsSaving()) { Saving… } @else { Save defaults }
+              <button type="button" (click)="saveSettings()" [disabled]="saving()" class="wp-btn-primary">
+                @if (saving()) { Saving… } @else { Save settings }
               </button>
             </div>
-          } @else {
-            <p class="mt-4 text-xs text-slate-400">You have read-only access to scheduling settings.</p>
-          }
-        </div>
+          </div>
+
+          <div class="wp-card mt-4">
+            <h3 class="text-base font-bold text-slate-900">Screening questions</h3>
+            <p class="mt-1 text-sm text-slate-500">Shown on the public application form.</p>
+            <app-alert type="error" [message]="questionError()" />
+            <div class="mt-4 space-y-2">
+              @for (q of questions(); track q.questionId) {
+                <div class="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5" [class.opacity-50]="!q.isActive">
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-medium text-slate-700">{{ q.questionText }}</p>
+                    <div class="mt-1 flex gap-3 text-xs">
+                      <button type="button" (click)="toggleRequired(q)" class="font-medium" [class]="q.isRequired ? 'text-brand-600' : 'text-slate-400'">{{ q.isRequired ? 'Required' : 'Optional' }}</button>
+                      <button type="button" (click)="toggleActive(q)" class="font-medium" [class]="q.isActive ? 'text-emerald-600' : 'text-slate-400'">{{ q.isActive ? 'Active' : 'Hidden' }}</button>
+                    </div>
+                  </div>
+                  <button type="button" (click)="remove(q)" class="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label="Remove question">
+                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 2a1 1 0 00-1 1v1H4a1 1 0 100 2h12a1 1 0 100-2h-3V3a1 1 0 00-1-1H8zM6 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
+                  </button>
+                </div>
+              } @empty {
+                <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">No questions yet.</p>
+              }
+            </div>
+            <div class="mt-4 border-t border-slate-100 pt-4">
+              <label for="newq" class="wp-label">Add a question</label>
+              <textarea id="newq" rows="2" class="wp-input" [ngModel]="newQuestionText()" (ngModelChange)="newQuestionText.set($event)" placeholder="e.g. Why are you requesting this role?"></textarea>
+              <div class="mt-2 flex items-center justify-between">
+                <label class="flex items-center gap-2 text-sm text-slate-600">
+                  <input type="checkbox" [ngModel]="newQuestionRequired()" (ngModelChange)="newQuestionRequired.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                  Required
+                </label>
+                <button type="button" (click)="addQuestion()" [disabled]="questionBusy() || !newQuestionText().trim()" class="wp-btn-primary">
+                  @if (questionBusy()) { Adding… } @else { Add question }
+                </button>
+              </div>
+            </div>
+          </div>
+        }
       </div>
-    }
+    </div>
   }
 </section>

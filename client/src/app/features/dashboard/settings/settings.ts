@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { Question } from '../../../core/models/application.model';
 import { AccessLevel, SchedulingAccess } from '../../../core/models/scheduler.model';
 import { ApplicationService } from '../../../core/services/application.service';
@@ -8,9 +9,15 @@ import { SchedulerService } from '../../../core/services/scheduler.service';
 import { Alert } from '../../../shared/ui/alert/alert';
 
 /** Workspace settings: application form (SuperAdmin) + scheduling access & defaults. */
+interface SettingsTab {
+  id: string;
+  label: string;
+  icon: string;
+}
+
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, Alert],
+  imports: [FormsModule, RouterLink, Alert],
   templateUrl: './settings.html',
 })
 export class Settings {
@@ -18,7 +25,30 @@ export class Settings {
   private readonly scheduler = inject(SchedulerService);
   private readonly auth = inject(AuthService);
 
+  readonly user = this.auth.user;
   readonly isSuperAdmin = computed(() => this.auth.roleName() === 'SuperAdmin');
+  readonly isAdmin = computed(() => this.auth.roleName() === 'Admin');
+
+  readonly activeTab = signal<string>('profile');
+
+  readonly tabs = computed<SettingsTab[]>(() => {
+    const t: SettingsTab[] = [
+      { id: 'profile', label: 'Company Profile', icon: 'M3 21h18M4 21V7l8-4 8 4v14M9 9h1m4 0h1M9 13h1m4 0h1M9 17h1m4 0h1' },
+    ];
+    if (this.isSuperAdmin() || this.isAdmin())
+      t.push({ id: 'team', label: 'Team Members', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z' });
+    if (this.schedAccess()?.canManageAccess)
+      t.push({ id: 'roles', label: 'Roles & Permissions', icon: 'M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-4z' });
+    if (this.showScheduling())
+      t.push({ id: 'scheduling', label: 'Scheduling', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' });
+    if (this.isSuperAdmin())
+      t.push({ id: 'application', label: 'Application Form', icon: 'M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2z' });
+    return t;
+  });
+
+  setTab(id: string): void {
+    this.activeTab.set(id);
+  }
 
   readonly loading = signal(true);
   readonly error = signal('');
