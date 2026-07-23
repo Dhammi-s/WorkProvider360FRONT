@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { RoleName } from '../../../core/models/role.model';
 import { AuthService } from '../../../core/services/auth.service';
+import { BrandingService } from '../../../core/services/branding.service';
 
 interface NavItem {
   label: string;
@@ -20,10 +21,16 @@ interface NavItem {
 export class DashboardLayout {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly branding = inject(BrandingService);
 
   readonly user = this.auth.user;
+  readonly logo = this.branding.logo;
   readonly sidebarOpen = signal(false);
   readonly menuOpen = signal(false);
+
+  constructor() {
+    this.branding.load();
+  }
 
   private readonly allNav: NavItem[] = [
     { label: 'Overview', path: '/dashboard', icon: 'M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10' },

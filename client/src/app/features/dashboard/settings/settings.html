@@ -49,8 +49,13 @@
                 <input class="wp-input bg-slate-50" [value]="user()?.email ?? ''" disabled />
               </div>
             </div>
-            <p class="mt-4 text-xs text-slate-400">Editable company details (logo, address, tax number) aren't wired to the backend yet — say the word and I can add them.</p>
           </div>
+
+          @if (isSuperAdmin()) {
+            <div class="mt-4">
+              <app-logo-uploader />
+            </div>
+          }
         }
 
         <!-- ===================== Team Members ===================== -->

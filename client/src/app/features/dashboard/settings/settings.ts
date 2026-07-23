@@ -8,6 +8,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { LogService } from '../../../core/services/log.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { Alert } from '../../../shared/ui/alert/alert';
+import { LogoUploader } from '../branding/logo-uploader';
 
 /** Workspace settings: application form (SuperAdmin) + scheduling access & defaults. */
 interface SettingsTab {
@@ -18,7 +19,7 @@ interface SettingsTab {
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, RouterLink, Alert],
+  imports: [FormsModule, RouterLink, Alert, LogoUploader],
   templateUrl: './settings.html',
 })
 export class Settings {

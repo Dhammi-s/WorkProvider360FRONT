@@ -10,10 +10,14 @@
     [class.-translate-x-full]="!sidebarOpen()"
   >
     <div class="flex items-center gap-2.5 px-2">
-      <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600">
-        <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
-        </svg>
+      <span class="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-brand-600">
+        @if (logo()) {
+          <img [src]="logo()" alt="Agency logo" class="h-full w-full object-contain" />
+        } @else {
+          <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
+          </svg>
+        }
       </span>
       <span class="text-lg font-extrabold tracking-tight">WorkProvider<span class="text-accent-400">360</span></span>
     </div>
