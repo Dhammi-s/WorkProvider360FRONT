@@ -35,6 +35,7 @@ export class Apply {
     phone: [''],
     address: [''],
     requestedRoleId: [null as number | null, [Validators.required]],
+    desiredSalary: [null as number | null, [Validators.min(0)]],
     answers: this.fb.group({}),
   });
 
@@ -97,6 +98,7 @@ export class Apply {
         phone: raw.phone || null,
         address: raw.address || null,
         requestedRoleId: Number(raw.requestedRoleId),
+        desiredSalary: raw.desiredSalary != null && raw.desiredSalary !== '' ? Number(raw.desiredSalary) : null,
         answers,
       })
       .subscribe({

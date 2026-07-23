@@ -92,6 +92,14 @@ export const routes: Routes = [
         title: 'Announcements · WorkProvider360',
       },
       {
+        path: 'accounting',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin'] },
+        loadComponent: () =>
+          import('./features/dashboard/accounting/accounting').then((m) => m.Accounting),
+        title: 'Accounting · WorkProvider360',
+      },
+      {
         path: 'scheduler',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },

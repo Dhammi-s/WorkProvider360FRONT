@@ -1,0 +1,176 @@
+<section>
+  <div>
+    <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Accounting</h1>
+    <p class="mt-1 text-sm text-slate-500">Pay salaries and shift wages, and review paid invoices.</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="mt-6 flex flex-wrap gap-2">
+    @for (t of [{ id: 'salaries', label: 'Salaries' }, { id: 'shift', label: 'Shift Pay' }, { id: 'invoices', label: 'Paid Invoices' }]; track t.id) {
+      <button type="button" (click)="setTab($any(t.id))"
+        class="rounded-full px-4 py-1.5 text-sm font-semibold transition"
+        [class]="tab() === t.id ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50'">
+        {{ t.label }}
+      </button>
+    }
+  </div>
+
+  <div class="mt-5">
+    <app-alert type="success" [message]="notice()" />
+    <app-alert type="error" [message]="error()" />
+  </div>
+
+  <!-- ===================== Salaries ===================== -->
+  @if (tab() === 'salaries') {
+    <div class="wp-card overflow-hidden !p-0">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-100 text-sm">
+          <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <tr>
+              <th class="px-6 py-3">Name</th>
+              <th class="px-6 py-3">Role</th>
+              <th class="px-6 py-3">Office</th>
+              <th class="px-6 py-3">Salary</th>
+              <th class="px-6 py-3 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (u of staff(); track u.userId) {
+              <tr class="hover:bg-slate-50/60">
+                <td class="px-6 py-3">
+                  <div class="font-semibold text-slate-800">{{ u.fullName }}</div>
+                  <div class="text-xs text-slate-500">{{ u.email }}</div>
+                </td>
+                <td class="px-6 py-3 text-slate-600">{{ u.roleName }}</td>
+                <td class="px-6 py-3 text-slate-600">{{ u.officeName || '—' }}</td>
+                <td class="px-6 py-3 font-semibold text-slate-900">{{ u.salary != null ? (u.salary | currency:'USD') : '—' }}</td>
+                <td class="px-6 py-3 text-right">
+                  @if (payingKey() === 'salary-' + u.userId) {
+                    <span class="text-xs text-slate-400">Processing…</span>
+                  } @else if (u.salary != null) {
+                    <div class="flex justify-end gap-2">
+                      <button type="button" (click)="paySalary(u)" [disabled]="payingKey() !== null" class="wp-btn-ghost !py-2">Cash</button>
+                      <button type="button" (click)="paySalaryOnline(u)" [disabled]="payingKey() !== null" class="wp-btn-primary !py-2">Pay online</button>
+                    </div>
+                  } @else {
+                    <span class="text-xs text-slate-400">No salary set</span>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="px-6 py-10 text-center text-sm text-slate-400">No admins or managers to pay.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- ===================== Shift Pay ===================== -->
+  @if (tab() === 'shift') {
+    <div class="mb-4 flex flex-wrap items-end gap-3">
+      <div>
+        <label class="wp-label">From</label>
+        <input type="date" class="wp-input !py-2" [ngModel]="from()" (ngModelChange)="from.set($event)" />
+      </div>
+      <div>
+        <label class="wp-label">To</label>
+        <input type="date" class="wp-input !py-2" [ngModel]="to()" (ngModelChange)="to.set($event)" />
+      </div>
+      <button type="button" (click)="loadShift()" [disabled]="shiftLoading()" class="wp-btn-primary">
+        @if (shiftLoading()) { Loading… } @else { Calculate }
+      </button>
+    </div>
+
+    <div class="wp-card overflow-hidden !p-0">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-100 text-sm">
+          <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <tr>
+              <th class="px-6 py-3">Worker</th>
+              <th class="px-6 py-3">Shifts</th>
+              <th class="px-6 py-3">Regular h</th>
+              <th class="px-6 py-3">OT h</th>
+              <th class="px-6 py-3">Pay</th>
+              <th class="px-6 py-3 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (r of shiftRows(); track r.userId) {
+              <tr class="hover:bg-slate-50/60">
+                <td class="px-6 py-3 font-semibold text-slate-800">{{ r.userName }}</td>
+                <td class="px-6 py-3 text-slate-600">{{ r.scheduleCount }}</td>
+                <td class="px-6 py-3 text-slate-600">{{ r.regularHours }}</td>
+                <td class="px-6 py-3 text-slate-600">{{ r.overtimeHours }}</td>
+                <td class="px-6 py-3 font-semibold text-slate-900">{{ r.totalPay | currency:'USD' }}</td>
+                <td class="px-6 py-3 text-right">
+                  @if (payingKey() === 'shift-' + r.userId) {
+                    <span class="text-xs text-slate-400">Processing…</span>
+                  } @else if (r.totalPay > 0) {
+                    <div class="flex justify-end gap-2">
+                      <button type="button" (click)="payShift(r)" [disabled]="payingKey() !== null" class="wp-btn-ghost !py-2">Cash</button>
+                      <button type="button" (click)="payShiftOnline(r)" [disabled]="payingKey() !== null" class="wp-btn-primary !py-2">Pay online</button>
+                    </div>
+                  } @else {
+                    <span class="text-xs text-slate-400">Nothing to pay</span>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="px-6 py-10 text-center text-sm text-slate-400">Pick a date range and Calculate to see shift pay.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- ===================== Paid Invoices ===================== -->
+  @if (tab() === 'invoices') {
+    @if (invoicesLoading()) {
+      <div class="wp-card flex items-center justify-center py-16 text-slate-400">
+        <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+      </div>
+    } @else {
+      <div class="wp-card overflow-hidden !p-0">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-sm">
+            <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <tr>
+                <th class="px-6 py-3">Invoice #</th>
+                <th class="px-6 py-3">Recipient</th>
+                <th class="px-6 py-3">Type</th>
+                <th class="px-6 py-3">Amount</th>
+                <th class="px-6 py-3">Method</th>
+                <th class="px-6 py-3">Date</th>
+                <th class="px-6 py-3 text-right">PDF</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (inv of invoices(); track inv.invoiceId) {
+                <tr class="hover:bg-slate-50/60">
+                  <td class="px-6 py-3 font-mono text-xs text-slate-600">{{ inv.invoiceNumber }}</td>
+                  <td class="px-6 py-3">
+                    <div class="font-semibold text-slate-800">{{ inv.recipientName }}</div>
+                    <div class="text-xs text-slate-500">{{ inv.recipientEmail }}</div>
+                  </td>
+                  <td class="px-6 py-3 text-slate-600">{{ inv.invoiceType === 'ShiftPay' ? 'Shift Pay' : 'Salary' }}</td>
+                  <td class="px-6 py-3 font-semibold text-slate-900">{{ inv.amount | currency:'USD' }}</td>
+                  <td class="px-6 py-3">
+                    <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{{ inv.paymentMethod }}</span>
+                  </td>
+                  <td class="px-6 py-3 text-slate-500">{{ inv.paidOn || inv.createdOn | date: 'medium' }}</td>
+                  <td class="px-6 py-3 text-right">
+                    <button type="button" (click)="downloadInvoice(inv)" class="text-sm wp-link">Download</button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="7" class="px-6 py-10 text-center text-sm text-slate-400">No invoices yet.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  }
+</section>

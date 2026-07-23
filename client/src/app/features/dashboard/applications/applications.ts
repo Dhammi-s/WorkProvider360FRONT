@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -17,7 +17,7 @@ type Filter = 'All' | ApplicationStatus;
 
 @Component({
   selector: 'app-applications',
-  imports: [DatePipe, FormsModule, Alert],
+  imports: [DatePipe, CurrencyPipe, FormsModule, Alert],
   templateUrl: './applications.html',
 })
 export class Applications {

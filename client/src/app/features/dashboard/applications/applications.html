@@ -104,6 +104,7 @@
             <div><dt class="text-xs text-slate-400">Email</dt><dd class="text-sm font-medium text-slate-700">{{ app.email }}</dd></div>
             <div><dt class="text-xs text-slate-400">Phone</dt><dd class="text-sm font-medium text-slate-700">{{ app.phone || '—' }}</dd></div>
             <div class="sm:col-span-2"><dt class="text-xs text-slate-400">Address</dt><dd class="text-sm font-medium text-slate-700">{{ app.address || '—' }}</dd></div>
+            <div><dt class="text-xs text-slate-400">Expected salary</dt><dd class="text-sm font-bold text-slate-900">{{ app.desiredSalary != null ? (app.desiredSalary | currency:'USD') : '—' }}</dd></div>
           </dl>
 
           @if (app.answers.length) {

@@ -7,6 +7,7 @@ export interface UserDto {
   roleName: string;
   officeId?: string | null;
   officeName?: string | null;
+  salary?: number | null;
   isActive: boolean;
   createdOn: string;
 }

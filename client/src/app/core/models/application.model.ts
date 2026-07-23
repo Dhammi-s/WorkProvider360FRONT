@@ -29,6 +29,7 @@ export interface SubmitApplicationRequest {
   phone?: string | null;
   address?: string | null;
   requestedRoleId: number;
+  desiredSalary?: number | null;
   answers: SubmitAnswer[];
 }
 
@@ -38,6 +39,7 @@ export interface ApplicationListItem {
   email: string;
   requestedRoleId: number;
   requestedRoleName: string;
+  desiredSalary?: number | null;
   status: ApplicationStatus;
   createdOn: string;
 }
@@ -56,6 +58,7 @@ export interface ApplicationDetail {
   address?: string | null;
   requestedRoleId: number;
   requestedRoleName: string;
+  desiredSalary?: number | null;
   status: ApplicationStatus;
   rejectionReason?: string | null;
   reviewedOn?: string | null;

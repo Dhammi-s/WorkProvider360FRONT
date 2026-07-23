@@ -72,6 +72,17 @@
         </div>
       </div>
 
+      <div>
+        <label for="desiredSalary" class="wp-label">
+          Expected salary <span class="font-normal text-slate-400">(based on your experience, optional)</span>
+        </label>
+        <div class="relative">
+          <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">$</span>
+          <input id="desiredSalary" type="number" min="0" step="1" formControlName="desiredSalary" placeholder="e.g. 55000" class="wp-input wp-input-icon" />
+        </div>
+        <p class="mt-1 text-xs text-slate-400">The amount you'd expect to be paid. Reviewed by the admin.</p>
+      </div>
+
       @if (questions().length) {
         <div class="space-y-5 border-t border-slate-100 pt-5" formGroupName="answers">
           @for (q of questions(); track q.questionId) {
