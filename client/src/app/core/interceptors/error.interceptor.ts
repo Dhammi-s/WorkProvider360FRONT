@@ -55,13 +55,23 @@ function normalise(error: unknown): Error {
     const body = error.error;
     if (body && typeof body === 'object') {
       const message = (body as { message?: string }).message;
-      const errors = (body as { errors?: string[] }).errors;
-      if (errors?.length) {
+      const errors = (body as { errors?: unknown }).errors;
+      // Our ApiResponse envelope: errors is a string[].
+      if (Array.isArray(errors) && errors.length) {
         return new Error(errors.join(' '));
       }
       if (message) {
         return new Error(message);
       }
+      // ASP.NET ProblemDetails validation: errors is { field: string[] }.
+      if (errors && typeof errors === 'object') {
+        const parts = Object.values(errors as Record<string, unknown>)
+          .flat()
+          .filter((m): m is string => typeof m === 'string');
+        if (parts.length) return new Error(parts.join(' '));
+      }
+      const title = (body as { title?: string }).title;
+      if (title) return new Error(title);
     }
     if (error.status === 0) {
       return new Error('Cannot reach the server. Check your connection and try again.');

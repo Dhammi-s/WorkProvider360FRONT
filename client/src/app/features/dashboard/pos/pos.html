@@ -1,0 +1,126 @@
+<section>
+  <div>
+    <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Point of Sale</h1>
+    <p class="mt-1 text-sm text-slate-500">Take a card payment from a customer. The platform earns a fee on each approved sale. <span class="font-semibold text-amber-600">Sandbox — no real money.</span></p>
+  </div>
+
+  <app-alert type="success" [message]="notice()" />
+  <app-alert type="error" [message]="error()" />
+
+  <!-- Earnings summary -->
+  @if (summary(); as s) {
+    <div class="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div class="wp-card"><p class="text-xs font-medium text-slate-400">Approved sales</p><p class="mt-1 text-2xl font-extrabold text-slate-900">{{ s.approvedCount }}</p></div>
+      <div class="wp-card"><p class="text-xs font-medium text-slate-400">Total processed</p><p class="mt-1 text-2xl font-extrabold text-slate-900">{{ s.totalGross | currency:'USD' }}</p></div>
+      <div class="wp-card"><p class="text-xs font-medium text-slate-400">Platform earnings</p><p class="mt-1 text-2xl font-extrabold text-emerald-600">{{ s.totalPlatformFees | currency:'USD' }}</p></div>
+      <div class="wp-card"><p class="text-xs font-medium text-slate-400">Paid to merchants</p><p class="mt-1 text-2xl font-extrabold text-slate-900">{{ s.totalNet | currency:'USD' }}</p></div>
+    </div>
+  }
+
+  <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <!-- New sale -->
+    <div class="wp-card lg:col-span-1">
+      <h2 class="text-base font-bold text-slate-900">New sale</h2>
+      <form [formGroup]="form" (ngSubmit)="charge()" class="mt-4 space-y-4" novalidate>
+        <div>
+          <label for="payerName" class="wp-label">Customer name</label>
+          <input id="payerName" type="text" formControlName="payerName" class="wp-input" placeholder="Customer" />
+        </div>
+        <div>
+          <label for="payerEmail" class="wp-label">Customer email <span class="font-normal text-slate-400">(optional)</span></label>
+          <input id="payerEmail" type="email" formControlName="payerEmail" class="wp-input" placeholder="customer@email.com" />
+        </div>
+        <div>
+          <label for="description" class="wp-label">For</label>
+          <input id="description" type="text" formControlName="description" class="wp-input" placeholder="e.g. HVAC repair – job #123" />
+        </div>
+        <div>
+          <label for="amount" class="wp-label">Amount (USD)</label>
+          <input id="amount" type="number" min="0.01" step="0.01" formControlName="amount" class="wp-input" placeholder="0.00" />
+        </div>
+        <div>
+          <label for="cardNumber" class="wp-label">Card number</label>
+          <input id="cardNumber" type="text" formControlName="cardNumber" class="wp-input" placeholder="4242 4242 4242 4242" />
+          <p class="mt-1 text-xs text-slate-400">Test: 4242 4242 4242 4242 approves · any card ending 0002 declines.</p>
+        </div>
+        <button type="submit" class="wp-btn-primary w-full" [disabled]="charging()">
+          @if (charging()) { Processing… } @else { Charge card }
+        </button>
+      </form>
+
+      @if (lastResult(); as r) {
+        <div class="mt-4 rounded-xl border p-4 text-sm" [class]="r.status === 'Approved' ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'">
+          <p class="font-bold" [class]="r.status === 'Approved' ? 'text-emerald-700' : 'text-red-700'">{{ r.status }}</p>
+          @if (r.status === 'Approved') {
+            <div class="mt-2 space-y-1 text-slate-700">
+              <div class="flex justify-between"><span>Charged</span><span class="font-semibold">{{ r.grossAmount | currency:'USD' }}</span></div>
+              <div class="flex justify-between"><span>Platform fee</span><span class="font-semibold text-emerald-700">{{ r.platformFee | currency:'USD' }}</span></div>
+              <div class="flex justify-between"><span>Merchant net</span><span class="font-semibold">{{ r.netAmount | currency:'USD' }}</span></div>
+            </div>
+          } @else {
+            <p class="mt-1 text-red-700">{{ r.declineReason }}</p>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Transactions + fee settings -->
+    <div class="lg:col-span-2 space-y-4">
+      @if (isSuperAdmin()) {
+        <div class="wp-card">
+          <h2 class="text-base font-bold text-slate-900">Platform fee</h2>
+          <p class="mt-1 text-sm text-slate-500">What you earn on each approved sale.</p>
+          <app-alert type="success" [message]="feeNotice()" />
+          <div class="mt-3 flex flex-wrap items-end gap-3">
+            <div>
+              <label class="wp-label">Percent (%)</label>
+              <input type="number" min="0" max="100" step="0.01" class="wp-input !w-28" [ngModel]="feePercent()" (ngModelChange)="feePercent.set($event)" />
+            </div>
+            <div>
+              <label class="wp-label">Fixed ($)</label>
+              <input type="number" min="0" step="0.01" class="wp-input !w-28" [ngModel]="feeFixed()" (ngModelChange)="feeFixed.set($event)" />
+            </div>
+            <button type="button" (click)="saveFeeSettings()" [disabled]="feeSaving()" class="wp-btn-primary">
+              @if (feeSaving()) { Saving… } @else { Save fee }
+            </button>
+          </div>
+        </div>
+      }
+
+      <div class="wp-card overflow-hidden !p-0">
+        <div class="border-b border-slate-100 px-6 py-3"><h2 class="text-base font-bold text-slate-900">Recent transactions</h2></div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-sm">
+            <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <tr>
+                <th class="px-6 py-3">Customer</th>
+                <th class="px-6 py-3">Amount</th>
+                <th class="px-6 py-3">Fee</th>
+                <th class="px-6 py-3">Card</th>
+                <th class="px-6 py-3">Status</th>
+                <th class="px-6 py-3">When</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (t of transactions(); track t.posTransactionId) {
+                <tr class="hover:bg-slate-50/60">
+                  <td class="px-6 py-3">
+                    <div class="font-semibold text-slate-800">{{ t.payerName }}</div>
+                    <div class="text-xs text-slate-500">{{ t.description || '—' }}</div>
+                  </td>
+                  <td class="px-6 py-3 font-semibold text-slate-900">{{ t.grossAmount | currency:'USD' }}</td>
+                  <td class="px-6 py-3 text-emerald-700">{{ t.status === 'Approved' ? (t.platformFee | currency:'USD') : '—' }}</td>
+                  <td class="px-6 py-3 text-slate-500">•••• {{ t.cardLast4 || '—' }}</td>
+                  <td class="px-6 py-3"><span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusBadge(t.status)">{{ t.status }}</span></td>
+                  <td class="px-6 py-3 text-slate-500">{{ t.createdOn | date: 'short' }}</td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6" class="px-6 py-10 text-center text-sm text-slate-400">No sales yet.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

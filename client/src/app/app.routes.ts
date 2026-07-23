@@ -100,6 +100,13 @@ export const routes: Routes = [
         title: 'Accounting · WorkProvider360',
       },
       {
+        path: 'pos',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin'] },
+        loadComponent: () => import('./features/dashboard/pos/pos').then((m) => m.Pos),
+        title: 'Point of Sale · WorkProvider360',
+      },
+      {
         path: 'scheduler',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },
