@@ -1,8 +1,11 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Office } from '../../../core/models/office.model';
 import { RoleDto } from '../../../core/models/role.model';
 import { UserDto } from '../../../core/models/user.model';
+import { AuthService } from '../../../core/services/auth.service';
+import { OfficeService } from '../../../core/services/office.service';
 import { UserService } from '../../../core/services/user.service';
 import { Alert } from '../../../shared/ui/alert/alert';
 
@@ -15,9 +18,14 @@ import { Alert } from '../../../shared/ui/alert/alert';
 export class Users {
   private readonly fb = inject(FormBuilder);
   private readonly userService = inject(UserService);
+  private readonly officeService = inject(OfficeService);
+  private readonly auth = inject(AuthService);
+
+  readonly isSuperAdmin = computed(() => this.auth.roleName() === 'SuperAdmin');
 
   readonly users = signal<UserDto[]>([]);
   readonly roles = signal<RoleDto[]>([]);
+  readonly offices = signal<Office[]>([]);
   readonly loading = signal(true);
   readonly listError = signal('');
 
@@ -39,6 +47,7 @@ export class Users {
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
     roleId: [4, [Validators.required]],
+    officeId: [''],
   });
 
   constructor() {
@@ -47,6 +56,13 @@ export class Users {
       next: (roles) => this.roles.set(roles.filter((r) => r.isActive)),
       error: () => this.roles.set([]),
     });
+    // SuperAdmin can assign any office; Admins are locked to their own server-side.
+    if (this.isSuperAdmin()) {
+      this.officeService.list().subscribe({
+        next: (o) => this.offices.set(o.filter((x) => x.isActive)),
+        error: () => this.offices.set([]),
+      });
+    }
   }
 
   loadUsers(): void {
@@ -65,7 +81,7 @@ export class Users {
   }
 
   openModal(): void {
-    this.form.reset({ fullName: '', email: '', password: '', roleId: 4 });
+    this.form.reset({ fullName: '', email: '', password: '', roleId: 4, officeId: '' });
     this.formError.set('');
     this.showPassword.set(false);
     this.modalOpen.set(true);
@@ -89,7 +105,13 @@ export class Users {
 
     const value = this.form.getRawValue();
     this.userService
-      .createUser({ ...value, roleId: Number(value.roleId) })
+      .createUser({
+        fullName: value.fullName,
+        email: value.email,
+        password: value.password,
+        roleId: Number(value.roleId),
+        officeId: value.officeId || null,
+      })
       .subscribe({
         next: () => {
           this.saving.set(false);

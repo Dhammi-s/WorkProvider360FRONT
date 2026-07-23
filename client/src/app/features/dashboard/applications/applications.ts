@@ -1,12 +1,15 @@
 import { DatePipe } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   ApplicationDetail,
   ApplicationListItem,
   ApplicationStatus,
 } from '../../../core/models/application.model';
+import { Office } from '../../../core/models/office.model';
 import { ApplicationService } from '../../../core/services/application.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { OfficeService } from '../../../core/services/office.service';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { exportApplicationPdf } from '../../../shared/util/pdf.util';
 
@@ -19,6 +22,10 @@ type Filter = 'All' | ApplicationStatus;
 })
 export class Applications {
   private readonly service = inject(ApplicationService);
+  private readonly officeService = inject(OfficeService);
+  private readonly auth = inject(AuthService);
+
+  readonly isSuperAdmin = computed(() => this.auth.roleName() === 'SuperAdmin');
 
   readonly filters: Filter[] = ['All', 'Pending', 'Approved', 'Rejected'];
   readonly filter = signal<Filter>('Pending');
@@ -27,6 +34,8 @@ export class Applications {
   readonly loading = signal(true);
   readonly listError = signal('');
 
+  readonly offices = signal<Office[]>([]);
+
   readonly selected = signal<ApplicationDetail | null>(null);
   readonly detailLoading = signal(false);
   readonly actionBusy = signal(false);
@@ -34,10 +43,19 @@ export class Applications {
   readonly actionNotice = signal('');
   readonly rejecting = signal(false);
   readonly rejectReason = signal('');
+  readonly approving = signal(false);
+  readonly approveOfficeId = signal('');
   readonly pdfBusy = signal(false);
 
   constructor() {
     this.load();
+    // SuperAdmin assigns an office when approving; Admins use their own office.
+    if (this.isSuperAdmin()) {
+      this.officeService.list().subscribe({
+        next: (o) => this.offices.set(o.filter((x) => x.isActive)),
+        error: () => this.offices.set([]),
+      });
+    }
   }
 
   load(): void {
@@ -67,6 +85,8 @@ export class Applications {
     this.actionNotice.set('');
     this.rejecting.set(false);
     this.rejectReason.set('');
+    this.approving.set(false);
+    this.approveOfficeId.set('');
     this.selected.set(null);
     this.service.detail(id).subscribe({
       next: (d) => {
@@ -84,22 +104,39 @@ export class Applications {
     this.selected.set(null);
   }
 
-  approve(): void {
+  /** SuperAdmin picks an office first; Admin approves straight away (own office). */
+  startApprove(): void {
+    this.actionError.set('');
+    if (this.isSuperAdmin()) {
+      this.approving.set(true);
+    } else {
+      this.confirmApprove();
+    }
+  }
+
+  confirmApprove(): void {
     const app = this.selected();
     if (!app) return;
+    if (this.isSuperAdmin() && !this.approveOfficeId()) {
+      this.actionError.set('Please choose an office for the new user.');
+      return;
+    }
     this.actionBusy.set(true);
     this.actionError.set('');
-    this.service.approve(app.applicationId).subscribe({
-      next: (msg) => {
-        this.actionBusy.set(false);
-        this.actionNotice.set(msg);
-        this.refreshAfterAction(app.applicationId, 'Approved');
-      },
-      error: (err: Error) => {
-        this.actionError.set(err.message || 'Could not approve.');
-        this.actionBusy.set(false);
-      },
-    });
+    this.service
+      .approve(app.applicationId, this.isSuperAdmin() ? this.approveOfficeId() : null)
+      .subscribe({
+        next: (msg) => {
+          this.actionBusy.set(false);
+          this.approving.set(false);
+          this.actionNotice.set(msg);
+          this.refreshAfterAction(app.applicationId, 'Approved');
+        },
+        error: (err: Error) => {
+          this.actionError.set(err.message || 'Could not approve.');
+          this.actionBusy.set(false);
+        },
+      });
   }
 
   confirmReject(): void {
@@ -146,6 +183,8 @@ export class Applications {
 
   private refreshAfterAction(id: number, newStatus: ApplicationStatus): void {
     this.rejecting.set(false);
+    this.approving.set(false);
+    this.approveOfficeId.set('');
     // Update the open detail + the row in place, then reload the list.
     const current = this.selected();
     if (current && current.applicationId === id) {

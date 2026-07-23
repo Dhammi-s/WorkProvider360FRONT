@@ -242,6 +242,35 @@
             </div>
           </div>
         }
+
+        <!-- ===================== Log Access ===================== -->
+        @if (activeTab() === 'logs') {
+          <div class="wp-card">
+            <h2 class="text-base font-bold text-slate-900">Log access</h2>
+            <p class="mt-1 text-sm text-slate-500">
+              Choose which roles can view the email logs. Super Admins always can.
+            </p>
+            <app-alert type="success" [message]="logNotice()" />
+            <app-alert type="error" [message]="logError()" />
+
+            <div class="mt-4 space-y-3">
+              <label class="flex items-center justify-between">
+                <span class="text-sm font-medium text-slate-700">Admins can view logs</span>
+                <input type="checkbox" [ngModel]="adminCanViewLogs()" (ngModelChange)="adminCanViewLogs.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+              </label>
+              <label class="flex items-center justify-between">
+                <span class="text-sm font-medium text-slate-700">Managers can view logs</span>
+                <input type="checkbox" [ngModel]="managerCanViewLogs()" (ngModelChange)="managerCanViewLogs.set($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+              </label>
+            </div>
+
+            <div class="mt-5 flex justify-end">
+              <button type="button" (click)="saveLogSettings()" [disabled]="logSaving()" class="wp-btn-primary">
+                @if (logSaving()) { Saving… } @else { Save access }
+              </button>
+            </div>
+          </div>
+        }
       </div>
     </div>
   }

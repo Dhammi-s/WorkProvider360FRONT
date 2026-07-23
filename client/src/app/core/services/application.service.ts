@@ -50,9 +50,9 @@ export class ApplicationService {
       .pipe(map((r) => this.unwrap(r)));
   }
 
-  approve(id: number): Observable<string> {
+  approve(id: number, officeId?: string | null): Observable<string> {
     return this.http
-      .post<ApiResponse<unknown>>(`${this.appsUrl}/${id}/approve`, {})
+      .post<ApiResponse<unknown>>(`${this.appsUrl}/${id}/approve`, { officeId: officeId ?? null })
       .pipe(map((r) => r.message ?? 'Approved.'));
   }
 

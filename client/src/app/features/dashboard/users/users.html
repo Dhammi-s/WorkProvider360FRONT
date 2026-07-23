@@ -147,6 +147,20 @@
           </div>
         </div>
 
+        @if (isSuperAdmin()) {
+          <div>
+            <label for="cu-office" class="wp-label">Office <span class="font-normal text-slate-400">(optional)</span></label>
+            <select id="cu-office" formControlName="officeId" class="wp-input">
+              <option value="">— No office —</option>
+              @for (office of offices(); track office.officeId) {
+                <option [value]="office.officeId">{{ office.officeName }}</option>
+              }
+            </select>
+          </div>
+        } @else {
+          <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">New members are added to your office automatically.</p>
+        }
+
         <div class="flex justify-end gap-3 pt-2">
           <button type="button" (click)="closeModal()" class="wp-btn-ghost">Cancel</button>
           <button type="submit" class="wp-btn-primary" [disabled]="saving()">

@@ -71,6 +71,20 @@ export const routes: Routes = [
         title: 'Applications · WorkProvider360',
       },
       {
+        path: 'offices',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin'] },
+        loadComponent: () => import('./features/dashboard/offices/offices').then((m) => m.Offices),
+        title: 'Offices · WorkProvider360',
+      },
+      {
+        path: 'logs',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () => import('./features/dashboard/logs/logs').then((m) => m.Logs),
+        title: 'Email logs · WorkProvider360',
+      },
+      {
         path: 'scheduler',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },

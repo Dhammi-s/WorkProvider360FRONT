@@ -5,6 +5,7 @@ import { Question } from '../../../core/models/application.model';
 import { AccessLevel, SchedulingAccess } from '../../../core/models/scheduler.model';
 import { ApplicationService } from '../../../core/services/application.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { LogService } from '../../../core/services/log.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { Alert } from '../../../shared/ui/alert/alert';
 
@@ -23,6 +24,7 @@ interface SettingsTab {
 export class Settings {
   private readonly service = inject(ApplicationService);
   private readonly scheduler = inject(SchedulerService);
+  private readonly logs = inject(LogService);
   private readonly auth = inject(AuthService);
 
   readonly user = this.auth.user;
@@ -43,6 +45,8 @@ export class Settings {
       t.push({ id: 'scheduling', label: 'Scheduling', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' });
     if (this.isSuperAdmin())
       t.push({ id: 'application', label: 'Application Form', icon: 'M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2z' });
+    if (this.isSuperAdmin())
+      t.push({ id: 'logs', label: 'Log Access', icon: 'M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2M4 6l8 6 8-6' });
     return t;
   });
 
@@ -83,6 +87,13 @@ export class Settings {
   readonly defaultsSaving = signal(false);
   readonly defaultsNotice = signal('');
 
+  // Log access (SuperAdmin only)
+  readonly adminCanViewLogs = signal(false);
+  readonly managerCanViewLogs = signal(false);
+  readonly logSaving = signal(false);
+  readonly logNotice = signal('');
+  readonly logError = signal('');
+
   readonly canManageSched = computed(() => !!this.schedAccess()?.canManage);
   readonly showScheduling = computed(() => {
     const a = this.schedAccess();
@@ -93,10 +104,40 @@ export class Settings {
     if (this.isSuperAdmin()) {
       this.loadSettings();
       this.loadQuestions();
+      this.loadLogSettings();
     } else {
       this.loading.set(false);
     }
     this.loadScheduling();
+  }
+
+  // ---- Log access ----
+  loadLogSettings(): void {
+    this.logs.getSettings().subscribe({
+      next: (s) => {
+        this.adminCanViewLogs.set(s.adminCanViewLogs);
+        this.managerCanViewLogs.set(s.managerCanViewLogs);
+      },
+      error: () => {},
+    });
+  }
+
+  saveLogSettings(): void {
+    this.logSaving.set(true);
+    this.logNotice.set('');
+    this.logError.set('');
+    this.logs
+      .updateSettings({ adminCanViewLogs: this.adminCanViewLogs(), managerCanViewLogs: this.managerCanViewLogs() })
+      .subscribe({
+        next: () => {
+          this.logSaving.set(false);
+          this.logNotice.set('Log access updated.');
+        },
+        error: (err: Error) => {
+          this.logSaving.set(false);
+          this.logError.set(err.message || 'Could not save log access.');
+        },
+      });
   }
 
   // ---- Application settings ----

@@ -5,6 +5,8 @@ export interface UserDto {
   fullName: string;
   roleId: number;
   roleName: string;
+  officeId?: string | null;
+  officeName?: string | null;
   isActive: boolean;
   createdOn: string;
 }
@@ -15,4 +17,5 @@ export interface CreateUserRequest {
   fullName: string;
   password: string;
   roleId: number;
+  officeId?: string | null;
 }
