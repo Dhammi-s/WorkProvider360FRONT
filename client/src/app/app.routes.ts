@@ -81,7 +81,8 @@ export const routes: Routes = [
         path: 'logs',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
-        loadComponent: () => import('./features/dashboard/logs/logs').then((m) => m.Logs),
+        loadComponent: () =>
+          import('./features/dashboard/email-logs/email-logs').then((m) => m.EmailLogs),
         title: 'Email logs · WorkProvider360',
       },
       {
