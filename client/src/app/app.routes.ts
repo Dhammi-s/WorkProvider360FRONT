@@ -86,6 +86,12 @@ export const routes: Routes = [
         title: 'Email logs · WorkProvider360',
       },
       {
+        path: 'announcements',
+        loadComponent: () =>
+          import('./features/dashboard/announcements/announcements').then((m) => m.Announcements),
+        title: 'Announcements · WorkProvider360',
+      },
+      {
         path: 'scheduler',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },

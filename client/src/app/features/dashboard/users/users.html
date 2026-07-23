@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
     <div>
       <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Team members</h1>
-      <p class="mt-1 text-sm text-slate-500">{{ total() }} user(s) in this workspace</p>
+      <p class="mt-1 text-sm text-slate-500">{{ filteredUsers().length }} of {{ total() }} user(s)</p>
     </div>
     <button type="button" (click)="openModal()" class="wp-btn-primary self-start sm:self-auto">
       <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
@@ -26,22 +26,75 @@
         <button type="button" (click)="openModal()" class="wp-link mt-2 text-sm">Add your first member</button>
       </div>
     } @else if (users().length) {
+      <!-- Filters -->
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <label class="flex items-center gap-2 text-sm">
+          <span class="font-medium text-slate-600">Office</span>
+          <select [ngModel]="officeFilter()" (ngModelChange)="officeFilter.set($event)" class="wp-input !py-2 !w-auto">
+            <option value="">All offices</option>
+            @for (office of offices(); track office.officeId) {
+              <option [value]="office.officeId">{{ office.officeName }}</option>
+            }
+            <option value="none">No office</option>
+          </select>
+        </label>
+        <label class="flex items-center gap-2 text-sm">
+          <span class="font-medium text-slate-600">Role</span>
+          <select [ngModel]="roleFilter()" (ngModelChange)="roleFilter.set($event)" class="wp-input !py-2 !w-auto">
+            <option value="">All roles</option>
+            @for (r of roleNames; track r) {
+              <option [value]="r">{{ r }}</option>
+            }
+          </select>
+        </label>
+        @if (officeFilter() || roleFilter()) {
+          <button type="button" (click)="officeFilter.set(''); roleFilter.set('')" class="text-sm wp-link">Clear filters</button>
+        }
+      </div>
+
+      <!-- Bulk action bar -->
+      @if (selectedCount() > 0) {
+        <div class="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
+          <span class="text-sm font-semibold text-brand-800">{{ selectedCount() }} selected</span>
+          @if (confirmBulk()) {
+            <span class="text-sm text-slate-600">Reset passwords &amp; email new credentials to all selected?</span>
+            <button type="button" (click)="bulkResend()" [disabled]="bulkBusy()" class="wp-btn bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500">
+              @if (bulkBusy()) { Sending… } @else { Confirm }
+            </button>
+            <button type="button" (click)="confirmBulk.set(false)" class="wp-btn-ghost">Cancel</button>
+          } @else {
+            <button type="button" (click)="confirmBulk.set(true)" class="wp-btn-primary">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l7.9 5.3a2 2 0 002.2 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+              Resend credentials
+            </button>
+          }
+          <button type="button" (click)="clearSelection()" class="ml-auto text-sm wp-link">Clear</button>
+        </div>
+      }
+
       <div class="wp-card overflow-hidden !p-0">
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-slate-100 text-sm">
             <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
               <tr>
+                <th class="px-6 py-3">
+                  <input type="checkbox" [checked]="allVisibleSelected()" (change)="toggleSelectAll()" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" aria-label="Select all" />
+                </th>
                 <th class="px-6 py-3">Name</th>
                 <th class="px-6 py-3">Email</th>
                 <th class="px-6 py-3">Role</th>
+                <th class="px-6 py-3">Office</th>
                 <th class="px-6 py-3">Status</th>
                 <th class="px-6 py-3">Joined</th>
                 <th class="px-6 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-              @for (u of users(); track u.userId) {
+              @for (u of filteredUsers(); track u.userId) {
                 <tr class="hover:bg-slate-50/60">
+                  <td class="px-6 py-3">
+                    <input type="checkbox" [checked]="isSelected(u.userId)" (change)="toggleSelect(u.userId)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" [attr.aria-label]="'Select ' + u.fullName" />
+                  </td>
                   <td class="px-6 py-3">
                     <div class="flex items-center gap-3">
                       <span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">{{ initials(u.fullName) }}</span>
@@ -51,6 +104,13 @@
                   <td class="px-6 py-3 text-slate-600">{{ u.email }}</td>
                   <td class="px-6 py-3">
                     <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="roleBadge(u.roleName)">{{ u.roleName }}</span>
+                  </td>
+                  <td class="px-6 py-3">
+                    @if (u.officeName) {
+                      <span class="text-slate-700">{{ u.officeName }}</span>
+                    } @else {
+                      <span class="text-slate-300">—</span>
+                    }
                   </td>
                   <td class="px-6 py-3">
                     @if (u.isActive) {
@@ -79,6 +139,10 @@
                       </button>
                     }
                   </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="8" class="px-6 py-10 text-center text-sm text-slate-400">No users match the selected filters.</td>
                 </tr>
               }
             </tbody>

@@ -5,6 +5,7 @@ import { Question } from '../../../core/models/application.model';
 import { AccessLevel, SchedulingAccess } from '../../../core/models/scheduler.model';
 import { ApplicationService } from '../../../core/services/application.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { AnnouncementService } from '../../../core/services/announcement.service';
 import { LogService } from '../../../core/services/log.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { Alert } from '../../../shared/ui/alert/alert';
@@ -26,6 +27,7 @@ export class Settings {
   private readonly service = inject(ApplicationService);
   private readonly scheduler = inject(SchedulerService);
   private readonly logs = inject(LogService);
+  private readonly announcements = inject(AnnouncementService);
   private readonly auth = inject(AuthService);
 
   readonly user = this.auth.user;
@@ -48,6 +50,8 @@ export class Settings {
       t.push({ id: 'application', label: 'Application Form', icon: 'M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2z' });
     if (this.isSuperAdmin())
       t.push({ id: 'logs', label: 'Log Access', icon: 'M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2M4 6l8 6 8-6' });
+    if (this.isSuperAdmin())
+      t.push({ id: 'announcements', label: 'Announcements', icon: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 11-5.8-1.6' });
     return t;
   });
 
@@ -95,6 +99,14 @@ export class Settings {
   readonly logNotice = signal('');
   readonly logError = signal('');
 
+  // Announcement visibility (SuperAdmin only)
+  readonly annShowAdmin = signal(true);
+  readonly annShowManager = signal(true);
+  readonly annShowUser = signal(true);
+  readonly annSaving = signal(false);
+  readonly annNotice = signal('');
+  readonly annError = signal('');
+
   readonly canManageSched = computed(() => !!this.schedAccess()?.canManage);
   readonly showScheduling = computed(() => {
     const a = this.schedAccess();
@@ -106,10 +118,41 @@ export class Settings {
       this.loadSettings();
       this.loadQuestions();
       this.loadLogSettings();
+      this.loadAnnouncementSettings();
     } else {
       this.loading.set(false);
     }
     this.loadScheduling();
+  }
+
+  // ---- Announcement visibility ----
+  loadAnnouncementSettings(): void {
+    this.announcements.getSettings().subscribe({
+      next: (s) => {
+        this.annShowAdmin.set(s.showToAdmin);
+        this.annShowManager.set(s.showToManager);
+        this.annShowUser.set(s.showToUser);
+      },
+      error: () => {},
+    });
+  }
+
+  saveAnnouncementSettings(): void {
+    this.annSaving.set(true);
+    this.annNotice.set('');
+    this.annError.set('');
+    this.announcements
+      .updateSettings({ showToAdmin: this.annShowAdmin(), showToManager: this.annShowManager(), showToUser: this.annShowUser() })
+      .subscribe({
+        next: () => {
+          this.annSaving.set(false);
+          this.annNotice.set('Announcement visibility updated.');
+        },
+        error: (err: Error) => {
+          this.annSaving.set(false);
+          this.annError.set(err.message || 'Could not save.');
+        },
+      });
   }
 
   // ---- Log access ----

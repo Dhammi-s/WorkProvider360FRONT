@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Office } from '../../../core/models/office.model';
 import { RoleDto } from '../../../core/models/role.model';
 import { UserDto } from '../../../core/models/user.model';
@@ -12,7 +12,7 @@ import { Alert } from '../../../shared/ui/alert/alert';
 /** Admin team management: list tenant users and create new ones. */
 @Component({
   selector: 'app-users',
-  imports: [ReactiveFormsModule, DatePipe, Alert],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe, Alert],
   templateUrl: './users.html',
 })
 export class Users {
@@ -40,7 +40,36 @@ export class Users {
   readonly resendNotice = signal('');
   readonly resendError = signal('');
 
+  // Bulk selection state
+  readonly selectedIds = signal<Set<number>>(new Set());
+  readonly bulkBusy = signal(false);
+  readonly confirmBulk = signal(false);
+  readonly selectedCount = computed(() => this.selectedIds().size);
+  readonly allVisibleSelected = computed(() => {
+    const rows = this.filteredUsers();
+    const sel = this.selectedIds();
+    return rows.length > 0 && rows.every((u) => sel.has(u.userId));
+  });
+
   readonly total = computed(() => this.users().length);
+
+  // Office filter ('' = all, 'none' = no office assigned, else an officeId)
+  readonly officeFilter = signal<string>('');
+  readonly roleFilter = signal<string>('');
+
+  readonly filteredUsers = computed(() => {
+    const office = this.officeFilter();
+    const role = this.roleFilter();
+    return this.users().filter((u) => {
+      const officeOk =
+        !office ||
+        (office === 'none' ? !u.officeId : u.officeId === office);
+      const roleOk = !role || u.roleName === role;
+      return officeOk && roleOk;
+    });
+  });
+
+  readonly roleNames = ['SuperAdmin', 'Admin', 'Manager', 'User'];
 
   readonly form = this.fb.nonNullable.group({
     fullName: ['', [Validators.required, Validators.minLength(2)]],
@@ -56,13 +85,12 @@ export class Users {
       next: (roles) => this.roles.set(roles.filter((r) => r.isActive)),
       error: () => this.roles.set([]),
     });
-    // SuperAdmin can assign any office; Admins are locked to their own server-side.
-    if (this.isSuperAdmin()) {
-      this.officeService.list().subscribe({
-        next: (o) => this.offices.set(o.filter((x) => x.isActive)),
-        error: () => this.offices.set([]),
-      });
-    }
+    // Load offices for the filter + (SuperAdmin) the create-user office picker.
+    // For an Admin this returns just their own office.
+    this.officeService.list().subscribe({
+      next: (o) => this.offices.set(o.filter((x) => x.isActive)),
+      error: () => this.offices.set([]),
+    });
   }
 
   loadUsers(): void {
@@ -123,6 +151,55 @@ export class Users {
           this.saving.set(false);
         },
       });
+  }
+
+  isSelected(userId: number): boolean {
+    return this.selectedIds().has(userId);
+  }
+
+  toggleSelect(userId: number): void {
+    const next = new Set(this.selectedIds());
+    next.has(userId) ? next.delete(userId) : next.add(userId);
+    this.selectedIds.set(next);
+  }
+
+  toggleSelectAll(): void {
+    const rows = this.filteredUsers();
+    if (this.allVisibleSelected()) {
+      const next = new Set(this.selectedIds());
+      rows.forEach((u) => next.delete(u.userId));
+      this.selectedIds.set(next);
+    } else {
+      const next = new Set(this.selectedIds());
+      rows.forEach((u) => next.add(u.userId));
+      this.selectedIds.set(next);
+    }
+  }
+
+  clearSelection(): void {
+    this.selectedIds.set(new Set());
+    this.confirmBulk.set(false);
+  }
+
+  bulkResend(): void {
+    const ids = [...this.selectedIds()];
+    if (!ids.length) return;
+    this.bulkBusy.set(true);
+    this.resendNotice.set('');
+    this.resendError.set('');
+    this.userService.resendCredentialsBulk(ids).subscribe({
+      next: (msg) => {
+        this.bulkBusy.set(false);
+        this.confirmBulk.set(false);
+        this.resendNotice.set(msg);
+        this.clearSelection();
+      },
+      error: (err: Error) => {
+        this.bulkBusy.set(false);
+        this.confirmBulk.set(false);
+        this.resendError.set(err.message || 'Could not send credentials.');
+      },
+    });
   }
 
   askResend(userId: number): void {

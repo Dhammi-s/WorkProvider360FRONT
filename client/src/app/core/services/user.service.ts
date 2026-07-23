@@ -38,6 +38,13 @@ export class UserService {
       .pipe(map((res) => res.message ?? 'Credentials sent.'));
   }
 
+  /** Resend credentials to multiple users at once. */
+  resendCredentialsBulk(userIds: number[]): Observable<string> {
+    return this.http
+      .post<ApiResponse<unknown>>(`${this.usersUrl}/resend-credentials`, { userIds })
+      .pipe(map((res) => res.message ?? 'Credentials sent.'));
+  }
+
   getRoles(): Observable<RoleDto[]> {
     return this.http
       .get<ApiResponse<RoleDto[]>>(this.rolesUrl)
