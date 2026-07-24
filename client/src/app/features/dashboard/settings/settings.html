@@ -84,9 +84,10 @@
             <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label class="wp-label">Admin access</label>
-                <select class="wp-input" [ngModel]="adminAccess()" (ngModelChange)="adminAccess.set($event)">
+                <select class="wp-input" [ngModel]="adminAccess()" (ngModelChange)="adminAccess.set($event)" [disabled]="!isSuperAdmin()">
                   @for (l of levels; track l) { <option [ngValue]="l">{{ l === 'Write' ? 'Write — create & edit' : (l === 'Read' ? 'Read only' : 'No access') }}</option> }
                 </select>
+                @if (!isSuperAdmin()) { <p class="mt-1 text-xs text-slate-400">Only a Super Admin can change Admin access.</p> }
               </div>
               <div>
                 <label class="wp-label">Manager access</label>
@@ -166,6 +167,13 @@
               <label class="flex items-center justify-between">
                 <span class="text-sm font-medium text-slate-700">Notify managers on new schedule</span>
                 <input type="checkbox" [ngModel]="notifyManager()" (ngModelChange)="notifyManager.set($event)" [disabled]="!canManageSched()" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+              </label>
+              <label class="flex items-center justify-between border-t border-slate-100 pt-4">
+                <span class="text-sm font-medium text-slate-700">
+                  Auto clock-in/out for missed shifts
+                  <span class="mt-0.5 block text-xs font-normal text-slate-400">When a shift ends with no clock record, the system logs the scheduled hours automatically.</span>
+                </span>
+                <input type="checkbox" [ngModel]="autoClock()" (ngModelChange)="autoClock.set($event)" [disabled]="!canManageSched()" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
               </label>
             </div>
             @if (canManageSched()) {

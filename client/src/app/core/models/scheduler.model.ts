@@ -30,6 +30,7 @@ export interface SchedulingSettings {
   defaultOvertimeMultiplier: number;
   notifyAdminOnCreate: boolean;
   notifyManagerOnCreate: boolean;
+  autoClockEnabled: boolean;
   updatedOn: string;
 }
 
@@ -43,6 +44,7 @@ export interface UpdateSchedulingDefaults {
   defaultOvertimeMultiplier: number;
   notifyAdminOnCreate: boolean;
   notifyManagerOnCreate: boolean;
+  autoClockEnabled: boolean;
 }
 
 export interface Schedule {
@@ -81,7 +83,7 @@ export interface TimeEntry {
   userName: string;
   clockInUtc: string;
   clockOutUtc?: string | null;
-  source: 'Timer' | 'Manual';
+  source: 'Timer' | 'Manual' | 'Auto';
   note?: string | null;
   hours: number;
 }

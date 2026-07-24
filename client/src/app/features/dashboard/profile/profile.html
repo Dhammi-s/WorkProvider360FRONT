@@ -82,4 +82,38 @@
       </form>
     </div>
   </div>
+
+  <!-- My schedule -->
+  <div class="wp-card mt-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-base font-bold text-slate-900">My schedule</h2>
+        <p class="mt-1 text-sm text-slate-500">Your shifts from the last week and the month ahead.</p>
+      </div>
+      <a routerLink="/dashboard/scheduler" class="text-sm font-semibold text-brand-600 hover:text-brand-700">Open scheduler →</a>
+    </div>
+
+    @if (schedulesLoading()) {
+      <div class="flex items-center justify-center py-10 text-slate-400">
+        <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+      </div>
+    } @else if (mySchedules().length === 0) {
+      <p class="py-8 text-center text-sm text-slate-400">You have no schedules in this window.</p>
+    } @else {
+      <ul class="mt-4 divide-y divide-slate-100">
+        @for (s of mySchedules(); track s.scheduleId) {
+          <li class="flex items-center justify-between gap-3 py-3">
+            <div class="min-w-0">
+              <p class="truncate text-sm font-semibold text-slate-800">{{ s.title }}</p>
+              <p class="mt-0.5 text-xs text-slate-500">
+                {{ s.startUtc | date: 'EEE, MMM d · h:mm a' }} – {{ s.endUtc | date: 'h:mm a' }}
+                @if (s.customerName) { <span class="text-slate-400">· {{ s.customerName }}</span> }
+              </p>
+            </div>
+            <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusBadge(s.status)">{{ s.status }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </div>
 </section>

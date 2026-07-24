@@ -86,6 +86,7 @@ export class Settings {
   readonly defOt = signal(1.5);
   readonly notifyAdmin = signal(false);
   readonly notifyManager = signal(false);
+  readonly autoClock = signal(false);
   readonly schedError = signal('');
   readonly accessSaving = signal(false);
   readonly accessNotice = signal('');
@@ -292,6 +293,7 @@ export class Settings {
         this.defOt.set(s.defaultOvertimeMultiplier);
         this.notifyAdmin.set(s.notifyAdminOnCreate);
         this.notifyManager.set(s.notifyManagerOnCreate);
+        this.autoClock.set(s.autoClockEnabled);
       },
       error: (err: Error) => this.schedError.set(err.message || 'Could not load scheduling settings.'),
     });
@@ -323,6 +325,7 @@ export class Settings {
         defaultOvertimeMultiplier: Number(this.defOt()) || 1.5,
         notifyAdminOnCreate: this.notifyAdmin(),
         notifyManagerOnCreate: this.notifyManager(),
+        autoClockEnabled: this.autoClock(),
       })
       .subscribe({
         next: () => {

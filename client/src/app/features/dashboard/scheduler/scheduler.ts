@@ -617,6 +617,13 @@ export class Scheduler {
     return !!this.detail()?.timeEntries.some((t) => !t.clockOutUtc);
   }
 
+  /** Once a clock-in/out cycle is recorded (or the shift is Completed) the clock is frozen. */
+  isShiftDone(): boolean {
+    const d = this.detail();
+    if (!d) return false;
+    return d.schedule.status === 'Completed' || d.timeEntries.some((t) => !!t.clockOutUtc);
+  }
+
   openManual(): void {
     const d = this.detail();
     if (!d) return;
