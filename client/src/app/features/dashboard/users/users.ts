@@ -71,11 +71,20 @@ export class Users {
 
   readonly roleNames = ['SuperAdmin', 'Admin', 'Manager', 'User'];
 
+  // Send-SMS modal state
+  readonly smsUser = signal<UserDto | null>(null);
+  readonly smsNumber = signal('');
+  readonly smsMessage = signal('');
+  readonly smsSending = signal(false);
+  readonly smsError = signal('');
+  readonly smsNotice = signal('');
+
   readonly form = this.fb.nonNullable.group({
     fullName: ['', [Validators.required, Validators.minLength(2)]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
     roleId: [4, [Validators.required]],
+    phone: [''],
     officeId: [''],
   });
 
@@ -109,7 +118,7 @@ export class Users {
   }
 
   openModal(): void {
-    this.form.reset({ fullName: '', email: '', password: '', roleId: 4, officeId: '' });
+    this.form.reset({ fullName: '', email: '', password: '', roleId: 4, phone: '', officeId: '' });
     this.formError.set('');
     this.showPassword.set(false);
     this.modalOpen.set(true);
@@ -138,6 +147,7 @@ export class Users {
         email: value.email,
         password: value.password,
         roleId: Number(value.roleId),
+        phone: value.phone?.trim() || null,
         officeId: value.officeId || null,
       })
       .subscribe({
@@ -227,6 +237,49 @@ export class Users {
         this.resendError.set(err.message || 'Could not resend credentials.');
       },
     });
+  }
+
+  // ---- Send SMS ----
+  openSms(user: UserDto): void {
+    this.smsUser.set(user);
+    this.smsNumber.set(user.phone ?? '');
+    this.smsMessage.set('');
+    this.smsError.set('');
+    this.smsNotice.set('');
+    this.smsSending.set(false);
+  }
+
+  closeSms(): void {
+    this.smsUser.set(null);
+  }
+
+  sendSms(): void {
+    const user = this.smsUser();
+    const number = this.smsNumber().trim();
+    const message = this.smsMessage().trim();
+    if (!message) {
+      this.smsError.set('Enter a message to send.');
+      return;
+    }
+    if (!number) {
+      this.smsError.set('Enter a phone number.');
+      return;
+    }
+    this.smsSending.set(true);
+    this.smsError.set('');
+    this.userService
+      .sendSms({ userId: user?.userId ?? null, toNumber: number, message })
+      .subscribe({
+        next: (msg) => {
+          this.smsSending.set(false);
+          this.smsNotice.set(msg);
+          this.smsUser.set(null);
+        },
+        error: (err: Error) => {
+          this.smsSending.set(false);
+          this.smsError.set(err.message || 'Could not send the SMS.');
+        },
+      });
   }
 
   initials(name: string): string {

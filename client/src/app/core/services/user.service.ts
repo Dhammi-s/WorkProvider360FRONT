@@ -4,7 +4,7 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
 import { RoleDto } from '../models/role.model';
-import { CreateUserRequest, UserDto } from '../models/user.model';
+import { CreateUserRequest, SendSmsRequest, UserDto } from '../models/user.model';
 
 /** Reads/writes tenant users and roles (dashboard admin features). */
 @Injectable({ providedIn: 'root' })
@@ -43,6 +43,13 @@ export class UserService {
     return this.http
       .post<ApiResponse<unknown>>(`${this.usersUrl}/resend-credentials`, { userIds })
       .pipe(map((res) => res.message ?? 'Credentials sent.'));
+  }
+
+  /** Send an SMS to a user (by id, using their stored phone) or to an explicit number. */
+  sendSms(request: SendSmsRequest): Observable<string> {
+    return this.http
+      .post<ApiResponse<unknown>>(`${environment.apiBaseUrl}/sms/send`, request)
+      .pipe(map((res) => res.message ?? 'SMS sent.'));
   }
 
   getRoles(): Observable<RoleDto[]> {

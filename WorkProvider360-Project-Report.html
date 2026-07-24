@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WorkProvider360 — Project Report</title>
+<style>
+  :root{
+    --brand:#4f46e5; --brand-d:#312e81; --accent:#059669; --ink:#0f172a; --mut:#64748b;
+    --line:#e2e8f0; --bg:#f8fafc; --card:#ffffff; --chip:#eef2ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.55}
+  header.top{background:linear-gradient(140deg,#1e1b4b 0%,#312e81 45%,#075985 100%);color:#fff;padding:48px 32px}
+  header.top h1{margin:0;font-size:34px;font-weight:800;letter-spacing:-.5px}
+  header.top .sub{opacity:.85;margin-top:8px;font-size:15px;max-width:760px}
+  header.top .meta{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px}
+  .pill{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  nav.toc{position:sticky;top:0;background:rgba(248,250,252,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:12px 0;z-index:5}
+  nav.toc .wrap{display:flex;flex-wrap:wrap;gap:6px}
+  nav.toc a{font-size:12.5px;font-weight:600;color:var(--brand);text-decoration:none;padding:5px 10px;border-radius:8px}
+  nav.toc a:hover{background:var(--chip)}
+  section{padding:34px 0;border-bottom:1px solid var(--line)}
+  h2{font-size:23px;font-weight:800;margin:0 0 6px;display:flex;align-items:center;gap:10px}
+  h2 .n{display:inline-flex;width:30px;height:30px;border-radius:9px;background:var(--brand);color:#fff;font-size:14px;align-items:center;justify-content:center}
+  h3{font-size:16px;margin:22px 0 8px;color:var(--brand-d)}
+  p{margin:8px 0;color:#334155}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:12px 0;box-shadow:0 8px 24px -18px rgba(15,23,42,.25)}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:760px){.g2,.g3{grid-template-columns:1fr}}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:10px 0}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f1f5f9;color:#475569;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px}
+  code{background:#f1f5f9;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+  .tag{display:inline-block;background:var(--chip);color:var(--brand-d);border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700;margin:2px}
+  .ok{color:var(--accent);font-weight:700}
+  .muted{color:var(--mut);font-size:13px}
+  ul{margin:8px 0;padding-left:20px}li{margin:4px 0}
+  .layer{border-radius:12px;padding:14px 16px;margin:8px 0;border:1px solid var(--line);background:#fff}
+  .layer .lh{font-weight:800;margin-bottom:4px}
+  .arrow{text-align:center;color:var(--mut);font-size:20px;margin:-2px 0}
+  .flow{counter-reset:s}
+  .flow .step{position:relative;padding:10px 12px 10px 44px;border:1px solid var(--line);border-radius:10px;margin:8px 0;background:#fff}
+  .flow .step:before{counter-increment:s;content:counter(s);position:absolute;left:10px;top:10px;width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;font-weight:700}
+  footer{padding:28px 0;color:var(--mut);font-size:12.5px;text-align:center}
+  .two-col{columns:2;column-gap:26px}@media(max-width:760px){.two-col{columns:1}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <h1>WorkProvider360</h1>
+    <div class="sub">Multi-tenant SaaS for field-service / workforce management — role-based dashboards, hiring &amp; onboarding, offices, scheduling &amp; time-tracking, announcements, invoicing/payroll, and a point-of-sale sandbox.</div>
+    <div class="meta">
+      <span class="pill">Angular 21 + Tailwind</span>
+      <span class="pill">ASP.NET (.NET 10)</span>
+      <span class="pill">SQL Server · Dapper</span>
+      <span class="pill">Multi-tenant</span>
+      <span class="pill">JWT auth</span>
+      <span class="pill">Stripe (test)</span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#overview">Overview</a>
+  <a href="#arch">Architecture</a>
+  <a href="#stack">Tech stack</a>
+  <a href="#backend">Backend</a>
+  <a href="#tenancy">Multi-tenancy</a>
+  <a href="#db">Database</a>
+  <a href="#frontend">Frontend</a>
+  <a href="#lifecycle">How a request works</a>
+  <a href="#features">Features</a>
+  <a href="#api">API</a>
+  <a href="#security">Security</a>
+  <a href="#deploy">Deployment</a>
+</div></nav>
+
+<div class="wrap">
+
+<section id="overview">
+  <h2><span class="n">1</span> Overview</h2>
+  <p>WorkProvider360 is a <b>multi-tenant SaaS</b>: each customer (an “agency”) has its own isolated database, while a shared <b>master database</b> catalogs the agencies and their connection strings. Users sign in, are resolved to their tenant, and work inside role-based dashboards.</p>
+  <div class="grid g3">
+    <div class="card"><h3>Roles</h3><span class="tag">SuperAdmin</span><span class="tag">Admin</span><span class="tag">Manager</span><span class="tag">User</span><p class="muted">IDs are static across tenants (1–4). Access is enforced both by JWT role claims and in the service layer.</p></div>
+    <div class="card"><h3>Three codebases</h3>
+      <p class="muted"><b>Frontend</b> — Angular app (<code>client/</code>)<br/><b>Backend API</b> — <code>D:\workingapi</code><br/><b>Database</b> — SSDT project <code>G:\DB-WorkProvider360</code></p></div>
+    <div class="card"><h3>Live URLs</h3><p class="muted"><b>API:</b> workprovider360.runasp.net<br/><b>Web:</b> work-provider360-front-seven.vercel.app</p></div>
+  </div>
+</section>
+
+<section id="arch">
+  <h2><span class="n">2</span> Architecture</h2>
+  <p>A classic <b>N-tier / clean-ish layering</b> on the backend, a <b>component + service</b> SPA on the frontend, and <b>stored-procedure</b> data access. Every server response is wrapped in a uniform envelope <code>ApiResponse&lt;T&gt;</code> = <code>{ success, message, data, errors }</code>.</p>
+
+  <div class="card">
+    <div class="layer" style="border-left:4px solid #6366f1">
+      <div class="lh">🖥️ Angular SPA (browser)</div>
+      <div class="muted">Standalone components + signals · Tailwind · route guards · HTTP interceptors (JWT + tenant header, error normalisation)</div>
+    </div>
+    <div class="arrow">▼ &nbsp;HTTPS · JSON · <code>Authorization: Bearer</code> · <code>X-Tenant-Domain</code></div>
+    <div class="layer" style="border-left:4px solid #4f46e5">
+      <div class="lh">🌐 Controllers (ASP.NET Web API — <code>WebApplication1</code>)</div>
+      <div class="muted">Routing <code>api/[controller]</code> · <code>[Authorize(Roles=…)]</code> · claim helpers · <code>ApiResponse&lt;T&gt;</code></div>
+    </div>
+    <div class="arrow">▼</div>
+    <div class="layer" style="border-left:4px solid #0ea5e9">
+      <div class="lh">🧠 SaaS.BLL — Business Logic</div>
+      <div class="muted">Services (rules + role gating), security (hashing, JWT), payments (provider abstraction), email</div>
+    </div>
+    <div class="arrow">▼</div>
+    <div class="layer" style="border-left:4px solid #14b8a6">
+      <div class="lh">📦 SaaS.Core — Contracts</div>
+      <div class="muted">Entities · DTOs (Inbound/Outbound) · interfaces · constants · settings · exceptions</div>
+    </div>
+    <div class="arrow">▼</div>
+    <div class="layer" style="border-left:4px solid #059669">
+      <div class="lh">🗄️ SaaS.DAL — Data Access (Dapper + Stored Procedures)</div>
+      <div class="muted">Repositories · TenantContext · TenantResolver · DbConnectionFactory</div>
+    </div>
+    <div class="arrow">▼</div>
+    <div class="layer" style="border-left:4px solid #334155">
+      <div class="lh">🛢️ SQL Server — Master DB (Agencies) + per-tenant databases</div>
+      <div class="muted">Managed as an SSDT database project; deployed as a DACPAC to each tenant</div>
+    </div>
+  </div>
+  <p class="muted"><b>Dependency direction:</b> Controllers → BLL → Core ← DAL. Core holds the interfaces; BLL and DAL implement them; the Web project wires everything via DI.</p>
+</section>
+
+<section id="stack">
+  <h2><span class="n">3</span> Technology stack</h2>
+  <div class="grid g2">
+    <div class="card"><h3>Frontend</h3>
+      <table>
+        <tr><td>Framework</td><td>Angular 21 (standalone components, signals)</td></tr>
+        <tr><td>Styling</td><td>Tailwind CSS v3</td></tr>
+        <tr><td>PDF (client)</td><td>html2pdf.js (MIT)</td></tr>
+        <tr><td>Image crop</td><td>ngx-image-cropper (MIT)</td></tr>
+        <tr><td>Hosting</td><td>Vercel</td></tr>
+      </table>
+    </div>
+    <div class="card"><h3>Backend</h3>
+      <table>
+        <tr><td>Runtime</td><td>ASP.NET Core (.NET 10)</td></tr>
+        <tr><td>Data access</td><td>Dapper over stored procedures</td></tr>
+        <tr><td>DB driver</td><td>Microsoft.Data.SqlClient</td></tr>
+        <tr><td>Auth</td><td>JWT Bearer (HMAC-SHA512)</td></tr>
+        <tr><td>Email</td><td>System.Net.Mail → Brevo SMTP</td></tr>
+        <tr><td>Payments</td><td>Stripe.net (test) + mock provider</td></tr>
+        <tr><td>Hosting</td><td>runasp.net (SmarterASP)</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card"><h3>Database</h3>
+    <p class="muted">SQL Server 2022 · SSDT database project (<code>.sqlproj</code>) built to a <b>DACPAC</b> and published per-tenant via <code>Scripts\Deploy-AllTenants.ps1</code>. Newer feature tables use <code>UNIQUEIDENTIFIER</code> (GUID) keys; core tables use <code>INT IDENTITY</code>. Singleton “settings” tables use a fixed <code>SettingsId = 1</code> row.</p>
+  </div>
+</section>
+
+<section id="backend">
+  <h2><span class="n">4</span> Backend structure</h2>
+  <p>Solution projects and their responsibilities:</p>
+  <table>
+    <tr><th>Project</th><th>Responsibility</th><th>Key contents</th></tr>
+    <tr><td><b>WebApplication1</b><br/><span class="muted">(host / API)</span></td><td>HTTP surface, DI wiring, middleware pipeline</td><td>Controllers, <code>Program.cs</code>, Middleware (exception handling, tenant resolution), CORS, Swagger</td></tr>
+    <tr><td><b>SaaS.Core</b></td><td>Contracts &amp; shared types (no logic)</td><td>Entities, Dtos/Inbound, Dtos/Outbound, Interfaces/Services, Interfaces/Repositories, Constants, Settings, Exceptions</td></tr>
+    <tr><td><b>SaaS.BLL</b></td><td>Business logic</td><td>Services, Security (<code>Sha512PasswordHasher</code>, <code>JwtTokenService</code>), Payments (<code>MockPaymentProvider</code>), <code>EmailService</code></td></tr>
+    <tr><td><b>SaaS.DAL</b></td><td>Data access</td><td>Repositories (Dapper), Infrastructure (<code>DbConnectionFactory</code>, <code>TenantContext</code>, <code>TenantResolver</code>)</td></tr>
+  </table>
+
+  <h3>Services (SaaS.BLL)</h3>
+  <div class="two-col muted">
+    <div>• AuthService — login, refresh, logout, forgot/reset/change password</div>
+    <div>• UserService — users, self-register, bootstrap admin, resend credentials (single + bulk), salary</div>
+    <div>• RoleService — role catalog</div>
+    <div>• ApplicationService — role-application workflow</div>
+    <div>• SchedulingService — schedules, time entries, reports, access</div>
+    <div>• OfficeService — offices + timezones (role-scoped)</div>
+    <div>• LogService — email logs + role access</div>
+    <div>• BrandingService — agency logo (base64)</div>
+    <div>• AnnouncementService — announcements + visibility</div>
+    <div>• InvoiceService — payroll invoices, cash + Stripe</div>
+    <div>• PosService — POS sandbox + fee engine</div>
+    <div>• EmailService — SMTP send + attachments + email log</div>
+  </div>
+
+  <h3>Repositories (SaaS.DAL)</h3>
+  <p class="muted">Agency, User, Role, RefreshToken, PasswordResetToken, Application, ApplicationQuestion, ApplicationSettings, Schedule, SchedulingSettings, Location, Office, Timezone, EmailLog, LogSettings, Branding, Announcement, Invoice, Pos. Each opens a fresh connection via <code>IDbConnectionFactory.CreateTenantConnectionAsync()</code> and calls a stored procedure; result columns are named to match entity properties so Dapper maps with zero config.</p>
+
+  <h3>Middleware pipeline (order matters)</h3>
+  <div class="flow">
+    <div class="step">Swagger / OpenAPI (all environments)</div>
+    <div class="step"><code>ExceptionHandlingMiddleware</code> — maps <code>AppException</code> → its status; everything else → 500, all in the <code>ApiResponse</code> shape</div>
+    <div class="step"><code>UseHttpsRedirection</code></div>
+    <div class="step"><code>UseCors</code> (config-driven origins) — before auth so preflight <code>OPTIONS</code> succeeds</div>
+    <div class="step"><code>UseAuthentication</code> (JWT)</div>
+    <div class="step"><code>TenantResolutionMiddleware</code> — resolves the tenant into <code>ITenantContext</code></div>
+    <div class="step"><code>UseAuthorization</code> → <code>MapControllers</code></div>
+  </div>
+</section>
+
+<section id="tenancy">
+  <h2><span class="n">5</span> Multi-tenancy model</h2>
+  <div class="grid g2">
+    <div class="card"><h3>Master database</h3><p class="muted">Holds the <code>Agencies</code> table: <code>AgencyId, AgencyName, DomainUrl, DbServer, DbName, DbUser, DbPassword, ConnectionString, IsActive, IsArchived, …</code> — i.e. the catalog of tenants and how to reach each tenant DB.</p></div>
+    <div class="card"><h3>Tenant database (per agency)</h3><p class="muted">Holds all operational data: Users, Roles, Schedules, Applications, Offices, Invoices, POS, etc. One physical DB per agency, all created from the same SSDT template.</p></div>
+  </div>
+  <h3>How the tenant is resolved (per request)</h3>
+  <div class="flow">
+    <div class="step">If the JWT carries an <code>agency_id</code> claim → resolve that agency by id (authenticated requests).</div>
+    <div class="step">Otherwise (anonymous: login, apply, forgot-password) → use the <code>X-Tenant-Domain</code> header, else the request <code>Host</code>, matched against <code>Agencies.DomainUrl</code>.</div>
+    <div class="step">The resolved agency's connection string is placed in the scoped <code>ITenantContext</code>; every repository then connects to that tenant DB.</div>
+  </div>
+  <p class="muted">The active demo tenant uses <code>DomainUrl = localhost</code>, so the frontend sends <code>X-Tenant-Domain: localhost</code>.</p>
+</section>
+
+<section id="db">
+  <h2><span class="n">6</span> Database structure</h2>
+  <p>Tenant-database tables, grouped by feature (all in the SSDT project; each also has matching <code>usp_*</code> stored procedures):</p>
+  <table>
+    <tr><th>Area</th><th>Tables</th></tr>
+    <tr><td>Identity &amp; auth</td><td><code>Roles</code>, <code>Users</code> (+ <code>OfficeId</code>, <code>Salary</code>), <code>RefreshTokens</code>, <code>PasswordResetTokens</code></td></tr>
+    <tr><td>Hiring / onboarding</td><td><code>RoleApplications</code> (+ <code>DesiredSalary</code>), <code>ApplicationAnswers</code>, <code>ApplicationQuestions</code>, <code>ApplicationSettings</code></td></tr>
+    <tr><td>Offices &amp; time</td><td><code>Office</code> (GUID), <code>Timezone</code> (GUID)</td></tr>
+    <tr><td>Scheduling</td><td><code>Schedules</code>, <code>ScheduleNotes</code>, <code>TimeEntries</code>, <code>LocationPings</code>, <code>SchedulingSettings</code></td></tr>
+    <tr><td>Comms &amp; ops</td><td><code>Announcement</code> (GUID) + <code>AnnouncementSettings</code>, <code>EmailLog</code> (GUID) + <code>LogSettings</code>, <code>Branding</code></td></tr>
+    <tr><td>Money</td><td><code>Invoice</code> (GUID), <code>PosTransaction</code> (GUID) + <code>PosFeeSettings</code></td></tr>
+    <tr><td>Master DB</td><td><code>Agencies</code> (tenant catalog)</td></tr>
+  </table>
+
+  <h3>Representative tables</h3>
+  <div class="grid g2">
+    <div class="card"><h3>Users</h3><p class="muted"><code>UserId</code> (INT IDENTITY PK), <code>Email</code> (unique), <code>FullName</code>, <code>PasswordHash</code>, <code>PasswordSalt</code>, <code>RoleId</code> (FK), <code>OfficeId</code> (GUID FK, null), <code>Salary</code>, <code>IsActive</code>, <code>CreatedOn</code>, <code>UpdatedOn</code>.</p></div>
+    <div class="card"><h3>Office</h3><p class="muted"><code>OfficeId</code> (UNIQUEIDENTIFIER PK, <code>newid()</code>), <code>OfficeName</code>, <code>Address</code>, <code>Phone</code>, <code>TimezoneId</code> (FK → Timezone), <code>IsActive</code>, <code>IsArchived</code>, timestamps.</p></div>
+    <div class="card"><h3>Invoice</h3><p class="muted"><code>InvoiceId</code> (GUID), <code>InvoiceNumber</code>, recipient fields, <code>InvoiceType</code> (Salary|ShiftPay), <code>Amount</code>, hours, period, <code>PdfBase64</code>, <code>Status</code>, <code>PaymentMethod</code> (Cash|Online), timestamps.</p></div>
+    <div class="card"><h3>PosTransaction</h3><p class="muted"><code>PosTransactionId</code> (GUID), payer, <code>GrossAmount</code>, <code>FeePercent</code>/<code>FeeFixed</code>, <code>PlatformFee</code>, <code>NetAmount</code>, <code>CardLast4</code>, <code>Status</code>, <code>Provider</code>, <code>ProviderRef</code>.</p></div>
+  </div>
+  <p class="muted"><b>Convention:</b> stored procs are named <code>usp_&lt;Entity&gt;_&lt;Action&gt;</code> and are the only way data is read/written (no EF, no inline SQL in the app). A single <code>Script.PostDeployment.sql</code> seeds reference data (e.g. the Timezone list) idempotently.</p>
+</section>
+
+<section id="frontend">
+  <h2><span class="n">7</span> Frontend structure</h2>
+  <p>Angular standalone app under <code>client/src/app</code>, organised as <b>core</b> (cross-cutting), <b>features</b> (screens), and <b>shared</b> (reusable UI/util).</p>
+  <div class="grid g3">
+    <div class="card"><h3>core/</h3><p class="muted"><b>models/</b> — TS interfaces mirroring DTOs<br/><b>services/</b> — one per domain (auth, user, role, application, scheduler, office, log, branding, announcement, accounting, pos, …)<br/><b>interceptors/</b> — auth (Bearer + tenant header), error (message normalisation, 401 refresh)<br/><b>guards/</b> — <code>authGuard</code>, <code>roleGuard</code></p></div>
+    <div class="card"><h3>features/</h3><p class="muted"><b>Public:</b> login, register, forgot/reset password, setup, apply<br/><b>dashboard/:</b> home, users (team), applications, offices, announcements, email-logs, scheduler, reports, live-map, accounting, pos, settings, profile</p></div>
+    <div class="card"><h3>shared/</h3><p class="muted"><b>ui/</b> — alert, stat-card, …<br/><b>util/</b> — <code>pdf.util</code>, <code>invoice-pdf.util</code> (html2pdf)<br/>Tailwind utility classes (<code>wp-card</code>, <code>wp-btn-primary</code>, <code>wp-input</code>)</p></div>
+  </div>
+
+  <h3>Routing &amp; access</h3>
+  <p class="muted">Lazy-loaded routes. Dashboard children are guarded by <code>authGuard</code> + <code>roleGuard</code> (<code>data.roles</code>). The sidebar nav is role-filtered from a single array, so each role sees only what it may open.</p>
+  <table>
+    <tr><th>Route</th><th>Who</th></tr>
+    <tr><td><code>/login /register /forgot-password /reset-password /apply /setup</code></td><td>Public</td></tr>
+    <tr><td><code>/dashboard</code> (Overview), <code>/profile</code></td><td>Any signed-in user</td></tr>
+    <tr><td><code>/dashboard/users</code>, <code>/applications</code>, <code>/offices</code></td><td>SuperAdmin, Admin</td></tr>
+    <tr><td><code>/dashboard/scheduler</code>, <code>/reports</code>, <code>/announcements</code></td><td>All roles (varies per feature)</td></tr>
+    <tr><td><code>/dashboard/logs</code>, <code>/live-map</code>, <code>/settings</code></td><td>SuperAdmin/Admin/Manager</td></tr>
+    <tr><td><code>/dashboard/accounting</code></td><td>SuperAdmin</td></tr>
+    <tr><td><code>/dashboard/pos</code></td><td>SuperAdmin, Admin</td></tr>
+  </table>
+  <p class="muted"><b>Dev networking:</b> a proxy (<code>proxy.conf.json</code>) forwards <code>/api</code> and <code>/hubs</code> to the deployed backend, so the browser stays same-origin and CORS is avoided in development.</p>
+</section>
+
+<section id="lifecycle">
+  <h2><span class="n">8</span> How a request works (end to end)</h2>
+  <div class="flow">
+    <div class="step">A component calls a <b>core service</b> (e.g. <code>userService.getUsers()</code>).</div>
+    <div class="step">The <b>auth interceptor</b> attaches <code>Authorization: Bearer &lt;jwt&gt;</code> and <code>X-Tenant-Domain</code>.</div>
+    <div class="step">The request reaches the API; <b>JWT auth</b> validates the token, then <b>tenant resolution</b> puts the agency's connection string in <code>ITenantContext</code>.</div>
+    <div class="step">The <b>controller</b> (role-gated) calls a <b>BLL service</b>.</div>
+    <div class="step">The <b>service</b> applies business rules / role scoping and calls a <b>repository</b>.</div>
+    <div class="step">The <b>repository</b> (Dapper) executes a <b>stored procedure</b> on the tenant DB and maps rows to entities.</div>
+    <div class="step">The controller wraps the result in <code>ApiResponse&lt;T&gt;</code>; the Angular service <b>unwraps</b> it into a signal; the UI renders.</div>
+    <div class="step">Errors become <code>AppException</code> → clean status + message; the <b>error interceptor</b> surfaces it (and refreshes the token on a 401).</div>
+  </div>
+</section>
+
+<section id="features">
+  <h2><span class="n">9</span> Feature modules</h2>
+  <div class="grid g2">
+    <div class="card"><h3>Authentication &amp; roles</h3><p class="muted">JWT login/refresh/logout, forgot/reset/change password, public user self-registration, one-time SuperAdmin bootstrap. Four roles with static IDs.</p></div>
+    <div class="card"><h3>Hiring / role applications</h3><p class="muted">Anonymous apply form (dynamic role dropdown + custom questions + expected salary), admin review with PDF export, approve → creates the user &amp; emails credentials, reject → emails a notice. SuperAdmin settings control fields, questions, emails.</p></div>
+    <div class="card"><h3>Offices &amp; timezones</h3><p class="muted">GUID offices with a per-office timezone (from a seeded reference list). Every Admin/Manager/User belongs to an office; SuperAdmin manages all, Admin only their own.</p></div>
+    <div class="card"><h3>Scheduling &amp; time</h3><p class="muted">Schedules with pay rate + overtime, clock-in/out time entries, per-user pay reports, access levels (None/Read/Write), location pings / live map.</p></div>
+    <div class="card"><h3>Announcements</h3><p class="muted">SuperAdmin posts announcements; visible to Admin/Manager/User based on SuperAdmin visibility toggles (in Settings).</p></div>
+    <div class="card"><h3>Email logs &amp; branding</h3><p class="muted">Every email is logged (Sent/Failed + body); SuperAdmin grants Admin/Manager log access. Agency logo uploaded + cropped in-browser, stored as base64, shown in the sidebar.</p></div>
+    <div class="card"><h3>Invoicing / payroll</h3><p class="muted">Admins/Managers paid their applied salary; Users paid computed shift wages. Cash or Stripe online. Browser-generated PDF (stamped PAID · CASH / ONLINE) emailed as an attachment; SuperAdmin accounting ledger of all invoices.</p></div>
+    <div class="card"><h3>POS sandbox</h3><p class="muted">Take a card sale via a pluggable <code>IPaymentProvider</code> (mock now, bank/Stripe later). A configurable platform fee (% + fixed) is the revenue; an earnings ledger + transactions prove the model — no real money.</p></div>
+  </div>
+</section>
+
+<section id="api">
+  <h2><span class="n">10</span> API surface (selected)</h2>
+  <p class="muted">Base route <code>api/[controller]</code>. All responses use <code>ApiResponse&lt;T&gt;</code>.</p>
+  <table>
+    <tr><th>Controller</th><th>Representative endpoints</th></tr>
+    <tr><td>Auth</td><td><code>POST login</code>, <code>refresh-token</code>, <code>forgot-password</code>, <code>reset-password</code>, <code>change-password</code>, <code>logout</code></td></tr>
+    <tr><td>Users</td><td><code>register</code>, <code>bootstrap-admin</code>, <code>me</code>, <code>GET/POST /</code>, <code>{id}/resend-credentials</code>, <code>resend-credentials</code> (bulk)</td></tr>
+    <tr><td>Applications</td><td><code>GET form-config</code>, <code>POST /</code>, <code>GET /</code>, <code>{id}/approve</code>, <code>{id}/reject</code></td></tr>
+    <tr><td>Offices</td><td><code>GET/POST /</code>, <code>{id}</code>, <code>{id}/members</code>, <code>timezones</code></td></tr>
+    <tr><td>Scheduling</td><td><code>GET access</code>, <code>settings</code>, <code>reports</code>, schedule CRUD, time, location</td></tr>
+    <tr><td>Announcements / Logs / Branding</td><td>list + settings + (branding) <code>logo</code></td></tr>
+    <tr><td>Invoices</td><td><code>POST pay</code>, <code>GET /</code>, <code>{id}/pdf</code>, <code>checkout-session</code> (Stripe)</td></tr>
+    <tr><td>Pos</td><td><code>POST charge</code>, <code>GET transactions</code>, <code>summary</code>, <code>fee-settings</code></td></tr>
+  </table>
+</section>
+
+<section id="security">
+  <h2><span class="n">11</span> Security</h2>
+  <ul>
+    <li><b>Auth:</b> JWT Bearer, HMAC-SHA512 signed; claims carry <code>agency_id</code>, <code>user_id</code>, <code>role_id</code>, role name. Refresh tokens rotate; reset tokens are single-use with expiry.</li>
+    <li><b>Authorisation:</b> declarative <code>[Authorize(Roles=…)]</code> on controllers/actions, plus service-layer checks for finer scoping (e.g. Admin → own office; log/announcement visibility).</li>
+    <li><b>Passwords:</b> salted SHA-512 with constant-time comparison (documented as a deliberate, simpler-than-PBKDF2 choice).</li>
+    <li><b>Tenant isolation:</b> each request is pinned to one tenant DB via <code>ITenantContext</code>; cross-tenant access isn't possible through the data layer.</li>
+    <li><b>CORS:</b> configurable allowed origins; preflight handled before auth.</li>
+    <li><b>Payments:</b> online payments are verified server-side against Stripe (<code>PaymentStatus == "paid"</code>) before an invoice is recorded.</li>
+  </ul>
+  <div class="card"><p class="muted"><b>Hardening backlog:</b> move committed secrets (DB password, JWT signing key, SMTP/Stripe keys) out of <code>appsettings.json</code> into environment variables; consider a stronger password hash (PBKDF2/Argon2); a “must change password on first login” step for emailed temp passwords.</p></div>
+</section>
+
+<section id="deploy">
+  <h2><span class="n">12</span> Deployment</h2>
+  <div class="grid g3">
+    <div class="card"><h3>Database</h3><p class="muted">Build the SSDT project → <code>WorkProvider360.dacpac</code> → publish to each tenant DB (post-deploy seeds reference data). Master DB holds the agency catalog.</p></div>
+    <div class="card"><h3>Backend API</h3><p class="muted">Publish the whole solution to runasp.net. Set secrets via env vars (<code>Stripe__SecretKey</code>, <code>Smtp__Password</code>, …). CORS + JWT configured in <code>appsettings</code>.</p></div>
+    <div class="card"><h3>Frontend</h3><p class="muted">Deployed on Vercel (root = <code>client</code>, output <code>dist/client/browser</code>, SPA rewrite to <code>index.html</code>). Prod build points <code>apiBaseUrl</code> at the API.</p></div>
+  </div>
+</section>
+
+<footer>
+  WorkProvider360 — generated project report. Frontend: Angular 21 + Tailwind · Backend: ASP.NET (.NET 10), Dapper, stored procedures · Database: SQL Server (multi-tenant, SSDT/DACPAC).
+</footer>
+
+</div>
+</body>
+</html>

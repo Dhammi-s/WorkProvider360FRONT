@@ -5,6 +5,7 @@ export interface UserDto {
   fullName: string;
   roleId: number;
   roleName: string;
+  phone?: string | null;
   officeId?: string | null;
   officeName?: string | null;
   salary?: number | null;
@@ -18,5 +19,13 @@ export interface CreateUserRequest {
   fullName: string;
   password: string;
   roleId: number;
+  phone?: string | null;
   officeId?: string | null;
+}
+
+/** Manual SMS send (`POST /api/sms/send`). */
+export interface SendSmsRequest {
+  userId?: number | null;
+  toNumber?: string | null;
+  message: string;
 }
