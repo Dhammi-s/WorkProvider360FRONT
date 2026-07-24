@@ -30,6 +30,10 @@ export class DashboardHome {
   readonly user = this.auth.user;
   private readonly teamCount = signal<number | null>(null);
 
+  /** "SMS coming soon" toast — auto-hides after 10 seconds. */
+  readonly smsToastVisible = signal(true);
+  readonly smsNotice = 'SMS notifications are coming soon — our team is still working on this feature. Please keep using email for now.';
+
   readonly role = computed<RoleName>(() => (this.auth.roleName() ?? 'User') as RoleName);
   readonly isAdmin = computed(() => this.role() === 'SuperAdmin' || this.role() === 'Admin');
 
@@ -81,5 +85,11 @@ export class DashboardHome {
         error: () => this.teamCount.set(null),
       });
     }
+    // Show the SMS notice toast for 10 seconds, then dismiss it.
+    setTimeout(() => this.smsToastVisible.set(false), 10_000);
+  }
+
+  dismissSmsToast(): void {
+    this.smsToastVisible.set(false);
   }
 }

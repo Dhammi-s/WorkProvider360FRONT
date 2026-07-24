@@ -1,4 +1,19 @@
+<!-- SMS "coming soon" toast — auto-dismisses after 10s -->
+@if (smsToastVisible()) {
+  <div class="fixed right-4 top-4 z-[60] w-full max-w-sm">
+    <div class="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 shadow-lg">
+      <svg class="mt-0.5 h-5 w-5 shrink-0 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+      <p class="flex-1 text-sm font-medium text-amber-800">{{ smsNotice }}</p>
+      <button type="button" (click)="dismissSmsToast()" class="rounded-md p-1 text-amber-500 hover:bg-amber-100" aria-label="Dismiss">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+      </button>
+    </div>
+  </div>
+}
+
 <section>
+
+
   <!-- Greeting -->
   <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
     <div>
