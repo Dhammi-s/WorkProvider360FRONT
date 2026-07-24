@@ -1,5 +1,14 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import {
+  NavigationCancel,
+  NavigationEnd,
+  NavigationError,
+  NavigationStart,
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from '@angular/router';
 import { RoleName } from '../../../core/models/role.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { BrandingService } from '../../../core/services/branding.service';
@@ -28,8 +37,34 @@ export class DashboardLayout {
   readonly sidebarOpen = signal(false);
   readonly menuOpen = signal(false);
 
+  /** True while the router is navigating between pages — drives the blur loader. */
+  readonly navigating = signal(false);
+
+  /** Keep the loader on screen for at least this long so it never just flickers. */
+  private static readonly MIN_LOADER_MS = 1500;
+  private navStartedAt = 0;
+  private hideTimer?: ReturnType<typeof setTimeout>;
+
   constructor() {
     this.branding.load();
+
+    this.router.events.subscribe((event) => {
+      if (event instanceof NavigationStart) {
+        clearTimeout(this.hideTimer);
+        this.navStartedAt = Date.now();
+        this.navigating.set(true);
+      } else if (
+        event instanceof NavigationEnd ||
+        event instanceof NavigationCancel ||
+        event instanceof NavigationError
+      ) {
+        // Hide only after the minimum display time has elapsed.
+        const elapsed = Date.now() - this.navStartedAt;
+        const remaining = Math.max(0, DashboardLayout.MIN_LOADER_MS - elapsed);
+        clearTimeout(this.hideTimer);
+        this.hideTimer = setTimeout(() => this.navigating.set(false), remaining);
+      }
+    });
   }
 
   private readonly allNav: NavItem[] = [

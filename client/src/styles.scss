@@ -51,3 +51,16 @@
     @apply font-semibold text-brand-600 hover:text-brand-700;
   }
 }
+
+/* Three-dot route loader (box-shadow dots) in the brand palette. */
+.wp-dot-loader {
+  width: 13px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  animation: wp-dot-loader 1s infinite linear alternate;
+}
+@keyframes wp-dot-loader {
+  0%   { background: #6366f11a; box-shadow: -22px 0 #4f46e5,   22px 0 #10b9811a; }
+  50%  { background: #6366f1;   box-shadow: -22px 0 #4f46e51a, 22px 0 #10b9811a; }
+  100% { background: #6366f11a; box-shadow: -22px 0 #4f46e51a, 22px 0 #10b981;   }
+}

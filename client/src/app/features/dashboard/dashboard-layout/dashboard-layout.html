@@ -1,3 +1,13 @@
+<!-- Full-screen route-change loader: blurs the whole app and shows a spinner while navigating -->
+@if (navigating()) {
+  <div class="fixed inset-0 z-[100] flex items-center justify-center bg-white/1 backdrop-blur-[3px]">
+    <div class="flex flex-col items-center gap-6">
+      <span class="wp-dot-loader"></span>
+      <span class="text-base font-bold tracking-wide text-brand-700">Loading</span>
+    </div>
+  </div>
+}
+
 <div class="min-h-screen bg-slate-50 lg:flex">
   <!-- Mobile overlay -->
   @if (sidebarOpen()) {
