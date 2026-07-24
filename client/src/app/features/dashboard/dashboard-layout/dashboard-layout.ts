@@ -44,6 +44,7 @@ export class DashboardLayout {
     { label: 'Accounting', path: '/dashboard/accounting', icon: 'M12 8c-1.7 0-3 .9-3 2s1.3 2 3 2 3 .9 3 2-1.3 2-3 2m0-8V6m0 12v-2M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z', roles: ['SuperAdmin'] },
     { label: 'Point of Sale', path: '/dashboard/pos', icon: 'M3 3h2l.4 2M7 13h10l3-8H6.4M7 13L5.4 5M7 13l-2 4h12M9 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z', roles: ['SuperAdmin', 'Admin'] },
     { label: 'Email Logs', path: '/dashboard/logs', icon: 'M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2M4 6l8 6 8-6', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+    { label: 'Security', path: '/dashboard/security', icon: 'M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-4z M9.5 12l2 2 3.5-4', roles: ['SuperAdmin'] },
     { label: 'Settings', path: '/dashboard/settings', icon: 'M10.3 3.3a2 2 0 013.4 0l.5.9 1 .1a2 2 0 011.7 1.7l.1 1 .9.5a2 2 0 010 3.4l-.9.5-.1 1a2 2 0 01-1.7 1.7l-1 .1-.5.9a2 2 0 01-3.4 0l-.5-.9-1-.1a2 2 0 01-1.7-1.7l-.1-1-.9-.5a2 2 0 010-3.4l.9-.5.1-1a2 2 0 011.7-1.7l1-.1.5-.9zM12 15a3 3 0 100-6 3 3 0 000 6z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
     { label: 'My Profile', path: '/dashboard/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
   ];

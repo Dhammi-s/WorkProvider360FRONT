@@ -1,0 +1,151 @@
+<section>
+  <!-- Header -->
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Security</h1>
+      <p class="mt-1 text-sm text-slate-500">Login analytics and detected threats for your workspace.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button type="button" (click)="load()" class="wp-btn-ghost" [disabled]="loading()">Refresh</button>
+      <button type="button" (click)="exportPdf()" class="wp-btn-primary" [disabled]="exporting() || !stats()">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
+        @if (exporting()) { Exporting… } @else { Export PDF }
+      </button>
+    </div>
+  </div>
+
+  <app-alert type="error" [message]="error()" />
+
+  @if (loading()) {
+    <div class="wp-card mt-6 flex items-center justify-center py-16 text-slate-400">
+      <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+      <span class="ml-3 text-sm">Loading security data…</span>
+    </div>
+  } @else if (stats(); as s) {
+    <!-- Stat tiles -->
+    <div class="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+      <div class="wp-card">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Successful logins</p>
+        <p class="mt-1 text-2xl font-extrabold text-emerald-600">{{ s.totalLogins }}</p>
+      </div>
+      <div class="wp-card">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Failed logins</p>
+        <p class="mt-1 text-2xl font-extrabold text-red-600">{{ s.failedLogins }}</p>
+      </div>
+      <div class="wp-card">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Unauthorized</p>
+        <p class="mt-1 text-2xl font-extrabold text-amber-600">{{ s.unauthorized }}</p>
+      </div>
+      <div class="wp-card">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">SQL injection</p>
+        <p class="mt-1 text-2xl font-extrabold text-violet-600">{{ s.sqlInjectionAttempts }}</p>
+      </div>
+      <div class="wp-card">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">DoS / abuse</p>
+        <p class="mt-1 text-2xl font-extrabold text-rose-600">{{ s.dosAttempts }}</p>
+      </div>
+      <div class="wp-card">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Total events</p>
+        <p class="mt-1 text-2xl font-extrabold text-slate-800">{{ s.totalEvents }}</p>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <!-- Donut: events by type -->
+      <div class="wp-card">
+        <h2 class="text-base font-bold text-slate-900">Events by type</h2>
+        @if (donut().length) {
+          <div class="mt-4 flex flex-col items-center gap-6 sm:flex-row">
+            <svg viewBox="0 0 160 160" class="h-40 w-40 -rotate-90">
+              <circle cx="80" cy="80" [attr.r]="radius" fill="none" stroke="#f1f5f9" stroke-width="18" />
+              @for (seg of donut(); track seg.label) {
+                <circle
+                  cx="80" cy="80" [attr.r]="radius" fill="none"
+                  [attr.stroke]="seg.color" stroke-width="18"
+                  [attr.stroke-dasharray]="seg.dash + ' ' + (circumference - seg.dash)"
+                  [attr.stroke-dashoffset]="seg.offset" />
+              }
+            </svg>
+            <ul class="flex-1 space-y-2">
+              @for (seg of donut(); track seg.label) {
+                <li class="flex items-center gap-2 text-sm">
+                  <span class="h-3 w-3 rounded-full" [style.background]="seg.color"></span>
+                  <span class="flex-1 text-slate-700">{{ seg.label }}</span>
+                  <span class="font-semibold text-slate-900">{{ seg.count }}</span>
+                  <span class="w-10 text-right text-xs text-slate-400">{{ seg.pct }}%</span>
+                </li>
+              }
+            </ul>
+          </div>
+        } @else {
+          <p class="py-10 text-center text-sm text-slate-400">No events recorded yet.</p>
+        }
+      </div>
+
+      <!-- Bars: logins per account -->
+      <div class="wp-card">
+        <h2 class="text-base font-bold text-slate-900">Logins by account</h2>
+        @if (s.loginStats.length) {
+          <ul class="mt-4 space-y-3">
+            @for (row of s.loginStats; track row.email) {
+              <li>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="truncate font-medium text-slate-700">{{ row.email }}</span>
+                  <span class="text-xs text-slate-500">
+                    <span class="font-semibold text-emerald-600">{{ row.successCount }}</span> ok ·
+                    <span class="font-semibold text-red-600">{{ row.failedCount }}</span> failed
+                  </span>
+                </div>
+                <div class="mt-1 flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div class="h-full bg-emerald-500" [style.width.%]="barPct(row.successCount)"></div>
+                  <div class="h-full bg-red-500" [style.width.%]="barPct(row.failedCount)"></div>
+                </div>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="py-10 text-center text-sm text-slate-400">No login activity recorded yet.</p>
+        }
+      </div>
+    </div>
+
+    <!-- Recent events -->
+    <div class="wp-card mt-4 overflow-hidden !p-0">
+      <div class="flex items-center justify-between px-6 py-4">
+        <h2 class="text-base font-bold text-slate-900">Recent events</h2>
+        <span class="text-xs text-slate-400">Real client IP shown (SuperAdmin only)</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-100 text-sm">
+          <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <tr>
+              <th class="px-6 py-3">Time</th>
+              <th class="px-6 py-3">Type</th>
+              <th class="px-6 py-3">Account</th>
+              <th class="px-6 py-3">IP address</th>
+              <th class="px-6 py-3">Path</th>
+              <th class="px-6 py-3">Detail</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (e of s.recent; track e.securityEventId) {
+              <tr class="hover:bg-slate-50/60">
+                <td class="whitespace-nowrap px-6 py-3 text-slate-500">{{ e.createdOn | date: 'MMM d, h:mm:ss a' }}</td>
+                <td class="px-6 py-3">
+                  <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="badgeClass(e.eventType)">{{ typeLabel(e.eventType) }}</span>
+                </td>
+                <td class="px-6 py-3 text-slate-600">{{ e.email || '—' }}</td>
+                <td class="px-6 py-3 font-mono text-xs text-slate-700">{{ e.ipAddress || '—' }}</td>
+                <td class="px-6 py-3 font-mono text-xs text-slate-500">{{ e.path || '—' }}</td>
+                <td class="px-6 py-3 text-xs text-slate-500">{{ e.detail || '—' }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="px-6 py-10 text-center text-sm text-slate-400">No events recorded yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</section>
