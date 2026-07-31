@@ -32,9 +32,9 @@
       <div class="wp-card py-16 text-center text-sm text-slate-500">No applications in this view.</div>
     } @else {
       <div class="wp-card overflow-hidden !p-0">
-        <div class="overflow-x-auto">
+        <div class="max-h-[62vh] overflow-auto">
           <table class="min-w-full divide-y divide-slate-100 text-sm">
-            <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <thead class="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
               <tr>
                 <th class="px-6 py-3">Applicant</th>
                 <th class="px-6 py-3">Requested role</th>
@@ -62,6 +62,9 @@
               }
             </tbody>
           </table>
+        </div>
+        <div class="sticky bottom-0 bg-white">
+          <app-paginator [total]="total()" [page]="page()" [pageSize]="pageSize()" (pageChange)="goPage($event)" (pageSizeChange)="setPageSize($event)" />
         </div>
       </div>
     }

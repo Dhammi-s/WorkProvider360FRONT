@@ -4,6 +4,7 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
 import { EmailLog, LogAccess, LogSettings, UpdateLogSettings } from '../models/log.model';
+import { PagedResult } from '../models/paged-result.model';
 
 @Injectable({ providedIn: 'root' })
 export class LogService {
@@ -14,6 +15,13 @@ export class LogService {
     return this.http
       .get<ApiResponse<LogAccess>>(`${this.baseUrl}/access`)
       .pipe(map((r) => this.unwrap(r)));
+  }
+
+  emailsPaged(page = 1, pageSize = 10): Observable<PagedResult<EmailLog>> {
+    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    return this.http
+      .get<ApiResponse<PagedResult<EmailLog>>>(`${this.baseUrl}/emails/paged`, { params })
+      .pipe(map((r) => r.data ?? { items: [], total: 0, page, pageSize }));
   }
 
   emails(top = 200): Observable<EmailLog[]> {

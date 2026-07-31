@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { ImageCroppedEvent, ImageCropperComponent } from 'ngx-image-cropper';
 import { Schedule } from '../../../core/models/scheduler.model';
 import { UserDto } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
@@ -12,7 +13,7 @@ import { Alert } from '../../../shared/ui/alert/alert';
 /** Current-user profile plus a change-password form and the user's own schedule. */
 @Component({
   selector: 'app-profile',
-  imports: [ReactiveFormsModule, RouterLink, DatePipe, Alert],
+  imports: [ReactiveFormsModule, RouterLink, DatePipe, Alert, ImageCropperComponent],
   templateUrl: './profile.html',
 })
 export class Profile {
@@ -26,6 +27,15 @@ export class Profile {
 
   readonly mySchedules = signal<Schedule[]>([]);
   readonly schedulesLoading = signal(true);
+
+  // Avatar upload + crop
+  private static readonly MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
+  readonly cropOpen = signal(false);
+  readonly fileEvent = signal<Event | null>(null);
+  readonly cropped = signal<string | null>(null);
+  readonly avatarSaving = signal(false);
+  readonly avatarError = signal('');
+  readonly avatarNotice = signal('');
 
   readonly saving = signal(false);
   readonly pwError = signal('');
@@ -84,6 +94,57 @@ export class Profile {
 
   togglePassword(): void {
     this.showPassword.update((v) => !v);
+  }
+
+  // ---- Avatar upload + crop ----
+  onAvatarFile(event: Event): void {
+    this.avatarError.set('');
+    this.avatarNotice.set('');
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file && file.size > Profile.MAX_AVATAR_BYTES) {
+      this.avatarError.set('That image is over 5MB. Please choose a smaller one.');
+      input.value = '';
+      return;
+    }
+    this.cropped.set(null);
+    this.fileEvent.set(event);
+    this.cropOpen.set(true);
+  }
+
+  onCropped(event: ImageCroppedEvent): void {
+    this.cropped.set(event.base64 ?? null);
+  }
+
+  onCropFailed(): void {
+    this.avatarError.set('That image could not be loaded. Try a PNG or JPG.');
+  }
+
+  cancelCrop(): void {
+    this.cropOpen.set(false);
+    this.fileEvent.set(null);
+    this.cropped.set(null);
+  }
+
+  saveAvatar(): void {
+    const data = this.cropped();
+    if (!data) return;
+    this.avatarSaving.set(true);
+    this.avatarError.set('');
+    this.userService.uploadAvatar(data).subscribe({
+      next: (updated) => {
+        this.avatarSaving.set(false);
+        this.cropOpen.set(false);
+        this.fileEvent.set(null);
+        this.cropped.set(null);
+        this.avatarNotice.set('Profile photo updated.');
+        this.profile.set(updated);
+      },
+      error: (err: Error) => {
+        this.avatarSaving.set(false);
+        this.avatarError.set(err.message || 'Could not save the photo.');
+      },
+    });
   }
 
   initials(name: string | undefined): string {

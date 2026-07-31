@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
+import { PagedResult } from '../models/paged-result.model';
 import {
   ApplicationDetail,
   ApplicationListItem,
@@ -36,6 +37,14 @@ export class ApplicationService {
   }
 
   // ---- Review ----
+  listPaged(status: ApplicationStatus | undefined, page = 1, pageSize = 10): Observable<PagedResult<ApplicationListItem>> {
+    let params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    if (status) params = params.set('status', status);
+    return this.http
+      .get<ApiResponse<PagedResult<ApplicationListItem>>>(`${this.appsUrl}/paged`, { params })
+      .pipe(map((r) => r.data ?? { items: [], total: 0, page, pageSize }));
+  }
+
   list(status?: ApplicationStatus): Observable<ApplicationListItem[]> {
     let params = new HttpParams();
     if (status) params = params.set('status', status);

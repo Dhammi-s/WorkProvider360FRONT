@@ -75,7 +75,7 @@
       </button>
 
       <div class="min-w-0">
-        <p class="truncate text-sm font-semibold text-slate-900">Agency #{{ user()?.agencyId }}</p>
+        <p class="truncate text-sm font-semibold text-slate-900">{{ agencyName() || 'Agency #' + user()?.agencyId }}</p>
         <p class="truncate text-xs text-slate-400">Workspace dashboard</p>
       </div>
 
@@ -85,7 +85,11 @@
           (click)="toggleMenu()"
           class="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition hover:bg-slate-100"
         >
-          <span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">{{ initials() }}</span>
+          @if (avatarUrl()) {
+            <img [src]="avatarUrl()" alt="Profile photo" class="h-9 w-9 rounded-full object-cover" />
+          } @else {
+            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">{{ initials() }}</span>
+          }
           <span class="hidden text-left sm:block">
             <span class="block text-sm font-semibold text-slate-800">{{ user()?.fullName }}</span>
             <span class="block text-xs text-slate-400">{{ user()?.roleName }}</span>

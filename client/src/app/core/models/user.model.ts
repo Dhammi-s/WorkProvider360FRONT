@@ -6,6 +6,7 @@ export interface UserDto {
   roleId: number;
   roleName: string;
   phone?: string | null;
+  avatarUrl?: string | null;
   officeId?: string | null;
   officeName?: string | null;
   salary?: number | null;

@@ -10,8 +10,10 @@ import {
   RouterOutlet,
 } from '@angular/router';
 import { RoleName } from '../../../core/models/role.model';
+import { AgencyService } from '../../../core/services/agency.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { BrandingService } from '../../../core/services/branding.service';
+import { UserService } from '../../../core/services/user.service';
 
 interface NavItem {
   label: string;
@@ -31,9 +33,13 @@ export class DashboardLayout {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly branding = inject(BrandingService);
+  private readonly agency = inject(AgencyService);
+  private readonly users = inject(UserService);
 
   readonly user = this.auth.user;
   readonly logo = this.branding.logo;
+  readonly agencyName = this.agency.name;
+  readonly avatarUrl = signal<string | null>(null);
   readonly sidebarOpen = signal(false);
   readonly menuOpen = signal(false);
 
@@ -47,6 +53,11 @@ export class DashboardLayout {
 
   constructor() {
     this.branding.load();
+    this.agency.load();
+    this.users.getMe().subscribe({
+      next: (me) => this.avatarUrl.set(me.avatarUrl ?? null),
+      error: () => {},
+    });
 
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationStart) {

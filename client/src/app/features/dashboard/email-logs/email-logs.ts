@@ -3,11 +3,12 @@ import { Component, inject, signal } from '@angular/core';
 import { EmailLog, LogAccess } from '../../../core/models/log.model';
 import { LogService } from '../../../core/services/log.service';
 import { Alert } from '../../../shared/ui/alert/alert';
+import { Paginator } from '../../../shared/ui/paginator/paginator';
 
 /** Global email logs. View access is controlled by SuperAdmin in Settings → Log Access. */
 @Component({
   selector: 'app-email-logs',
-  imports: [DatePipe, Alert],
+  imports: [DatePipe, Alert, Paginator],
   templateUrl: './email-logs.html',
 })
 export class EmailLogs {
@@ -18,7 +19,22 @@ export class EmailLogs {
   readonly listError = signal('');
 
   readonly logs = signal<EmailLog[]>([]);
+  readonly total = signal(0);
   readonly selected = signal<EmailLog | null>(null);
+
+  readonly page = signal(1);
+  readonly pageSize = signal(10);
+
+  goPage(p: number): void {
+    this.page.set(p);
+    this.loadLogs();
+  }
+
+  setPageSize(n: number): void {
+    this.pageSize.set(n);
+    this.page.set(1);
+    this.loadLogs();
+  }
 
   constructor() {
     this.service.access().subscribe({
@@ -37,9 +53,10 @@ export class EmailLogs {
   loadLogs(): void {
     this.loading.set(true);
     this.listError.set('');
-    this.service.emails(200).subscribe({
-      next: (logs) => {
-        this.logs.set(logs);
+    this.service.emailsPaged(this.page(), this.pageSize()).subscribe({
+      next: (res) => {
+        this.logs.set(res.items);
+        this.total.set(res.total);
         this.loading.set(false);
       },
       error: (err: Error) => {

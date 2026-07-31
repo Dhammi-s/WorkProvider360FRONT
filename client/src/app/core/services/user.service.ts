@@ -2,7 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { HttpParams } from '@angular/common/http';
 import { ApiResponse } from '../models/api-response.model';
+import { PagedResult } from '../models/paged-result.model';
 import { RoleDto } from '../models/role.model';
 import { CreateUserRequest, SendSmsRequest, UserDto } from '../models/user.model';
 
@@ -17,6 +19,20 @@ export class UserService {
     return this.http
       .get<ApiResponse<UserDto[]>>(this.usersUrl)
       .pipe(map((res) => res.data ?? []));
+  }
+
+  getUsersPaged(
+    page = 1,
+    pageSize = 10,
+    filters?: { role?: string; officeId?: string; noOffice?: boolean },
+  ): Observable<PagedResult<UserDto>> {
+    let params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    if (filters?.role) params = params.set('role', filters.role);
+    if (filters?.officeId) params = params.set('officeId', filters.officeId);
+    if (filters?.noOffice) params = params.set('noOffice', true);
+    return this.http
+      .get<ApiResponse<PagedResult<UserDto>>>(`${this.usersUrl}/paged`, { params })
+      .pipe(map((r) => r.data ?? { items: [], total: 0, page, pageSize }));
   }
 
   getMe(): Observable<UserDto> {
@@ -43,6 +59,13 @@ export class UserService {
     return this.http
       .post<ApiResponse<unknown>>(`${this.usersUrl}/resend-credentials`, { userIds })
       .pipe(map((res) => res.message ?? 'Credentials sent.'));
+  }
+
+  /** Upload the current user's cropped profile photo (base64 data URI) to Cloudinary. */
+  uploadAvatar(imageBase64: string): Observable<UserDto> {
+    return this.http
+      .post<ApiResponse<UserDto>>(`${this.usersUrl}/me/avatar`, { imageBase64 })
+      .pipe(map((res) => this.unwrap(res)));
   }
 
   /** Send an SMS to a user (by id, using their stored phone) or to an explicit number. */

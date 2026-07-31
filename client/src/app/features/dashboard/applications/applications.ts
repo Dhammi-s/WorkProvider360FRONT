@@ -11,13 +11,14 @@ import { ApplicationService } from '../../../core/services/application.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { OfficeService } from '../../../core/services/office.service';
 import { Alert } from '../../../shared/ui/alert/alert';
+import { Paginator } from '../../../shared/ui/paginator/paginator';
 import { exportApplicationPdf } from '../../../shared/util/pdf.util';
 
 type Filter = 'All' | ApplicationStatus;
 
 @Component({
   selector: 'app-applications',
-  imports: [DatePipe, CurrencyPipe, FormsModule, Alert],
+  imports: [DatePipe, CurrencyPipe, FormsModule, Alert, Paginator],
   templateUrl: './applications.html',
 })
 export class Applications {
@@ -33,6 +34,21 @@ export class Applications {
   readonly items = signal<ApplicationListItem[]>([]);
   readonly loading = signal(true);
   readonly listError = signal('');
+
+  readonly total = signal(0);
+  readonly page = signal(1);
+  readonly pageSize = signal(10);
+
+  goPage(p: number): void {
+    this.page.set(p);
+    this.load();
+  }
+
+  setPageSize(n: number): void {
+    this.pageSize.set(n);
+    this.page.set(1);
+    this.load();
+  }
 
   readonly offices = signal<Office[]>([]);
 
@@ -62,9 +78,10 @@ export class Applications {
     this.loading.set(true);
     this.listError.set('');
     const f = this.filter();
-    this.service.list(f === 'All' ? undefined : f).subscribe({
-      next: (items) => {
-        this.items.set(items);
+    this.service.listPaged(f === 'All' ? undefined : f, this.page(), this.pageSize()).subscribe({
+      next: (res) => {
+        this.items.set(res.items);
+        this.total.set(res.total);
         this.loading.set(false);
       },
       error: (err: Error) => {
@@ -76,6 +93,7 @@ export class Applications {
 
   setFilter(f: Filter): void {
     this.filter.set(f);
+    this.page.set(1);
     this.load();
   }
 

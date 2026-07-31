@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
     <div>
       <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Team members</h1>
-      <p class="mt-1 text-sm text-slate-500">{{ filteredUsers().length }} of {{ total() }} user(s)</p>
+      <p class="mt-1 text-sm text-slate-500">{{ total() }} user(s)</p>
     </div>
     <button type="button" (click)="openModal()" class="wp-btn-primary self-start sm:self-auto">
       <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
@@ -31,7 +31,7 @@
       <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <label class="flex items-center gap-2 text-sm">
           <span class="font-medium text-slate-600">Office</span>
-          <select [ngModel]="officeFilter()" (ngModelChange)="officeFilter.set($event)" class="wp-input !py-2 !w-auto">
+          <select [ngModel]="officeFilter()" (ngModelChange)="setOfficeFilter($event)" class="wp-input !py-2 !w-auto">
             <option value="">All offices</option>
             @for (office of offices(); track office.officeId) {
               <option [value]="office.officeId">{{ office.officeName }}</option>
@@ -41,7 +41,7 @@
         </label>
         <label class="flex items-center gap-2 text-sm">
           <span class="font-medium text-slate-600">Role</span>
-          <select [ngModel]="roleFilter()" (ngModelChange)="roleFilter.set($event)" class="wp-input !py-2 !w-auto">
+          <select [ngModel]="roleFilter()" (ngModelChange)="setRoleFilter($event)" class="wp-input !py-2 !w-auto">
             <option value="">All roles</option>
             @for (r of roleNames; track r) {
               <option [value]="r">{{ r }}</option>
@@ -49,7 +49,7 @@
           </select>
         </label>
         @if (officeFilter() || roleFilter()) {
-          <button type="button" (click)="officeFilter.set(''); roleFilter.set('')" class="text-sm wp-link">Clear filters</button>
+          <button type="button" (click)="clearFilters()" class="text-sm wp-link">Clear filters</button>
         }
       </div>
 
@@ -74,9 +74,9 @@
       }
 
       <div class="wp-card overflow-hidden !p-0">
-        <div class="overflow-x-auto">
+        <div class="max-h-[62vh] overflow-auto">
           <table class="min-w-full divide-y divide-slate-100 text-sm">
-            <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <thead class="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
               <tr>
                 <th class="px-6 py-3">
                   <input type="checkbox" [checked]="allVisibleSelected()" (change)="toggleSelectAll()" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" aria-label="Select all" />
@@ -91,14 +91,18 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-              @for (u of filteredUsers(); track u.userId) {
+              @for (u of users(); track u.userId) {
                 <tr class="hover:bg-slate-50/60">
                   <td class="px-6 py-3">
                     <input type="checkbox" [checked]="isSelected(u.userId)" (change)="toggleSelect(u.userId)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" [attr.aria-label]="'Select ' + u.fullName" />
                   </td>
                   <td class="px-6 py-3">
                     <div class="flex items-center gap-3">
-                      <span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">{{ initials(u.fullName) }}</span>
+                      @if (u.avatarUrl) {
+                        <img [src]="u.avatarUrl" alt="" class="h-9 w-9 rounded-full object-cover" />
+                      } @else {
+                        <span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">{{ initials(u.fullName) }}</span>
+                      }
                       <span class="font-semibold text-slate-800">{{ u.fullName }}</span>
                     </div>
                   </td>
@@ -154,6 +158,9 @@
               }
             </tbody>
           </table>
+        </div>
+        <div class="sticky bottom-0 bg-white">
+          <app-paginator [total]="total()" [page]="page()" [pageSize]="pageSize()" (pageChange)="goPage($event)" (pageSizeChange)="setPageSize($event)" />
         </div>
       </div>
     }

@@ -8,11 +8,12 @@ import { AuthService } from '../../../core/services/auth.service';
 import { OfficeService } from '../../../core/services/office.service';
 import { UserService } from '../../../core/services/user.service';
 import { Alert } from '../../../shared/ui/alert/alert';
+import { Paginator } from '../../../shared/ui/paginator/paginator';
 
 /** Admin team management: list tenant users and create new ones. */
 @Component({
   selector: 'app-users',
-  imports: [ReactiveFormsModule, FormsModule, DatePipe, Alert],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe, Alert, Paginator],
   templateUrl: './users.html',
 })
 export class Users {
@@ -46,30 +47,52 @@ export class Users {
   readonly confirmBulk = signal(false);
   readonly selectedCount = computed(() => this.selectedIds().size);
   readonly allVisibleSelected = computed(() => {
-    const rows = this.filteredUsers();
+    const rows = this.users();
     const sel = this.selectedIds();
     return rows.length > 0 && rows.every((u) => sel.has(u.userId));
   });
 
-  readonly total = computed(() => this.users().length);
+  readonly total = signal(0);
 
   // Office filter ('' = all, 'none' = no office assigned, else an officeId)
   readonly officeFilter = signal<string>('');
   readonly roleFilter = signal<string>('');
 
-  readonly filteredUsers = computed(() => {
-    const office = this.officeFilter();
-    const role = this.roleFilter();
-    return this.users().filter((u) => {
-      const officeOk =
-        !office ||
-        (office === 'none' ? !u.officeId : u.officeId === office);
-      const roleOk = !role || u.roleName === role;
-      return officeOk && roleOk;
-    });
-  });
-
   readonly roleNames = ['SuperAdmin', 'Admin', 'Manager', 'User'];
+
+  // Server-side pagination.
+  readonly page = signal(1);
+  readonly pageSize = signal(10);
+
+  goPage(p: number): void {
+    this.page.set(p);
+    this.loadUsers();
+  }
+
+  setPageSize(n: number): void {
+    this.pageSize.set(n);
+    this.page.set(1);
+    this.loadUsers();
+  }
+
+  setOfficeFilter(v: string): void {
+    this.officeFilter.set(v);
+    this.page.set(1);
+    this.loadUsers();
+  }
+
+  setRoleFilter(v: string): void {
+    this.roleFilter.set(v);
+    this.page.set(1);
+    this.loadUsers();
+  }
+
+  clearFilters(): void {
+    this.officeFilter.set('');
+    this.roleFilter.set('');
+    this.page.set(1);
+    this.loadUsers();
+  }
 
   // Send-SMS modal state
   readonly smsUser = signal<UserDto | null>(null);
@@ -105,9 +128,16 @@ export class Users {
   loadUsers(): void {
     this.loading.set(true);
     this.listError.set('');
-    this.userService.getUsers().subscribe({
-      next: (list) => {
-        this.users.set(list);
+    const office = this.officeFilter();
+    const filters = {
+      role: this.roleFilter() || undefined,
+      officeId: office && office !== 'none' ? office : undefined,
+      noOffice: office === 'none',
+    };
+    this.userService.getUsersPaged(this.page(), this.pageSize(), filters).subscribe({
+      next: (res) => {
+        this.users.set(res.items);
+        this.total.set(res.total);
         this.loading.set(false);
       },
       error: (err: Error) => {
@@ -174,7 +204,7 @@ export class Users {
   }
 
   toggleSelectAll(): void {
-    const rows = this.filteredUsers();
+    const rows = this.users();
     if (this.allVisibleSelected()) {
       const next = new Set(this.selectedIds());
       rows.forEach((u) => next.delete(u.userId));
