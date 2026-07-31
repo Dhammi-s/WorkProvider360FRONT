@@ -1,0 +1,96 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-07-31
+     NOTE TO DEVELOPERS: Do NOT change functionality without full knowledge of the
+     SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
+     ============================================================================= -->
+
+<!-- Chat panel -->
+@if (open()) {
+  <div class="fixed bottom-24 right-4 z-[80] flex h-[32rem] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:right-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between bg-brand-panel px-4 py-3 text-white">
+      <div class="flex items-center gap-2.5">
+        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-600">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
+        </span>
+        <div>
+          <p class="text-sm font-bold leading-tight">Assistant</p>
+          <p class="text-[11px] text-white/60">Ask about WorkProvider360</p>
+        </div>
+      </div>
+      <button type="button" (click)="toggle()" class="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Close">
+        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+      </button>
+    </div>
+
+    <!-- Messages -->
+    <div class="wp-scroll flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4">
+      @for (m of messages(); track $index) {
+        @if (m.role === 'assistant') {
+          <div class="flex justify-start">
+            <div class="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-white px-3.5 py-2.5 text-sm text-slate-700 shadow-sm ring-1 ring-slate-100">{{ m.content }}</div>
+          </div>
+        } @else {
+          <div class="flex justify-end">
+            <div class="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-brand-600 px-3.5 py-2.5 text-sm text-white">{{ m.content }}</div>
+          </div>
+        }
+      }
+
+      @if (sending()) {
+        <div class="flex justify-start">
+          <div class="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-white px-4 py-3 shadow-sm ring-1 ring-slate-100">
+            <span class="h-2 w-2 animate-bounce rounded-full bg-brand-400 [animation-delay:-0.3s]"></span>
+            <span class="h-2 w-2 animate-bounce rounded-full bg-brand-500 [animation-delay:-0.15s]"></span>
+            <span class="h-2 w-2 animate-bounce rounded-full bg-brand-600"></span>
+          </div>
+        </div>
+      }
+
+      @if (messages().length <= 1) {
+        <div class="space-y-2 pt-2">
+          @for (s of suggestions; track s) {
+            <button type="button" (click)="ask(s)" class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-medium text-slate-600 hover:border-brand-200 hover:text-brand-700">{{ s }}</button>
+          }
+        </div>
+      }
+
+      @if (error()) {
+        <p class="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{{ error() }}</p>
+      }
+    </div>
+
+    <!-- Input -->
+    <div class="border-t border-slate-100 bg-white p-3">
+      <div class="flex items-end gap-2">
+        <textarea
+          rows="1"
+          class="wp-input max-h-24 flex-1 resize-none !py-2 text-sm"
+          placeholder="Ask a question…"
+          [value]="input()"
+          (input)="input.set($any($event.target).value)"
+          (keydown.enter)="$event.preventDefault(); send()"></textarea>
+        <button type="button" (click)="send()" [disabled]="sending() || !input().trim()" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white transition hover:bg-brand-700 disabled:opacity-40">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+        </button>
+      </div>
+      <p class="mt-1.5 text-center text-[10px] text-slate-300">Answers cover WorkProvider360 features only.</p>
+    </div>
+  </div>
+}
+
+<!-- Launcher button -->
+<button
+  type="button"
+  (click)="toggle()"
+  class="fixed bottom-5 right-5 z-[80] flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-xl shadow-brand-950/30 transition hover:bg-brand-700 sm:right-6"
+  [attr.aria-label]="open() ? 'Close assistant' : 'Open assistant'"
+>
+  @if (open()) {
+    <svg class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+  } @else {
+    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
+  }
+</button>
