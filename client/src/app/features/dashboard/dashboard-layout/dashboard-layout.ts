@@ -51,6 +51,11 @@ export class DashboardLayout {
   readonly sidebarOpen = signal(false);
   readonly menuOpen = signal(false);
 
+  /** Desktop-only: when true the sidebar shrinks to an icons-only rail. Persisted. */
+  readonly collapsed = signal<boolean>(
+    typeof localStorage !== 'undefined' && localStorage.getItem('wp-sidebar-collapsed') === '1',
+  );
+
   /** True while the router is navigating between pages — drives the blur loader. */
   readonly navigating = signal(false);
 
@@ -123,6 +128,12 @@ export class DashboardLayout {
 
   toggleSidebar(): void {
     this.sidebarOpen.update((v) => !v);
+  }
+
+  toggleCollapse(): void {
+    const next = !this.collapsed();
+    this.collapsed.set(next);
+    if (typeof localStorage !== 'undefined') localStorage.setItem('wp-sidebar-collapsed', next ? '1' : '0');
   }
 
   closeSidebar(): void {
