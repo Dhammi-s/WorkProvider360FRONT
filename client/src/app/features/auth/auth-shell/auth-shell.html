@@ -10,28 +10,29 @@
 
     <!-- brand -->
     <div class="relative flex items-center gap-3">
-      <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 shadow-lg shadow-brand-950/40">
-        <svg class="h-6 w-6 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
-        </svg>
+      <span class="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-brand-600 shadow-lg shadow-brand-950/40">
+        @if (logo()) {
+          <img [src]="logo()" alt="Agency logo" class="h-full w-full object-contain" />
+        } @else {
+          <svg class="h-6 w-6 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
+          </svg>
+        }
       </span>
-      <span class="text-xl font-extrabold tracking-tight">WorkProvider<span class="text-accent-400">360</span></span>
+      <span class="text-xl font-extrabold tracking-tight">{{ agencyName() }}</span>
     </div>
 
     <!-- headline -->
     <div class="relative max-w-md">
       <h1 class="text-4xl font-extrabold leading-tight xl:text-5xl">
-        Field service
-        <span class="text-accent-400">reimagined</span>
-        with AI
+        {{ content().headlineLead }}
+        <span class="text-accent-400">{{ content().headlineHighlight }}</span>
+        {{ content().headlineTrail }}
       </h1>
-      <p class="mt-5 text-base leading-relaxed text-white/70">
-        Intelligent scheduling, real-time dispatch, and AI-powered insights for
-        modern service businesses.
-      </p>
+      <p class="mt-5 text-base leading-relaxed text-white/70">{{ content().subtitle }}</p>
 
       <div class="mt-8 grid grid-cols-3 gap-3">
-        @for (stat of stats; track stat.label) {
+        @for (stat of stats(); track stat.label) {
           <div class="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur">
             <div class="text-xs font-medium text-white/60">{{ stat.label }}</div>
             <div class="mt-1 text-xl font-bold text-accent-400">{{ stat.value }}</div>
@@ -41,31 +42,34 @@
     </div>
 
     <!-- testimonial -->
-    <figure class="relative rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-      <blockquote class="text-sm italic leading-relaxed text-white/80">
-        "WorkProvider360 cut our scheduling time by 70% and increased our
-        first-time fix rate to 94%. It's transformed how we operate."
-      </blockquote>
-      <figcaption class="mt-3 flex items-center gap-3">
-        <span class="flex h-9 w-9 items-center justify-center rounded-full bg-accent-500 text-sm font-bold text-white">JR</span>
-        <span class="text-sm">
-          <span class="block font-semibold">Jordan Rivera</span>
-          <span class="block text-white/60">COO, ClearPath HVAC — Toronto, ON</span>
-        </span>
-      </figcaption>
-    </figure>
+    @if (content().quoteText) {
+      <figure class="relative rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+        <blockquote class="text-sm italic leading-relaxed text-white/80">"{{ content().quoteText }}"</blockquote>
+        <figcaption class="mt-3 flex items-center gap-3">
+          <span class="flex h-9 w-9 items-center justify-center rounded-full bg-accent-500 text-sm font-bold text-white">{{ quoteInitials() }}</span>
+          <span class="text-sm">
+            <span class="block font-semibold">{{ content().quoteAuthor }}</span>
+            <span class="block text-white/60">{{ content().quoteRole }}</span>
+          </span>
+        </figcaption>
+      </figure>
+    }
   </aside>
 
   <!-- Right: form -->
   <main class="flex w-full flex-col items-center justify-center bg-white px-6 py-12 lg:w-1/2 lg:px-12">
     <!-- mobile brand -->
     <div class="mb-8 flex items-center gap-2.5 lg:hidden">
-      <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600">
-        <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
-        </svg>
+      <span class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-brand-600">
+        @if (logo()) {
+          <img [src]="logo()" alt="Agency logo" class="h-full w-full object-contain" />
+        } @else {
+          <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
+          </svg>
+        }
       </span>
-      <span class="text-lg font-extrabold tracking-tight text-slate-900">WorkProvider<span class="text-brand-600">360</span></span>
+      <span class="text-lg font-extrabold tracking-tight text-slate-900">{{ agencyName() }}</span>
     </div>
 
     <div class="w-full max-w-md">

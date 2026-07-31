@@ -2,9 +2,11 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Question } from '../../../core/models/application.model';
+import { DEFAULT_LOGIN_CONTENT, LoginContent } from '../../../core/models/login-content.model';
 import { AccessLevel, SchedulingAccess } from '../../../core/models/scheduler.model';
 import { ApplicationService } from '../../../core/services/application.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { BrandingService } from '../../../core/services/branding.service';
 import { AnnouncementService } from '../../../core/services/announcement.service';
 import { LogService } from '../../../core/services/log.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
@@ -29,6 +31,7 @@ export class Settings {
   private readonly logs = inject(LogService);
   private readonly announcements = inject(AnnouncementService);
   private readonly auth = inject(AuthService);
+  private readonly branding = inject(BrandingService);
 
   readonly user = this.auth.user;
   readonly isSuperAdmin = computed(() => this.auth.roleName() === 'SuperAdmin');
@@ -52,8 +55,44 @@ export class Settings {
       t.push({ id: 'logs', label: 'Log Access', icon: 'M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2M4 6l8 6 8-6' });
     if (this.isSuperAdmin())
       t.push({ id: 'announcements', label: 'Announcements', icon: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 11-5.8-1.6' });
+    if (this.isSuperAdmin())
+      t.push({ id: 'login', label: 'Login Page', icon: 'M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3' });
     return t;
   });
+
+  // ---- Login page content (SuperAdmin) ----
+  readonly loginContent = signal<LoginContent>({ ...DEFAULT_LOGIN_CONTENT });
+  readonly loginSaving = signal(false);
+  readonly loginNotice = signal('');
+  readonly loginError = signal('');
+
+  loadLoginContent(): void {
+    this.branding.getLoginContent().subscribe({
+      next: (c) => { if (c) this.loginContent.set(c); },
+      error: () => {},
+    });
+  }
+
+  setLoginField<K extends keyof LoginContent>(key: K, value: LoginContent[K]): void {
+    this.loginContent.update((c) => ({ ...c, [key]: value }));
+  }
+
+  saveLoginContent(): void {
+    this.loginSaving.set(true);
+    this.loginNotice.set('');
+    this.loginError.set('');
+    this.branding.updateLoginContent(this.loginContent()).subscribe({
+      next: (c) => {
+        this.loginSaving.set(false);
+        if (c) this.loginContent.set(c);
+        this.loginNotice.set('Login page updated.');
+      },
+      error: (err: Error) => {
+        this.loginSaving.set(false);
+        this.loginError.set(err.message || 'Could not save the login page.');
+      },
+    });
+  }
 
   setTab(id: string): void {
     this.activeTab.set(id);
@@ -120,6 +159,7 @@ export class Settings {
       this.loadQuestions();
       this.loadLogSettings();
       this.loadAnnouncementSettings();
+      this.loadLoginContent();
     } else {
       this.loading.set(false);
     }

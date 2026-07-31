@@ -318,6 +318,71 @@
             </div>
           </div>
         }
+
+        <!-- ===================== Login Page ===================== -->
+        @if (activeTab() === 'login') {
+          <div class="wp-card">
+            <h2 class="text-base font-bold text-slate-900">Login page content</h2>
+            <p class="mt-1 text-sm text-slate-500">
+              Edit the marketing panel shown on the sign-in screen. Your agency name and logo are used automatically — set the logo under Company Profile.
+            </p>
+            <app-alert type="success" [message]="loginNotice()" />
+            <app-alert type="error" [message]="loginError()" />
+
+            <div class="mt-4 space-y-5">
+              <!-- Headline -->
+              <div>
+                <label class="wp-label">Headline</label>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <input class="wp-input" placeholder="Field service" [ngModel]="loginContent().headlineLead" (ngModelChange)="setLoginField('headlineLead', $event)" />
+                  <input class="wp-input" placeholder="reimagined (highlighted)" [ngModel]="loginContent().headlineHighlight" (ngModelChange)="setLoginField('headlineHighlight', $event)" />
+                  <input class="wp-input" placeholder="with AI" [ngModel]="loginContent().headlineTrail" (ngModelChange)="setLoginField('headlineTrail', $event)" />
+                </div>
+                <p class="mt-1 text-xs text-slate-400">The middle part is shown in the accent colour.</p>
+              </div>
+
+              <div>
+                <label class="wp-label">Subtitle</label>
+                <textarea rows="2" class="wp-input" [ngModel]="loginContent().subtitle" (ngModelChange)="setLoginField('subtitle', $event)"></textarea>
+              </div>
+
+              <!-- Stats -->
+              <div>
+                <label class="wp-label">Highlight stats</label>
+                <div class="space-y-2">
+                  <div class="grid grid-cols-2 gap-2">
+                    <input class="wp-input" placeholder="Label (e.g. Jobs Dispatched)" [ngModel]="loginContent().stat1Label" (ngModelChange)="setLoginField('stat1Label', $event)" />
+                    <input class="wp-input" placeholder="Value (e.g. 1.2M+)" [ngModel]="loginContent().stat1Value" (ngModelChange)="setLoginField('stat1Value', $event)" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input class="wp-input" placeholder="Label" [ngModel]="loginContent().stat2Label" (ngModelChange)="setLoginField('stat2Label', $event)" />
+                    <input class="wp-input" placeholder="Value" [ngModel]="loginContent().stat2Value" (ngModelChange)="setLoginField('stat2Value', $event)" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input class="wp-input" placeholder="Label" [ngModel]="loginContent().stat3Label" (ngModelChange)="setLoginField('stat3Label', $event)" />
+                    <input class="wp-input" placeholder="Value" [ngModel]="loginContent().stat3Value" (ngModelChange)="setLoginField('stat3Value', $event)" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Testimonial -->
+              <div>
+                <label class="wp-label">Testimonial</label>
+                <textarea rows="3" class="wp-input" placeholder="Quote… (leave blank to hide)" [ngModel]="loginContent().quoteText" (ngModelChange)="setLoginField('quoteText', $event)"></textarea>
+                <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <input class="wp-input" placeholder="Author (e.g. Jordan Rivera)" [ngModel]="loginContent().quoteAuthor" (ngModelChange)="setLoginField('quoteAuthor', $event)" />
+                  <input class="wp-input" placeholder="Role (e.g. COO, ClearPath HVAC)" [ngModel]="loginContent().quoteRole" (ngModelChange)="setLoginField('quoteRole', $event)" />
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-5 flex justify-end">
+              <button type="button" (click)="saveLoginContent()" [disabled]="loginSaving()" class="wp-btn-primary">
+                @if (loginSaving()) { Saving… } @else { Save login page }
+              </button>
+            </div>
+          </div>
+        }
       </div>
     </div>
   }
