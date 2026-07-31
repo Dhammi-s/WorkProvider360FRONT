@@ -65,7 +65,12 @@
 
     <div class="rounded-xl border border-white/10 bg-white/5 p-4 text-xs text-white/60">
       <p class="font-semibold text-white/80">Need help?</p>
-      <p class="mt-1">Visit the help center or contact support.</p>
+      <p class="mt-1">
+        Visit the
+        <a routerLink="/dashboard/help" (click)="closeSidebar()" class="font-semibold text-white/80 underline hover:text-white">help center</a>
+        or
+        <a routerLink="/dashboard/support" (click)="closeSidebar()" class="font-semibold text-white/80 underline hover:text-white">contact support</a>.
+      </p>
     </div>
   </aside>
 

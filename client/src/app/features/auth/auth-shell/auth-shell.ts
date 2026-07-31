@@ -7,6 +7,7 @@
    ============================================================================= */
 
 import { Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { DEFAULT_LOGIN_CONTENT, LoginContent } from '../../../core/models/login-content.model';
 import { BrandingService } from '../../../core/services/branding.service';
 
@@ -18,6 +19,7 @@ import { BrandingService } from '../../../core/services/branding.service';
  */
 @Component({
   selector: 'app-auth-shell',
+  imports: [RouterLink],
   templateUrl: './auth-shell.html',
   styleUrl: './auth-shell.scss',
 })

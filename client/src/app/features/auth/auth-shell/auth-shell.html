@@ -82,6 +82,22 @@
 
     <div class="w-full max-w-md">
       <ng-content />
+
+      <!-- About / Help / Support quick links -->
+      <div class="mt-10 flex items-center justify-center gap-6 border-t border-slate-100 pt-6 text-slate-400">
+        <a routerLink="/about" class="flex items-center gap-1.5 text-xs font-medium hover:text-brand-600" title="About">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8h.01M11 12h1v4h1M12 21a9 9 0 100-18 9 9 0 000 18z" /></svg>
+          About
+        </a>
+        <a routerLink="/help" class="flex items-center gap-1.5 text-xs font-medium hover:text-brand-600" title="Help Center">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.1 9a3 3 0 115.8 1c0 2-3 2-3 4M12 17h.01M12 21a9 9 0 100-18 9 9 0 000 18z" /></svg>
+          Help
+        </a>
+        <a href="mailto:workprovider360com@gmail.com" class="flex items-center gap-1.5 text-xs font-medium hover:text-brand-600" title="Support">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM4 6l8 6 8-6" /></svg>
+          Support
+        </a>
+      </div>
     </div>
   </main>
 </div>

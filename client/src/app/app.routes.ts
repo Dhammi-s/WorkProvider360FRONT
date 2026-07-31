@@ -41,6 +41,17 @@ export const routes: Routes = [
     loadComponent: () => import('./features/apply/apply').then((m) => m.Apply),
     title: 'Apply for access · WorkProvider360',
   },
+  // Public info pages (also reachable from the login screen)
+  {
+    path: 'help',
+    loadComponent: () => import('./features/dashboard/help/help').then((m) => m.Help),
+    title: 'Help Center · WorkProvider360',
+  },
+  {
+    path: 'about',
+    loadComponent: () => import('./features/dashboard/about/about').then((m) => m.About),
+    title: 'About · WorkProvider360',
+  },
   {
     path: 'setup',
     loadComponent: () => import('./features/auth/setup/setup').then((m) => m.Setup),
@@ -154,6 +165,21 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/dashboard/profile/profile').then((m) => m.Profile),
         title: 'Profile · WorkProvider360',
+      },
+      {
+        path: 'help',
+        loadComponent: () => import('./features/dashboard/help/help').then((m) => m.Help),
+        title: 'Help Center · WorkProvider360',
+      },
+      {
+        path: 'support',
+        loadComponent: () => import('./features/dashboard/support/support').then((m) => m.Support),
+        title: 'Support · WorkProvider360',
+      },
+      {
+        path: 'about',
+        loadComponent: () => import('./features/dashboard/about/about').then((m) => m.About),
+        title: 'About · WorkProvider360',
       },
     ],
   },

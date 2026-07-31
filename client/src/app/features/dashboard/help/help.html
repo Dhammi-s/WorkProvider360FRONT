@@ -1,0 +1,51 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-07-31
+     NOTE TO DEVELOPERS: Do NOT change functionality without full knowledge of the
+     SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
+     ============================================================================= -->
+
+<section>
+  <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Help Center</h1>
+  <p class="mt-1 text-sm text-slate-500">Guides and answers to common questions about using the platform.</p>
+
+  <!-- Search -->
+  <div class="mt-6 max-w-xl">
+    <div class="relative">
+      <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 21l-4.3-4.3M11 19a8 8 0 100-16 8 8 0 000 16z" /></svg>
+      </span>
+      <input type="search" class="wp-input pl-11" placeholder="Search help…" [value]="query()" (input)="query.set($any($event.target).value)" />
+    </div>
+  </div>
+
+  <!-- FAQ list -->
+  <div class="mt-6 space-y-3">
+    @for (f of filtered(); track f.q; let i = $index) {
+      <div class="wp-card !p-0 overflow-hidden">
+        <button type="button" (click)="toggle(i)" class="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50/60">
+          <span>
+            <span class="mr-2 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">{{ f.category }}</span>
+            <span class="text-sm font-semibold text-slate-800">{{ f.q }}</span>
+          </span>
+          <svg class="h-4 w-4 shrink-0 text-slate-400 transition-transform" [class.rotate-180]="openId() === i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
+        </button>
+        @if (openId() === i) {
+          <p class="border-t border-slate-100 px-5 py-4 text-sm leading-relaxed text-slate-600">{{ f.a }}</p>
+        }
+      </div>
+    } @empty {
+      <p class="wp-card py-10 text-center text-sm text-slate-400">No results. Try a different search.</p>
+    }
+  </div>
+
+  <!-- Still need help -->
+  <div class="mt-6 flex flex-col items-start justify-between gap-3 rounded-2xl border border-brand-100 bg-brand-50 px-6 py-5 sm:flex-row sm:items-center">
+    <div>
+      <p class="text-sm font-bold text-brand-800">Still need help?</p>
+      <p class="text-sm text-brand-700/80">Our support team is happy to assist you.</p>
+    </div>
+    <a routerLink="/dashboard/support" class="wp-btn-primary">Contact support</a>
+  </div>
+</section>

@@ -101,6 +101,9 @@ export class DashboardLayout {
     { label: 'Security', path: '/dashboard/security', icon: 'M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-4z M9.5 12l2 2 3.5-4', roles: ['SuperAdmin'] },
     { label: 'Settings', path: '/dashboard/settings', icon: 'M10.3 3.3a2 2 0 013.4 0l.5.9 1 .1a2 2 0 011.7 1.7l.1 1 .9.5a2 2 0 010 3.4l-.9.5-.1 1a2 2 0 01-1.7 1.7l-1 .1-.5.9a2 2 0 01-3.4 0l-.5-.9-1-.1a2 2 0 01-1.7-1.7l-.1-1-.9-.5a2 2 0 010-3.4l.9-.5.1-1a2 2 0 011.7-1.7l1-.1.5-.9zM12 15a3 3 0 100-6 3 3 0 000 6z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
     { label: 'My Profile', path: '/dashboard/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+    { label: 'Help Center', path: '/dashboard/help', icon: 'M9.1 9a3 3 0 115.8 1c0 2-3 2-3 4M12 17h.01M12 21a9 9 0 100-18 9 9 0 000 18z' },
+    { label: 'Support', path: '/dashboard/support', icon: 'M18.4 5.6a9 9 0 11-12.8 0M12 8a4 4 0 100 8 4 4 0 000-8zM8.5 8.5L5.6 5.6m9.9 2.9l2.9-2.9m-2.9 9.9l2.9 2.9m-9.9-2.9l-2.9 2.9' },
+    { label: 'About', path: '/dashboard/about', icon: 'M12 8h.01M11 12h1v4h1M12 21a9 9 0 100-18 9 9 0 000 18z' },
   ];
 
   readonly nav = computed<NavItem[]>(() => {

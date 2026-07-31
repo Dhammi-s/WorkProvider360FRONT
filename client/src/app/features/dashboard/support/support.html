@@ -1,0 +1,66 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-07-31
+     NOTE TO DEVELOPERS: Do NOT change functionality without full knowledge of the
+     SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
+     ============================================================================= -->
+
+<section>
+  <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Support</h1>
+  <p class="mt-1 text-sm text-slate-500">Reach our team — we typically reply within one business day.</p>
+
+  <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <!-- Contact channels -->
+    <div class="space-y-4 lg:col-span-1">
+      <div class="wp-card">
+        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM4 6l8 6 8-6" /></svg>
+        </span>
+        <p class="mt-3 text-sm font-bold text-slate-900">Email us</p>
+        <a [href]="'mailto:' + supportEmail" class="text-sm wp-link">{{ supportEmail }}</a>
+      </div>
+      <div class="wp-card">
+        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </span>
+        <p class="mt-3 text-sm font-bold text-slate-900">Support hours</p>
+        <p class="text-sm text-slate-500">Mon–Fri · 9:00 – 18:00</p>
+      </div>
+      <div class="wp-card">
+        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.1 9a3 3 0 115.8 1c0 2-3 2-3 4M12 17h.01M12 21a9 9 0 100-18 9 9 0 000 18z" /></svg>
+        </span>
+        <p class="mt-3 text-sm font-bold text-slate-900">Browse the Help Center</p>
+        <a routerLink="/dashboard/help" class="text-sm wp-link">Guides &amp; FAQs →</a>
+      </div>
+    </div>
+
+    <!-- Message form -->
+    <div class="wp-card lg:col-span-2">
+      <h2 class="text-base font-bold text-slate-900">Send us a message</h2>
+      <p class="mt-1 text-sm text-slate-500">Your message is delivered to our support team by email.</p>
+
+      <app-alert type="success" [message]="notice()" />
+      <app-alert type="error" [message]="error()" />
+
+      <div class="mt-4 space-y-4">
+        <div>
+          <label class="wp-label">Subject</label>
+          <input class="wp-input" placeholder="What do you need help with?" [value]="subject()" (input)="subject.set($any($event.target).value)" />
+        </div>
+        <div>
+          <label class="wp-label">Message</label>
+          <textarea rows="6" class="wp-input" placeholder="Describe your issue or question…" [value]="message()" (input)="message.set($any($event.target).value)"></textarea>
+        </div>
+        <div class="flex items-center justify-between">
+          <p class="text-xs text-slate-400">Sending as {{ user()?.fullName }} ({{ user()?.email }})</p>
+          <button type="button" (click)="send()" [disabled]="!canSend() || sending()" class="wp-btn-primary">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+            @if (sending()) { Sending… } @else { Send message }
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

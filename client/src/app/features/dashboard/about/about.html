@@ -1,0 +1,66 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-07-31
+     NOTE TO DEVELOPERS: Do NOT change functionality without full knowledge of the
+     SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
+     ============================================================================= -->
+
+<section>
+  <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">About</h1>
+  <p class="mt-1 text-sm text-slate-500">Who builds and maintains this software.</p>
+
+  <!-- Hero -->
+  <div class="mt-6 overflow-hidden rounded-2xl bg-brand-panel p-8 text-white">
+    <div class="flex items-center gap-3">
+      <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 shadow-lg">
+        <svg class="h-6 w-6 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" /></svg>
+      </span>
+      <div>
+        <p class="text-xl font-extrabold tracking-tight">{{ appName }}</p>
+        <p class="text-sm text-white/60">Multi-tenant SaaS · v{{ version }}</p>
+      </div>
+    </div>
+    <p class="mt-5 max-w-2xl text-sm leading-relaxed text-white/70">
+      {{ appName }} is a field-service and workforce management platform — intelligent scheduling,
+      time tracking, team management, applications, accounting and real-time insights for modern
+      service businesses.
+    </p>
+  </div>
+
+  <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <!-- Provider / developer -->
+    <div class="wp-card lg:col-span-1">
+      <h2 class="text-base font-bold text-slate-900">Provided &amp; developed by</h2>
+      <div class="mt-4 flex items-center gap-3">
+        <span class="flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-lg font-bold text-white">JS</span>
+        <div>
+          <p class="text-sm font-bold text-slate-900">{{ developer }}</p>
+          <p class="text-xs text-slate-500">{{ role }}</p>
+        </div>
+      </div>
+      <p class="mt-4 text-sm leading-relaxed text-slate-600">
+        Designed, built and maintained end-to-end — database, backend and frontend.
+      </p>
+      <a [href]="'mailto:' + contactEmail" class="mt-4 inline-block text-sm wp-link">{{ contactEmail }}</a>
+    </div>
+
+    <!-- Tech stack -->
+    <div class="wp-card lg:col-span-2">
+      <h2 class="text-base font-bold text-slate-900">Built with</h2>
+      <ul class="mt-4 space-y-2">
+        @for (item of stack; track item) {
+          <li class="flex items-center gap-3 text-sm text-slate-700">
+            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" /></svg>
+            </span>
+            {{ item }}
+          </li>
+        }
+      </ul>
+      <p class="mt-6 border-t border-slate-100 pt-4 text-xs text-slate-400">
+        © {{ year }} {{ appName }}. All rights reserved. Developed by {{ developer }}.
+      </p>
+    </div>
+  </div>
+</section>
