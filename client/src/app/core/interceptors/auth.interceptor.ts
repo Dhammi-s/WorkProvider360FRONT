@@ -1,3 +1,11 @@
+/* =============================================================================
+   WorkProvider360 - Multi-tenant SaaS platform
+   Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+   Date         : 2026-07-31
+   NOTE TO DEVELOPERS: Do NOT change functionality without full knowledge of the
+   SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
+   ============================================================================= */
+
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { environment } from '../../../environments/environment';
