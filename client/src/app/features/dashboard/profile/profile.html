@@ -34,14 +34,16 @@
             <div class="absolute inset-0 bg-slate-900/50" (click)="cancelCrop()"></div>
             <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
               <h3 class="text-base font-bold text-slate-900">Crop your photo</h3>
-              <p class="mt-1 text-xs text-slate-500">Drag to reposition, then save. Max 5MB.</p>
+              <p class="mt-1 text-xs text-slate-500">Drag to reposition, then save.</p>
               <div class="mt-4 overflow-hidden rounded-xl bg-slate-50">
                 <image-cropper
                   [imageChangedEvent]="fileEvent()"
                   [maintainAspectRatio]="true"
                   [aspectRatio]="1"
                   [roundCropper]="true"
+                  [resizeToWidth]="512"
                   format="png"
+                  [output]="'base64'"
                   (imageCropped)="onCropped($event)"
                   (loadImageFailed)="onCropFailed()" />
               </div>

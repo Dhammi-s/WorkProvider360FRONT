@@ -29,7 +29,6 @@ export class Profile {
   readonly schedulesLoading = signal(true);
 
   // Avatar upload + crop
-  private static readonly MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
   readonly cropOpen = signal(false);
   readonly fileEvent = signal<Event | null>(null);
   readonly cropped = signal<string | null>(null);
@@ -100,13 +99,6 @@ export class Profile {
   onAvatarFile(event: Event): void {
     this.avatarError.set('');
     this.avatarNotice.set('');
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file && file.size > Profile.MAX_AVATAR_BYTES) {
-      this.avatarError.set('That image is over 5MB. Please choose a smaller one.');
-      input.value = '';
-      return;
-    }
     this.cropped.set(null);
     this.fileEvent.set(event);
     this.cropOpen.set(true);
