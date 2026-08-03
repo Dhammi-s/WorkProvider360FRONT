@@ -18,6 +18,7 @@ import {
   RouterOutlet,
 } from '@angular/router';
 import { ChatWidget } from '../chatbot/chat-widget';
+import { NotificationBell } from '../notifications/notification-bell';
 import { RoleName } from '../../../core/models/role.model';
 import { AgencyService } from '../../../core/services/agency.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -35,7 +36,7 @@ interface NavItem {
 /** Authenticated app shell: role-filtered sidebar + topbar + routed content. */
 @Component({
   selector: 'app-dashboard-layout',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, ChatWidget],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ChatWidget, NotificationBell],
   templateUrl: './dashboard-layout.html',
 })
 export class DashboardLayout {

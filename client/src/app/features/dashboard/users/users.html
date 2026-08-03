@@ -147,9 +147,9 @@
                       </span>
                     } @else {
                       <div class="inline-flex items-center gap-4">
-                        <button type="button" (click)="openSms(u)" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700" title="Send an SMS to this user">
-                          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" /></svg>
-                          Text
+                        <button type="button" (click)="openSms(u)" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700" title="Send an in-app notification to this user">
+                          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" /></svg>
+                          Notify
                         </button>
                         <button type="button" (click)="askResend(u.userId)" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700" title="Reset password and email new credentials">
                           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l7.9 5.3a2 2 0 002.2 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
@@ -263,15 +263,15 @@
   </div>
 }
 
-<!-- Send SMS modal -->
+<!-- Send in-app notification modal -->
 @if (smsUser(); as su) {
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-slate-900/50" (click)="closeSms()"></div>
     <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
       <div class="flex items-start justify-between">
         <div>
-          <h2 class="text-lg font-bold text-slate-900">Send SMS</h2>
-          <p class="mt-1 text-sm text-slate-500">Text {{ su.fullName }} via Twilio.</p>
+          <h2 class="text-lg font-bold text-slate-900">Send notification</h2>
+          <p class="mt-1 text-sm text-slate-500">{{ su.fullName }} will see this in their notification bell.</p>
         </div>
         <button type="button" (click)="closeSms()" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close">
           <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
@@ -279,26 +279,18 @@
       </div>
 
       <app-alert type="error" [message]="smsError()" />
+      <app-alert type="success" [message]="smsNotice()" />
 
-      <div class="mt-4 space-y-4">
-        <div>
-          <label for="sms-number" class="wp-label">To number</label>
-          <input id="sms-number" type="tel" class="wp-input" [ngModel]="smsNumber()" (ngModelChange)="smsNumber.set($event)" placeholder="+15551234567" />
-          @if (!su.phone) {
-            <p class="mt-1 text-xs text-slate-400">This user has no number on file — enter one to text them.</p>
-          }
-        </div>
-        <div>
-          <label for="sms-message" class="wp-label">Message</label>
-          <textarea id="sms-message" rows="4" maxlength="1000" class="wp-input" [ngModel]="smsMessage()" (ngModelChange)="smsMessage.set($event)" placeholder="Your message…"></textarea>
-          <p class="mt-1 text-right text-xs text-slate-400">{{ smsMessage().length }}/1000</p>
-        </div>
+      <div class="mt-4">
+        <label for="notify-message" class="wp-label">Message</label>
+        <textarea id="notify-message" rows="4" maxlength="1000" class="wp-input" [ngModel]="smsMessage()" (ngModelChange)="smsMessage.set($event)" placeholder="Write a message…"></textarea>
+        <p class="mt-1 text-right text-xs text-slate-400">{{ smsMessage().length }}/1000</p>
       </div>
 
       <div class="mt-4 flex justify-end gap-3">
         <button type="button" (click)="closeSms()" class="wp-btn-ghost">Cancel</button>
         <button type="button" (click)="sendSms()" class="wp-btn-primary" [disabled]="smsSending()">
-          @if (smsSending()) { Sending… } @else { Send SMS }
+          @if (smsSending()) { Sending… } @else { Send notification }
         </button>
       </div>
     </div>

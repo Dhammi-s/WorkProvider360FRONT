@@ -14,6 +14,7 @@ import { RoleDto } from '../../../core/models/role.model';
 import { UserDto } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { OfficeService } from '../../../core/services/office.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { UserService } from '../../../core/services/user.service';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { Paginator } from '../../../shared/ui/paginator/paginator';
@@ -29,6 +30,7 @@ export class Users {
   private readonly userService = inject(UserService);
   private readonly officeService = inject(OfficeService);
   private readonly auth = inject(AuthService);
+  private readonly notifications = inject(NotificationService);
 
   readonly isSuperAdmin = computed(() => this.auth.roleName() === 'SuperAdmin');
 
@@ -277,10 +279,9 @@ export class Users {
     });
   }
 
-  // ---- Send SMS ----
+  // ---- Send in-app notification (the "Text" action) ----
   openSms(user: UserDto): void {
     this.smsUser.set(user);
-    this.smsNumber.set(user.phone ?? '');
     this.smsMessage.set('');
     this.smsError.set('');
     this.smsNotice.set('');
@@ -293,31 +294,25 @@ export class Users {
 
   sendSms(): void {
     const user = this.smsUser();
-    const number = this.smsNumber().trim();
     const message = this.smsMessage().trim();
+    if (!user) return;
     if (!message) {
       this.smsError.set('Enter a message to send.');
       return;
     }
-    if (!number) {
-      this.smsError.set('Enter a phone number.');
-      return;
-    }
     this.smsSending.set(true);
     this.smsError.set('');
-    this.userService
-      .sendSms({ userId: user?.userId ?? null, toNumber: number, message })
-      .subscribe({
-        next: (msg) => {
-          this.smsSending.set(false);
-          this.smsNotice.set(msg);
-          this.smsUser.set(null);
-        },
-        error: (err: Error) => {
-          this.smsSending.set(false);
-          this.smsError.set(err.message || 'Could not send the SMS.');
-        },
-      });
+    this.notifications.send(user.userId, message).subscribe({
+      next: (msg) => {
+        this.smsSending.set(false);
+        this.smsNotice.set(msg);
+        this.smsUser.set(null);
+      },
+      error: (err: Error) => {
+        this.smsSending.set(false);
+        this.smsError.set(err.message || 'Could not send the notification.');
+      },
+    });
   }
 
   initials(name: string): string {

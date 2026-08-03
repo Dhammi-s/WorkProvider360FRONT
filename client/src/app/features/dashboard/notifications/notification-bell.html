@@ -1,0 +1,60 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-08-03
+     NOTE TO DEVELOPERS: Do NOT change functionality without full knowledge of the
+     SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
+     ============================================================================= -->
+
+<div class="relative">
+  <button
+    type="button"
+    (click)="toggle()"
+    class="relative rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+    [attr.aria-label]="'Notifications' + (unread() ? ' (' + unread() + ' unread)' : '')"
+  >
+    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" /></svg>
+    @if (unread() > 0) {
+      <span class="absolute -right-0.5 -top-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{{ unread() > 99 ? '99+' : unread() }}</span>
+    }
+  </button>
+
+  @if (open()) {
+    <!-- click-away -->
+    <div class="fixed inset-0 z-30" (click)="close()"></div>
+
+    <div class="absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-slate-100 bg-white shadow-card">
+      <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+        <p class="text-sm font-bold text-slate-800">Notifications</p>
+      </div>
+
+      <div class="wp-scroll max-h-96 overflow-y-auto">
+        @if (loading()) {
+          <p class="py-8 text-center text-sm text-slate-400">Loading…</p>
+        } @else if (items().length === 0) {
+          <div class="flex flex-col items-center gap-2 py-10 text-slate-400">
+            <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" /></svg>
+            <p class="text-sm">You’re all caught up.</p>
+          </div>
+        } @else {
+          <ul class="divide-y divide-slate-100">
+            @for (n of items(); track n.notificationId) {
+              <li class="flex gap-3 px-4 py-3" [class.bg-brand-50]="!n.isRead">
+                <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9" /></svg>
+                </span>
+                <div class="min-w-0 flex-1">
+                  @if (n.title) { <p class="text-sm font-semibold text-slate-800">{{ n.title }}</p> }
+                  <p class="whitespace-pre-wrap break-words text-sm text-slate-600">{{ n.message }}</p>
+                  <p class="mt-1 text-[11px] text-slate-400">
+                    @if (n.createdByName) { {{ n.createdByName }} · }{{ n.createdOn | date: 'MMM d, h:mm a' }}
+                  </p>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </div>
+  }
+</div>
