@@ -20,13 +20,21 @@
           <p class="text-[11px] text-white/60">Ask about WorkProvider360</p>
         </div>
       </div>
-      <button type="button" (click)="toggle()" class="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Close">
-        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
-      </button>
+      <div class="flex items-center gap-1">
+        <button type="button" (click)="clearHistory()" class="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white" title="Clear chat history" aria-label="Clear chat history">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" /></svg>
+        </button>
+        <button type="button" (click)="toggle()" class="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white" aria-label="Close">
+          <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+        </button>
+      </div>
     </div>
 
     <!-- Messages -->
     <div class="wp-scroll flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4">
+      @if (historyLoading()) {
+        <p class="py-4 text-center text-xs text-slate-400">Loading your chat history…</p>
+      }
       @for (m of messages(); track $index) {
         @if (m.role === 'assistant') {
           <div class="flex justify-start">

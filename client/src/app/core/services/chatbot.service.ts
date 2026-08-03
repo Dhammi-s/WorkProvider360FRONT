@@ -21,6 +21,12 @@ interface ChatReply {
   answer: string;
 }
 
+interface ChatHistoryItem {
+  role: 'user' | 'assistant';
+  content: string;
+  createdOn: string;
+}
+
 /** Talks to the project assistant (RAG chatbot) on the backend. */
 @Injectable({ providedIn: 'root' })
 export class ChatbotService {
@@ -31,5 +37,16 @@ export class ChatbotService {
     return this.http
       .post<ApiResponse<ChatReply>>(`${this.baseUrl}/ask`, { question, history })
       .pipe(map((res) => res.data?.answer ?? 'Sorry, I could not answer that.'));
+  }
+
+  /** The signed-in user's saved chat history (oldest first). */
+  history(): Observable<ChatTurn[]> {
+    return this.http
+      .get<ApiResponse<ChatHistoryItem[]>>(`${this.baseUrl}/history`)
+      .pipe(map((res) => (res.data ?? []).map((m) => ({ role: m.role, content: m.content }))));
+  }
+
+  clear(): Observable<void> {
+    return this.http.delete<ApiResponse<unknown>>(`${this.baseUrl}/history`).pipe(map(() => undefined));
   }
 }
