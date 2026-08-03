@@ -84,10 +84,6 @@ export class DashboardHome {
   readonly radius = RADIUS;
   readonly circumference = CIRCUMFERENCE;
 
-  /** "SMS coming soon" toast — auto-hides after 10 seconds. */
-  readonly smsToastVisible = signal(true);
-  readonly smsNotice = 'SMS notifications are coming soon — our team is still working on this feature. Please keep using email for now.';
-
   readonly role = computed<RoleName>(() => (this.auth.roleName() ?? 'User') as RoleName);
   readonly isSuperAdmin = computed(() => this.role() === 'SuperAdmin');
   readonly isAdmin = computed(() => this.role() === 'SuperAdmin' || this.role() === 'Admin');
@@ -138,12 +134,6 @@ export class DashboardHome {
         error: () => this.invoices.set([]),
       });
     }
-
-    setTimeout(() => this.smsToastVisible.set(false), 10_000);
-  }
-
-  dismissSmsToast(): void {
-    this.smsToastVisible.set(false);
   }
 
   // ---- KPI tiles ----
