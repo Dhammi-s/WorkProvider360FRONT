@@ -114,6 +114,7 @@ export class Settings {
   readonly requireAddress = signal(true);
   readonly emailNotificationsEnabled = signal(true);
   readonly notificationEmail = signal('');
+  readonly allowStaffUnlock = signal(false);
   readonly saving = signal(false);
   readonly saveNotice = signal('');
 
@@ -242,6 +243,7 @@ export class Settings {
         this.requireAddress.set(s.requireAddress);
         this.emailNotificationsEnabled.set(s.emailNotificationsEnabled);
         this.notificationEmail.set(s.notificationEmail ?? '');
+        this.allowStaffUnlock.set(s.allowStaffUnlock);
         this.loading.set(false);
       },
       error: (err: Error) => {
@@ -268,6 +270,7 @@ export class Settings {
         requireAddress: this.requireAddress(),
         emailNotificationsEnabled: this.emailNotificationsEnabled(),
         notificationEmail: this.notificationEmail().trim() || null,
+        allowStaffUnlock: this.allowStaffUnlock(),
       })
       .subscribe({
         next: () => {

@@ -83,6 +83,20 @@ export class UserService {
       .pipe(map((res) => res.message ?? 'SMS sent.'));
   }
 
+  /** Unlock a locked account (SuperAdmin always; Admin/Manager per tenant policy). */
+  unlock(userId: number): Observable<string> {
+    return this.http
+      .post<ApiResponse<unknown>>(`${this.usersUrl}/${userId}/unlock`, {})
+      .pipe(map((res) => res.message ?? 'Account unlocked.'));
+  }
+
+  /** Whether Admins/Managers may unlock accounts in this tenant. */
+  getAllowStaffUnlock(): Observable<boolean> {
+    return this.http
+      .get<ApiResponse<{ allowStaffUnlock: boolean }>>(`${this.usersUrl}/security-policy`)
+      .pipe(map((res) => res.data?.allowStaffUnlock ?? false));
+  }
+
   getRoles(): Observable<RoleDto[]> {
     return this.http
       .get<ApiResponse<RoleDto[]>>(this.rolesUrl)

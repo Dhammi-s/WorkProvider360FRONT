@@ -12,16 +12,20 @@
       <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Team members</h1>
       <p class="mt-1 text-sm text-slate-500">{{ total() }} user(s)</p>
     </div>
-    <button type="button" (click)="openModal()" class="wp-btn-primary self-start sm:self-auto">
-      <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
-      Add team member
-    </button>
+    @if (canManageTeam()) {
+      <button type="button" (click)="openModal()" class="wp-btn-primary self-start sm:self-auto">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
+        Add team member
+      </button>
+    }
   </div>
 
   <div class="mt-6">
     <app-alert type="success" [message]="resendNotice()" />
     <app-alert type="error" [message]="resendError()" />
     <app-alert type="success" [message]="smsNotice()" />
+    <app-alert type="success" [message]="unlockNotice()" />
+    <app-alert type="error" [message]="unlockError()" />
     <app-alert type="error" [message]="listError()" />
 
     @if (loading()) {
@@ -32,7 +36,9 @@
     } @else if (users().length === 0 && !listError()) {
       <div class="wp-card py-16 text-center">
         <p class="text-sm text-slate-500">No team members yet.</p>
-        <button type="button" (click)="openModal()" class="wp-link mt-2 text-sm">Add your first member</button>
+        @if (canManageTeam()) {
+          <button type="button" (click)="openModal()" class="wp-link mt-2 text-sm">Add your first member</button>
+        }
       </div>
     } @else if (users().length) {
       <!-- Filters -->
@@ -62,7 +68,7 @@
       </div>
 
       <!-- Bulk action bar -->
-      @if (selectedCount() > 0) {
+      @if (canManageTeam() && selectedCount() > 0) {
         <div class="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
           <span class="text-sm font-semibold text-brand-800">{{ selectedCount() }} selected</span>
           @if (confirmBulk()) {
@@ -86,9 +92,11 @@
           <table class="min-w-full divide-y divide-slate-100 text-sm">
             <thead class="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
               <tr>
-                <th class="px-6 py-3">
-                  <input type="checkbox" [checked]="allVisibleSelected()" (change)="toggleSelectAll()" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" aria-label="Select all" />
-                </th>
+                @if (canManageTeam()) {
+                  <th class="px-6 py-3">
+                    <input type="checkbox" [checked]="allVisibleSelected()" (change)="toggleSelectAll()" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" aria-label="Select all" />
+                  </th>
+                }
                 <th class="px-6 py-3">Name</th>
                 <th class="px-6 py-3">Email</th>
                 <th class="px-6 py-3">Role</th>
@@ -101,9 +109,11 @@
             <tbody class="divide-y divide-slate-100">
               @for (u of users(); track u.userId) {
                 <tr class="hover:bg-slate-50/60">
-                  <td class="px-6 py-3">
-                    <input type="checkbox" [checked]="isSelected(u.userId)" (change)="toggleSelect(u.userId)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" [attr.aria-label]="'Select ' + u.fullName" />
-                  </td>
+                  @if (canManageTeam()) {
+                    <td class="px-6 py-3">
+                      <input type="checkbox" [checked]="isSelected(u.userId)" (change)="toggleSelect(u.userId)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" [attr.aria-label]="'Select ' + u.fullName" />
+                    </td>
+                  }
                   <td class="px-6 py-3">
                     <div class="flex items-center gap-3">
                       @if (u.avatarUrl) {
@@ -126,11 +136,19 @@
                     }
                   </td>
                   <td class="px-6 py-3">
-                    @if (u.isActive) {
-                      <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Active</span>
-                    } @else {
-                      <span class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400"><span class="h-1.5 w-1.5 rounded-full bg-slate-300"></span>Inactive</span>
-                    }
+                    <div class="flex flex-col items-start gap-1">
+                      @if (u.isActive) {
+                        <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Active</span>
+                      } @else {
+                        <span class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400"><span class="h-1.5 w-1.5 rounded-full bg-slate-300"></span>Inactive</span>
+                      }
+                      @if (u.isLockedOut) {
+                        <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600" title="Locked after 3 failed sign-in attempts">
+                          <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
+                          Locked
+                        </span>
+                      }
+                    </div>
                   </td>
                   <td class="px-6 py-3 text-slate-500">{{ u.createdOn | date: 'mediumDate' }}</td>
                   <td class="px-6 py-3 text-right">
@@ -147,14 +165,32 @@
                       </span>
                     } @else {
                       <div class="inline-flex items-center gap-4">
-                        <button type="button" (click)="openSms(u)" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700" title="Send an in-app notification to this user">
-                          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" /></svg>
-                          Notify
-                        </button>
-                        <button type="button" (click)="askResend(u.userId)" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700" title="Reset password and email new credentials">
-                          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l7.9 5.3a2 2 0 002.2 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                          Resend
-                        </button>
+                        @if (canUnlock(u)) {
+                          @if (unlockBusyId() === u.userId) {
+                            <span class="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                              <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+                              Unlocking…
+                            </span>
+                          } @else {
+                            <button type="button" (click)="doUnlock(u.userId)" class="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600 hover:text-emerald-700" title="Unlock this account so the user can sign in again">
+                              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 019.9-1" /></svg>
+                              Unlock
+                            </button>
+                          }
+                        }
+                        @if (canManageTeam()) {
+                          <button type="button" (click)="openSms(u)" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700" title="Send an in-app notification to this user">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" /></svg>
+                            Notify
+                          </button>
+                          <button type="button" (click)="askResend(u.userId)" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700" title="Reset password and email new credentials">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l7.9 5.3a2 2 0 002.2 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                            Resend
+                          </button>
+                        }
+                        @if (!canManageTeam() && !canUnlock(u)) {
+                          <span class="text-xs text-slate-300">—</span>
+                        }
                       </div>
                     }
                   </td>

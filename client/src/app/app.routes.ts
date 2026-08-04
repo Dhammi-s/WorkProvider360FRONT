@@ -77,7 +77,7 @@ export const routes: Routes = [
       {
         path: 'users',
         canActivate: [roleGuard],
-        data: { roles: ['SuperAdmin', 'Admin'] },
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
         loadComponent: () => import('./features/dashboard/users/users').then((m) => m.Users),
         title: 'Team · WorkProvider360',
       },

@@ -33,6 +33,32 @@ export class Users {
   private readonly notifications = inject(NotificationService);
 
   readonly isSuperAdmin = computed(() => this.auth.roleName() === 'SuperAdmin');
+  /** SuperAdmin + Admin can create/resend/notify; Managers get a view-only list (for unlocking). */
+  readonly canManageTeam = computed(() => {
+    const r = this.auth.roleName();
+    return r === 'SuperAdmin' || r === 'Admin';
+  });
+
+  // Lower rank number = higher authority (SuperAdmin=1 … User=4).
+  private readonly rankByRole: Record<string, number> = { SuperAdmin: 1, Admin: 2, Manager: 3, User: 4 };
+  private readonly myRank = computed(() => this.rankByRole[this.auth.roleName() ?? 'User'] ?? 4);
+
+  /** Whether Admins/Managers may unlock accounts in this tenant (SuperAdmin always can). */
+  readonly allowStaffUnlock = signal(false);
+
+  // Unlock action state
+  readonly unlockBusyId = signal<number | null>(null);
+  readonly unlockNotice = signal('');
+  readonly unlockError = signal('');
+
+  /** Show the Unlock action only for locked accounts the current user is allowed to unlock. */
+  canUnlock(user: UserDto): boolean {
+    if (!user.isLockedOut) return false;
+    if (this.isSuperAdmin()) return true;
+    // Admin/Manager: needs the tenant flag AND a strictly-lower-rank target.
+    const targetRank = this.rankByRole[user.roleName] ?? 4;
+    return this.allowStaffUnlock() && targetRank > this.myRank();
+  }
 
   readonly users = signal<UserDto[]>([]);
   readonly roles = signal<RoleDto[]>([]);
@@ -123,6 +149,11 @@ export class Users {
 
   constructor() {
     this.loadUsers();
+    // Non-SuperAdmins need the tenant policy to know if they can unlock.
+    this.userService.getAllowStaffUnlock().subscribe({
+      next: (allow) => this.allowStaffUnlock.set(allow),
+      error: () => this.allowStaffUnlock.set(false),
+    });
     this.userService.getRoles().subscribe({
       next: (roles) => this.roles.set(roles.filter((r) => r.isActive)),
       error: () => this.roles.set([]),
@@ -275,6 +306,24 @@ export class Users {
       error: (err: Error) => {
         this.resendBusyId.set(null);
         this.resendError.set(err.message || 'Could not resend credentials.');
+      },
+    });
+  }
+
+  // ---- Unlock a locked account ----
+  doUnlock(userId: number): void {
+    this.unlockBusyId.set(userId);
+    this.unlockNotice.set('');
+    this.unlockError.set('');
+    this.userService.unlock(userId).subscribe({
+      next: (msg) => {
+        this.unlockBusyId.set(null);
+        this.unlockNotice.set(msg);
+        this.loadUsers();
+      },
+      error: (err: Error) => {
+        this.unlockBusyId.set(null);
+        this.unlockError.set(err.message || 'Could not unlock the account.');
       },
     });
   }

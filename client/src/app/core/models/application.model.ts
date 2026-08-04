@@ -79,6 +79,7 @@ export interface ApplicationSettings {
   requireAddress: boolean;
   emailNotificationsEnabled: boolean;
   notificationEmail?: string | null;
+  allowStaffUnlock: boolean;
   updatedOn: string;
 }
 
@@ -87,6 +88,7 @@ export interface UpsertApplicationSettings {
   requireAddress: boolean;
   emailNotificationsEnabled: boolean;
   notificationEmail?: string | null;
+  allowStaffUnlock: boolean;
 }
 
 export interface CreateQuestionRequest {

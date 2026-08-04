@@ -19,6 +19,7 @@ export interface UserDto {
   officeName?: string | null;
   salary?: number | null;
   isActive: boolean;
+  isLockedOut: boolean;
   createdOn: string;
 }
 
