@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- WorkProvider360 default app icon (maskable-safe: art kept within the inner 80% safe zone) -->
+  <rect width="512" height="512" rx="96" fill="#0f766e"/>
+  <path d="M286 96 L150 292 h86 l-24 124 154 -204 h-92 l30 -116 z" fill="#ffffff"/>
+</svg>

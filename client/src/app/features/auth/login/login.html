@@ -15,6 +15,9 @@
   <app-alert type="success" [message]="notice()" />
   <app-alert type="error" [message]="error()" />
 
+  <!-- Install as an app (mobile only) -->
+  <app-install-prompt />
+
   <form [formGroup]="form" (ngSubmit)="submit()" class="mt-5 space-y-5" novalidate>
     <!-- Email -->
     <div>

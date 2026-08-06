@@ -12,10 +12,11 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { AuthShell } from '../auth-shell/auth-shell';
+import { InstallPrompt } from '../install-prompt/install-prompt';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, RouterLink, AuthShell, Alert],
+  imports: [ReactiveFormsModule, RouterLink, AuthShell, Alert, InstallPrompt],
   templateUrl: './login.html',
 })
 export class Login {

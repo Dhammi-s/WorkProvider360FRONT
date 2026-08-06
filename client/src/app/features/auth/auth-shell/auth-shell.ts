@@ -10,6 +10,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DEFAULT_LOGIN_CONTENT, LoginContent } from '../../../core/models/login-content.model';
 import { BrandingService } from '../../../core/services/branding.service';
+import { PwaService } from '../../../core/services/pwa.service';
 
 /**
  * Split-screen auth layout: a branded gradient panel on the left (hidden on
@@ -25,6 +26,7 @@ import { BrandingService } from '../../../core/services/branding.service';
 })
 export class AuthShell {
   private readonly branding = inject(BrandingService);
+  private readonly pwa = inject(PwaService);
 
   readonly agencyName = signal('WorkProvider360');
   readonly logo = signal<string | null>(null);
@@ -55,6 +57,8 @@ export class AuthShell {
         if (page.agencyName) this.agencyName.set(page.agencyName);
         this.logo.set(page.logo ?? null);
         if (page.content) this.content.set(page.content);
+        // White-label the installable app with this agency's name + logo.
+        this.pwa.applyManifest(this.agencyName(), page.logo);
       },
       error: () => {},
     });
