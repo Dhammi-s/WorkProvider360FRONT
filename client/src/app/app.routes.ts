@@ -20,6 +20,12 @@ export const routes: Routes = [
     title: 'Sign in · WorkProvider360',
   },
   {
+    path: 'portal-login',
+    loadComponent: () =>
+      import('./features/portal/portal-login/portal-login').then((m) => m.PortalLogin),
+    title: 'Client sign in · WorkProvider360',
+  },
+  {
     path: 'register',
     loadComponent: () => import('./features/auth/register/register').then((m) => m.Register),
     title: 'Create workspace · WorkProvider360',
@@ -212,6 +218,12 @@ export const routes: Routes = [
         pathMatch: 'full',
         loadComponent: () => import('./features/portal/portal-home/portal-home').then((m) => m.PortalHome),
         title: 'My care · WorkProvider360',
+      },
+      {
+        path: 'calendar',
+        loadComponent: () =>
+          import('./features/portal/portal-calendar/portal-calendar').then((m) => m.PortalCalendar),
+        title: 'Calendar · WorkProvider360',
       },
       {
         path: 'visits',
