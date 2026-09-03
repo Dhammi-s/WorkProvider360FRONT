@@ -11,6 +11,7 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { AuthService } from '../../../core/services/auth.service';
 import { AgencyService } from '../../../core/services/agency.service';
 import { BrandingService } from '../../../core/services/branding.service';
+import { ShortcutService } from '../../../core/services/shortcut.service';
 
 interface PortalNav {
   label: string;
@@ -29,6 +30,7 @@ export class PortalLayout {
   private readonly router = inject(Router);
   readonly agency = inject(AgencyService);
   readonly branding = inject(BrandingService);
+  private readonly shortcuts = inject(ShortcutService);
 
   readonly sidebarOpen = signal(false);
   readonly menuOpen = signal(false);
@@ -53,6 +55,7 @@ export class PortalLayout {
 
   constructor() {
     this.branding.load();
+    this.shortcuts.load();
     this.agency.load();
   }
 

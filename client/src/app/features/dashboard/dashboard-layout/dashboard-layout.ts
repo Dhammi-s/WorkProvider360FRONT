@@ -23,6 +23,7 @@ import { RoleName } from '../../../core/models/role.model';
 import { AgencyService } from '../../../core/services/agency.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { BrandingService } from '../../../core/services/branding.service';
+import { ShortcutService } from '../../../core/services/shortcut.service';
 import { UserService } from '../../../core/services/user.service';
 
 interface NavItem {
@@ -43,6 +44,7 @@ export class DashboardLayout {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly branding = inject(BrandingService);
+  private readonly shortcuts = inject(ShortcutService);
   private readonly agency = inject(AgencyService);
   private readonly users = inject(UserService);
 
@@ -68,6 +70,7 @@ export class DashboardLayout {
 
   constructor() {
     this.branding.load();
+    this.shortcuts.load();
     this.agency.load();
     this.users.getMe().subscribe({
       next: (me) => this.avatarUrl.set(me.avatarUrl ?? null),

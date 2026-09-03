@@ -17,11 +17,12 @@ import { AuthService } from '../../../core/services/auth.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { UserService } from '../../../core/services/user.service';
 import { Alert } from '../../../shared/ui/alert/alert';
+import { ShortcutsPanel } from '../../../shared/ui/shortcuts-panel/shortcuts-panel';
 
 /** Current-user profile plus a change-password form and the user's own schedule. */
 @Component({
   selector: 'app-profile',
-  imports: [ReactiveFormsModule, RouterLink, DatePipe, Alert, ImageCropperComponent],
+  imports: [ReactiveFormsModule, RouterLink, DatePipe, Alert, ImageCropperComponent, ShortcutsPanel],
   templateUrl: './profile.html',
 })
 export class Profile {

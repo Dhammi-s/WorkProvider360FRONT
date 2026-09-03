@@ -12,10 +12,11 @@ import { PortalService } from '../../../core/services/portal.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { PortalProfile as PortalProfileDto } from '../../../core/models/portal.model';
 import { Alert } from '../../../shared/ui/alert/alert';
+import { ShortcutsPanel } from '../../../shared/ui/shortcuts-panel/shortcuts-panel';
 
 @Component({
   selector: 'app-portal-profile',
-  imports: [ReactiveFormsModule, Alert],
+  imports: [ReactiveFormsModule, Alert, ShortcutsPanel],
   templateUrl: './portal-profile.html',
 })
 export class PortalProfile {
