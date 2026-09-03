@@ -151,6 +151,7 @@ export class Scheduler {
   readonly sigData = signal<string | null>(null);
   readonly sigName = signal('');
   readonly sigError = signal('');
+  readonly sigRequired = signal(false);
   readonly sigView = signal<TimeEntrySignature[] | null>(null);
 
   // Detail modal state.
@@ -697,27 +698,36 @@ export class Scheduler {
 
     const settings = this.clientSettings();
     let coords: { latitude: number; longitude: number } | null = null;
-    if (settings?.captureClockLocation) {
+    if (settings?.captureClockLocation !== false) {
       coords = await this.locationTracking.getCurrentPosition();
     }
 
+    // Offer the client signature for every client visit (both phases). It is
+    // mandatory when the tenant setting requires it, and skippable otherwise.
     const isClient = d.schedule.clientId != null;
-    const needsSignature =
-      isClient &&
-      (phase === 'ClockIn'
-        ? !!settings?.requireClientSignatureOnClockIn
-        : !!settings?.requireClientSignatureOnClockOut);
-
-    if (needsSignature) {
+    if (isClient) {
+      const required =
+        phase === 'ClockIn'
+          ? !!settings?.requireClientSignatureOnClockIn
+          : settings?.requireClientSignatureOnClockOut ?? true;
       this.pendingCoords.set(coords);
       this.sigData.set(null);
       this.sigName.set(d.schedule.clientName ?? '');
       this.sigError.set('');
+      this.sigRequired.set(required);
       this.sigOpen.set(true);
       this.actionBusy.set(false);
       return;
     }
 
+    this.sendClock(phase, { latitude: coords?.latitude ?? null, longitude: coords?.longitude ?? null });
+  }
+
+  /** Continue clock in/out without a signature (only allowed when not required). */
+  skipSignature(): void {
+    const phase = this.clockPhase();
+    if (!phase || this.sigRequired()) return;
+    const coords = this.pendingCoords();
     this.sendClock(phase, { latitude: coords?.latitude ?? null, longitude: coords?.longitude ?? null });
   }
 
