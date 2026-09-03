@@ -28,6 +28,25 @@ export class LocationTrackingService {
 
   private static readonly INTERVAL_MS = 15_000;
 
+  /** One-shot current position (lat/lng rounded to 6dp), or null if unavailable/denied. */
+  getCurrentPosition(): Promise<{ latitude: number; longitude: number } | null> {
+    return new Promise((resolve) => {
+      if (!('geolocation' in navigator)) {
+        resolve(null);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          resolve({
+            latitude: Number(pos.coords.latitude.toFixed(6)),
+            longitude: Number(pos.coords.longitude.toFixed(6)),
+          }),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
+      );
+    });
+  }
+
   isTracking(scheduleId: number): boolean {
     return this.tracking() === scheduleId;
   }

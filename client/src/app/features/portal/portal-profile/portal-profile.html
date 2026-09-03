@@ -1,0 +1,67 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-09-03
+     ============================================================================= -->
+<section class="space-y-4">
+  <div>
+    <h1 class="text-2xl font-extrabold tracking-tight text-portal-900">My profile</h1>
+    <p class="mt-1 text-sm text-slate-500">Keep your contact details up to date.</p>
+  </div>
+
+  @if (loading()) {
+    <div class="wp-card flex items-center justify-center py-16 text-slate-400"><span class="text-sm">Loading…</span></div>
+  } @else if (profile(); as p) {
+    <app-alert type="success" [message]="notice()" />
+    <app-alert type="error" [message]="error()" />
+
+    <div class="wp-card">
+      <h2 class="text-base font-bold text-slate-900">{{ p.fullName }}</h2>
+      <dl class="mt-2 grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
+        <div><dt class="inline text-slate-400">Email:</dt> <dd class="inline text-slate-700">{{ p.email || '—' }}</dd></div>
+        <div><dt class="inline text-slate-400">Address:</dt> <dd class="inline text-slate-700">{{ p.addressLine1 }}{{ p.city ? ', ' + p.city : '' }}</dd></div>
+      </dl>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="save()" class="wp-card space-y-4" novalidate>
+      <h2 class="text-sm font-bold text-slate-700">Contact details</h2>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div><label class="wp-label">Phone</label><input formControlName="phone" class="wp-input wp-input-portal" /></div>
+        <div><label class="wp-label">Alternate phone</label><input formControlName="alternatePhone" class="wp-input wp-input-portal" /></div>
+        <div><label class="wp-label">Preferred language</label><input formControlName="preferredLanguage" class="wp-input wp-input-portal" /></div>
+      </div>
+      <div><label class="wp-label">Access instructions</label><textarea formControlName="accessInstructions" rows="2" class="wp-input wp-input-portal"></textarea></div>
+      <h2 class="text-sm font-bold text-slate-700">Emergency contact</h2>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div><label class="wp-label">Name</label><input formControlName="emergencyContactName" class="wp-input wp-input-portal" /></div>
+        <div><label class="wp-label">Phone</label><input formControlName="emergencyContactPhone" class="wp-input wp-input-portal" /></div>
+        <div><label class="wp-label">Relationship</label><input formControlName="emergencyContactRelation" class="wp-input wp-input-portal" /></div>
+      </div>
+      <div class="flex justify-end">
+        <button type="submit" class="wp-btn-portal" [disabled]="saving()">@if (saving()) { Saving… } @else { Save changes }</button>
+      </div>
+    </form>
+
+    <form [formGroup]="pwForm" (ngSubmit)="changePassword()" class="wp-card space-y-4" novalidate>
+      <h2 class="text-sm font-bold text-slate-700">Change password</h2>
+      <app-alert type="success" [message]="pwNotice()" />
+      <app-alert type="error" [message]="pwError()" />
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label class="wp-label">Current password</label>
+          <input type="password" formControlName="currentPassword" class="wp-input wp-input-portal" />
+        </div>
+        <div>
+          <label class="wp-label">New password</label>
+          <input type="password" formControlName="newPassword" class="wp-input wp-input-portal" />
+          @if (pwForm.controls.newPassword.touched && pwForm.controls.newPassword.invalid) {
+            <p class="mt-1 text-xs font-medium text-red-600">At least 8 characters.</p>
+          }
+        </div>
+      </div>
+      <div class="flex justify-end">
+        <button type="submit" class="wp-btn-ghost" [disabled]="pwSaving()">@if (pwSaving()) { Updating… } @else { Update password }</button>
+      </div>
+    </form>
+  }
+</section>

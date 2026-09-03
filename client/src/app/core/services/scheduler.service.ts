@@ -13,6 +13,7 @@ import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
 import { UserDto } from '../models/user.model';
 import {
+  ClockRequest,
   CreateScheduleNoteRequest,
   CreateScheduleRequest,
   LiveLocation,
@@ -26,6 +27,7 @@ import {
   ScheduleReport,
   SchedulingAccess,
   SchedulingSettings,
+  TimeEntrySignature,
   TimeEntry,
   UpdateSchedulingAccess,
   UpdateSchedulingDefaults,
@@ -69,11 +71,12 @@ export class SchedulerService {
   }
 
   // ---- Schedules ----
-  list(fromUtc?: string, toUtc?: string, userId?: number): Observable<Schedule[]> {
+  list(fromUtc?: string, toUtc?: string, userId?: number, clientId?: number): Observable<Schedule[]> {
     let params = new HttpParams();
     if (fromUtc) params = params.set('from', fromUtc);
     if (toUtc) params = params.set('to', toUtc);
     if (userId != null) params = params.set('userId', String(userId));
+    if (clientId != null) params = params.set('clientId', String(clientId));
     return this.http
       .get<ApiResponse<Schedule[]>>(this.baseUrl, { params })
       .pipe(map((r) => r.data ?? []));
@@ -123,21 +126,27 @@ export class SchedulerService {
   }
 
   // ---- Time tracking ----
-  clockIn(id: number): Observable<string> {
+  clockIn(id: number, body: ClockRequest = {}): Observable<string> {
     return this.http
-      .post<ApiResponse<unknown>>(`${this.baseUrl}/${id}/time/clock-in`, {})
+      .post<ApiResponse<unknown>>(`${this.baseUrl}/${id}/time/clock-in`, body)
       .pipe(map((r) => r.message ?? 'Clocked in.'));
   }
 
-  clockOut(id: number): Observable<string> {
+  clockOut(id: number, body: ClockRequest = {}): Observable<string> {
     return this.http
-      .post<ApiResponse<unknown>>(`${this.baseUrl}/${id}/time/clock-out`, {})
+      .post<ApiResponse<unknown>>(`${this.baseUrl}/${id}/time/clock-out`, body)
       .pipe(map((r) => r.message ?? 'Clocked out.'));
   }
 
   getTime(id: number): Observable<TimeEntry[]> {
     return this.http
       .get<ApiResponse<TimeEntry[]>>(`${this.baseUrl}/${id}/time`)
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  signatures(id: number, entryId: number): Observable<TimeEntrySignature[]> {
+    return this.http
+      .get<ApiResponse<TimeEntrySignature[]>>(`${this.baseUrl}/${id}/time/${entryId}/signatures`)
       .pipe(map((r) => r.data ?? []));
   }
 

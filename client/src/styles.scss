@@ -58,6 +58,18 @@
   .wp-link {
     @apply font-semibold text-brand-600 hover:text-brand-700;
   }
+
+  .wp-btn-portal {
+    @apply wp-btn bg-portal-600 text-white shadow-lg shadow-portal-600/25 hover:bg-portal-700 focus:ring-portal-500;
+  }
+
+  .wp-input-portal {
+    @apply focus:border-portal-500 focus:ring-portal-500/30;
+  }
+
+  .wp-link-portal {
+    @apply font-semibold text-portal-700 hover:text-portal-800;
+  }
 }
 
 /* Three-dot route loader (box-shadow dots) in the brand palette. */

@@ -61,7 +61,8 @@ export const routes: Routes = [
   // Authenticated app shell
   {
     path: 'dashboard',
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },
     loadComponent: () =>
       import('./features/dashboard/dashboard-layout/dashboard-layout').then(
         (m) => m.DashboardLayout,
@@ -95,6 +96,21 @@ export const routes: Routes = [
         data: { roles: ['SuperAdmin', 'Admin'] },
         loadComponent: () => import('./features/dashboard/offices/offices').then((m) => m.Offices),
         title: 'Offices · WorkProvider360',
+      },
+      {
+        path: 'clients',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () => import('./features/dashboard/clients/clients').then((m) => m.Clients),
+        title: 'Clients · WorkProvider360',
+      },
+      {
+        path: 'service-types',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () =>
+          import('./features/dashboard/service-types/service-types').then((m) => m.ServiceTypes),
+        title: 'Skills & Services · WorkProvider360',
       },
       {
         path: 'logs',
@@ -180,6 +196,39 @@ export const routes: Routes = [
         path: 'about',
         loadComponent: () => import('./features/dashboard/about/about').then((m) => m.About),
         title: 'About · WorkProvider360',
+      },
+    ],
+  },
+
+  {
+    path: 'portal',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['Client'] },
+    loadComponent: () =>
+      import('./features/portal/portal-layout/portal-layout').then((m) => m.PortalLayout),
+    children: [
+      {
+        path: '',
+        pathMatch: 'full',
+        loadComponent: () => import('./features/portal/portal-home/portal-home').then((m) => m.PortalHome),
+        title: 'My care · WorkProvider360',
+      },
+      {
+        path: 'visits',
+        loadComponent: () => import('./features/portal/portal-visits/portal-visits').then((m) => m.PortalVisits),
+        title: 'My visits · WorkProvider360',
+      },
+      {
+        path: 'services',
+        loadComponent: () =>
+          import('./features/portal/portal-services/portal-services').then((m) => m.PortalServices),
+        title: 'Services · WorkProvider360',
+      },
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('./features/portal/portal-profile/portal-profile').then((m) => m.PortalProfile),
+        title: 'My profile · WorkProvider360',
       },
     ],
   },

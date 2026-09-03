@@ -1,0 +1,57 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-09-03
+     ============================================================================= -->
+<div class="min-h-screen bg-portal-50">
+  <header class="bg-portal-panel text-white">
+    <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
+      <div class="flex items-center gap-3">
+        @if (branding.logo()) {
+          <img [src]="branding.logo()" alt="logo" class="h-9 w-9 rounded-lg bg-white/10 object-contain p-1" />
+        }
+        <div>
+          <div class="text-sm font-bold">{{ agency.name() || 'WorkProvider360' }}</div>
+          <div class="text-xs text-white/70">Care portal</div>
+        </div>
+      </div>
+
+      <nav class="hidden items-center gap-1 sm:flex">
+        @for (item of nav; track item.path) {
+          <a [routerLink]="item.path" routerLinkActive="bg-white/20"
+            [routerLinkActiveOptions]="{ exact: !!item.exact }"
+            class="rounded-lg px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white">
+            {{ item.label }}
+          </a>
+        }
+      </nav>
+
+      <div class="relative">
+        <button type="button" (click)="menuOpen.set(!menuOpen())"
+          class="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-sm font-bold">
+          {{ initials() }}
+        </button>
+        @if (menuOpen()) {
+          <div class="absolute right-0 z-20 mt-2 w-44 rounded-xl bg-white p-1 text-slate-700 shadow-2xl">
+            <a routerLink="/portal/profile" (click)="menuOpen.set(false)" class="block rounded-lg px-3 py-2 text-sm hover:bg-slate-50">My profile</a>
+            <button type="button" (click)="logout()" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">Sign out</button>
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-5xl px-4 py-6 pb-24 sm:pb-8">
+    <router-outlet />
+  </main>
+
+  <nav class="fixed inset-x-0 bottom-0 z-30 flex border-t border-portal-100 bg-white sm:hidden">
+    @for (item of nav; track item.path) {
+      <a [routerLink]="item.path" routerLinkActive="text-portal-700"
+        [routerLinkActiveOptions]="{ exact: !!item.exact }"
+        class="flex-1 py-3 text-center text-xs font-semibold text-slate-400">
+        {{ item.label }}
+      </a>
+    }
+  </nav>
+</div>

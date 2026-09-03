@@ -1,0 +1,72 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-09-03
+     ============================================================================= -->
+<section class="space-y-6">
+  <div>
+    <h1 class="text-2xl font-extrabold tracking-tight text-portal-900">Welcome back</h1>
+    <p class="mt-1 text-sm text-slate-500">Here is what is coming up.</p>
+  </div>
+
+  <app-alert type="error" [message]="error()" />
+
+  @if (loading()) {
+    <div class="wp-card flex items-center justify-center py-16 text-slate-400"><span class="text-sm">Loading…</span></div>
+  } @else if (data(); as d) {
+    @if (d.nextVisit; as v) {
+      <div class="rounded-2xl bg-portal-panel p-6 text-white shadow-card">
+        <div class="text-xs font-semibold uppercase tracking-wide text-white/70">Next visit</div>
+        <div class="mt-1 text-xl font-bold">{{ v.serviceTypeName || v.title }}</div>
+        <div class="mt-1 text-sm text-white/80">{{ v.startUtc | date: 'EEEE, MMM d · h:mm a' }}</div>
+        <div class="mt-4 flex items-center gap-3">
+          @if (v.assignedUserAvatarUrl) {
+            <img [src]="v.assignedUserAvatarUrl" alt="" class="h-10 w-10 rounded-full object-cover" />
+          } @else {
+            <span class="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-sm font-bold">{{ v.assignedUserName.charAt(0) }}</span>
+          }
+          <div>
+            <div class="text-sm font-semibold">{{ v.assignedUserName }}</div>
+            <div class="text-xs text-white/70">Your team member</div>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="wp-card"><p class="text-sm text-slate-500">No upcoming visits scheduled.</p></div>
+    }
+
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div class="wp-card text-center"><div class="text-2xl font-extrabold text-portal-700">{{ d.upcomingCount }}</div><div class="text-xs text-slate-500">Upcoming</div></div>
+      <div class="wp-card text-center"><div class="text-2xl font-extrabold text-portal-700">{{ d.completedCount }}</div><div class="text-xs text-slate-500">Completed</div></div>
+      <div class="wp-card text-center"><div class="text-2xl font-extrabold text-portal-700">{{ d.totalHoursThisMonth | number: '1.0-1' }}</div><div class="text-xs text-slate-500">Hours this month</div></div>
+    </div>
+
+    @if (d.todayVisits.length) {
+      <div>
+        <h2 class="text-sm font-bold text-slate-700">Today</h2>
+        <div class="mt-2 space-y-2">
+          @for (v of d.todayVisits; track v.scheduleId) {
+            <div class="wp-card !p-4 flex items-center justify-between">
+              <div>
+                <div class="font-semibold text-slate-800">{{ v.serviceTypeName || v.title }}</div>
+                <div class="text-xs text-slate-400">{{ v.assignedUserName }} · {{ v.startUtc | date: 'h:mm a' }}</div>
+              </div>
+              <span class="rounded-full bg-portal-100 px-2.5 py-1 text-xs font-semibold text-portal-700">{{ v.status }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    @if (d.services.length) {
+      <div>
+        <h2 class="text-sm font-bold text-slate-700">Your services</h2>
+        <div class="mt-2 flex flex-wrap gap-2">
+          @for (s of d.services; track s.serviceTypeId) {
+            <span class="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-portal-700 shadow-card">{{ s.name }}</span>
+          }
+        </div>
+      </div>
+    }
+  }
+</section>

@@ -98,6 +98,8 @@ export class DashboardLayout {
     { label: 'Team', path: '/dashboard/users', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
     { label: 'Applications', path: '/dashboard/applications', icon: 'M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2z', roles: ['SuperAdmin', 'Admin'] },
     { label: 'Offices', path: '/dashboard/offices', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 9h1m4 0h1M9 13h1m4 0h1M9 17h1m4 0h1', roles: ['SuperAdmin', 'Admin'] },
+    { label: 'Clients', path: '/dashboard/clients', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+    { label: 'Skills & Services', path: '/dashboard/service-types', icon: 'M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 16.6 5.7 21l2.3-7.2-6-4.4h7.6L12 2z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
     { label: 'Scheduler', path: '/dashboard/scheduler', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
     { label: 'Reports', path: '/dashboard/reports', icon: 'M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z' },
     { label: 'Live Map', path: '/dashboard/live-map', icon: 'M9 20l-5.4 1.8a1 1 0 01-1.3-1V5.5a1 1 0 01.7-1L9 3m0 17l6-2m-6 2V3m6 15l5.4 1.8a1 1 0 001.3-1V4.5a1 1 0 00-.7-1L15 1.7m0 16.3V3.7m0 0L9 3M12 11a2 2 0 100-4 2 2 0 000 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },

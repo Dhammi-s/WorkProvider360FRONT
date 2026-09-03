@@ -25,6 +25,6 @@ export const roleGuard: CanActivateFn = (route) => {
   if (current && allowed.includes(current)) {
     return true;
   }
-  // Authenticated but wrong role → send to their own dashboard home.
-  return router.createUrlTree(['/dashboard']);
+  // Authenticated but wrong role -> send them to their own home.
+  return router.createUrlTree([auth.homeRouteFor(current)]);
 };

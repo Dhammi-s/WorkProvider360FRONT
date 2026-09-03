@@ -13,6 +13,8 @@ import { Question } from '../../../core/models/application.model';
 import { DEFAULT_LOGIN_CONTENT, LoginContent } from '../../../core/models/login-content.model';
 import { AccessLevel, SchedulingAccess } from '../../../core/models/scheduler.model';
 import { ApplicationService } from '../../../core/services/application.service';
+import { ClientService } from '../../../core/services/client.service';
+import { ClientAccess, ClientSettings } from '../../../core/models/client.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { BrandingService } from '../../../core/services/branding.service';
 import { AnnouncementService } from '../../../core/services/announcement.service';
@@ -40,6 +42,7 @@ export class Settings {
   private readonly announcements = inject(AnnouncementService);
   private readonly auth = inject(AuthService);
   private readonly branding = inject(BrandingService);
+  private readonly clients = inject(ClientService);
 
   readonly user = this.auth.user;
   readonly isSuperAdmin = computed(() => this.auth.roleName() === 'SuperAdmin');
@@ -57,6 +60,8 @@ export class Settings {
       t.push({ id: 'roles', label: 'Roles & Permissions', icon: 'M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-4z' });
     if (this.showScheduling())
       t.push({ id: 'scheduling', label: 'Scheduling', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' });
+    if (this.showClients_())
+      t.push({ id: 'clients', label: 'Clients & Visits', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z' });
     if (this.isSuperAdmin())
       t.push({ id: 'application', label: 'Application Form', icon: 'M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2z' });
     if (this.isSuperAdmin())
@@ -115,6 +120,10 @@ export class Settings {
   readonly emailNotificationsEnabled = signal(true);
   readonly notificationEmail = signal('');
   readonly allowStaffUnlock = signal(false);
+  readonly requireQualifications = signal(false);
+  readonly requireSkills = signal(true);
+  readonly requireAvailability = signal(false);
+  readonly requireDateOfBirth = signal(false);
   readonly saving = signal(false);
   readonly saveNotice = signal('');
 
@@ -156,6 +165,18 @@ export class Settings {
   readonly annNotice = signal('');
   readonly annError = signal('');
 
+  // Clients & Visits (ClientSettings)
+  readonly clientAccess = signal<ClientAccess | null>(null);
+  readonly clientSettings = signal<ClientSettings | null>(null);
+  readonly clientSaving = signal(false);
+  readonly clientNotice = signal('');
+  readonly clientError = signal('');
+  readonly canEditClients = computed(() => !!this.clientAccess()?.canManageSettings);
+  readonly showClients_ = computed(() => {
+    const a = this.clientAccess();
+    return this.isSuperAdmin() || (!!a && a.accessLevel !== 'None');
+  });
+
   readonly canManageSched = computed(() => !!this.schedAccess()?.canManage);
   readonly showScheduling = computed(() => {
     const a = this.schedAccess();
@@ -173,6 +194,7 @@ export class Settings {
       this.loading.set(false);
     }
     this.loadScheduling();
+    this.loadClientData();
   }
 
   // ---- Announcement visibility ----
@@ -244,6 +266,10 @@ export class Settings {
         this.emailNotificationsEnabled.set(s.emailNotificationsEnabled);
         this.notificationEmail.set(s.notificationEmail ?? '');
         this.allowStaffUnlock.set(s.allowStaffUnlock);
+        this.requireQualifications.set(s.requireQualifications);
+        this.requireSkills.set(s.requireSkills);
+        this.requireAvailability.set(s.requireAvailability);
+        this.requireDateOfBirth.set(s.requireDateOfBirth);
         this.loading.set(false);
       },
       error: (err: Error) => {
@@ -271,6 +297,10 @@ export class Settings {
         emailNotificationsEnabled: this.emailNotificationsEnabled(),
         notificationEmail: this.notificationEmail().trim() || null,
         allowStaffUnlock: this.allowStaffUnlock(),
+        requireQualifications: this.requireQualifications(),
+        requireSkills: this.requireSkills(),
+        requireAvailability: this.requireAvailability(),
+        requireDateOfBirth: this.requireDateOfBirth(),
       })
       .subscribe({
         next: () => {
@@ -388,5 +418,35 @@ export class Settings {
           this.defaultsSaving.set(false);
         },
       });
+  }
+
+  loadClientData(): void {
+    this.clients.access().subscribe({ next: (a) => this.clientAccess.set(a), error: () => this.clientAccess.set(null) });
+    this.clients.getSettings().subscribe({ next: (s) => this.clientSettings.set(s), error: () => {} });
+  }
+
+  setClientField<K extends keyof ClientSettings>(key: K, value: ClientSettings[K]): void {
+    const s = this.clientSettings();
+    if (s) this.clientSettings.set({ ...s, [key]: value });
+  }
+
+  saveClientSettings(): void {
+    const s = this.clientSettings();
+    if (!s) return;
+    this.clientSaving.set(true);
+    this.clientNotice.set("");
+    this.clientError.set("");
+    const { updatedOn, ...payload } = s;
+    this.clients.updateSettings(payload).subscribe({
+      next: (saved) => {
+        this.clientSettings.set(saved);
+        this.clientSaving.set(false);
+        this.clientNotice.set("Client settings saved.");
+      },
+      error: (err: Error) => {
+        this.clientSaving.set(false);
+        this.clientError.set(err.message || "Could not save client settings.");
+      },
+    });
   }
 }

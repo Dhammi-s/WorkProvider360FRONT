@@ -60,6 +60,10 @@ export interface Schedule {
   title: string;
   customerName?: string | null;
   location?: string | null;
+  clientId?: number | null;
+  clientName?: string | null;
+  serviceTypeId?: number | null;
+  serviceTypeName?: string | null;
   assignedUserId: number;
   assignedUserName: string;
   startUtc: string;
@@ -91,6 +95,12 @@ export interface TimeEntry {
   userName: string;
   clockInUtc: string;
   clockOutUtc?: string | null;
+  clockInLatitude?: number | null;
+  clockInLongitude?: number | null;
+  clockOutLatitude?: number | null;
+  clockOutLongitude?: number | null;
+  hasClockInSignature?: boolean;
+  hasClockOutSignature?: boolean;
   source: 'Timer' | 'Manual' | 'Auto';
   note?: string | null;
   hours: number;
@@ -106,6 +116,8 @@ export interface CreateScheduleRequest {
   title: string;
   customerName?: string | null;
   location?: string | null;
+  clientId?: number | null;
+  serviceTypeId?: number | null;
   assignedUserId: number;
   startUtc: string;
   endUtc: string;
@@ -120,6 +132,8 @@ export interface UpdateScheduleRequest {
   title: string;
   customerName?: string | null;
   location?: string | null;
+  clientId?: number | null;
+  serviceTypeId?: number | null;
   assignedUserId: number;
   startUtc: string;
   endUtc: string;
@@ -196,4 +210,24 @@ export interface LiveLocation {
   longitude: number;
   accuracyMeters?: number | null;
   recordedUtc: string;
+}
+
+// ---- Clock in/out payload + client signatures ----
+
+export interface ClockRequest {
+  latitude?: number | null;
+  longitude?: number | null;
+  signatureBase64?: string | null;
+  signedByName?: string | null;
+}
+
+export type SignaturePhase = 'ClockIn' | 'ClockOut';
+
+export interface TimeEntrySignature {
+  signatureId: number;
+  timeEntryId: number;
+  phase: SignaturePhase;
+  signatureBase64: string;
+  signedByName?: string | null;
+  signedOnUtc: string;
 }

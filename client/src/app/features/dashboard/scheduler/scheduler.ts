@@ -11,11 +11,18 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { UserDto } from '../../../core/models/user.model';
 import {
+  ClockRequest,
   Schedule,
   ScheduleDetail,
   ScheduleStatus,
   SchedulingAccess,
+  TimeEntrySignature,
 } from '../../../core/models/scheduler.model';
+import { Client, ClientSettings, EligibleCaregiver } from '../../../core/models/client.model';
+import { ServiceType } from '../../../core/models/service-type.model';
+import { ClientService } from '../../../core/services/client.service';
+import { ServiceTypeService } from '../../../core/services/service-type.service';
+import { SignaturePad } from '../../../shared/ui/signature-pad/signature-pad';
 import { AuthService } from '../../../core/services/auth.service';
 import { LocationTrackingService } from '../../../core/services/location-tracking.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
@@ -82,12 +89,14 @@ const HOUR_PX = 56;
 
 @Component({
   selector: 'app-scheduler',
-  imports: [FormsModule, DatePipe, DecimalPipe, Alert],
+  imports: [FormsModule, DatePipe, DecimalPipe, Alert, SignaturePad],
   templateUrl: './scheduler.html',
 })
 export class Scheduler {
   private readonly service = inject(SchedulerService);
   private readonly auth = inject(AuthService);
+  private readonly clients = inject(ClientService);
+  private readonly serviceTypeService = inject(ServiceTypeService);
   readonly locationTracking = inject(LocationTrackingService);
 
   readonly myUserId = this.auth.user()?.userId ?? 0;
@@ -126,6 +135,23 @@ export class Scheduler {
   readonly fOt = signal(1.5);
   readonly fNotifyAdmin = signal(false);
   readonly fNotifyManager = signal(false);
+  readonly fClientId = signal<number | null>(null);
+  readonly fServiceTypeId = signal<number | null>(null);
+  readonly clientQuery = signal('');
+  readonly clientOptions = signal<Client[]>([]);
+  readonly clientPickerOpen = signal(false);
+  readonly serviceTypes = signal<ServiceType[]>([]);
+  readonly eligible = signal<EligibleCaregiver[] | null>(null);
+  readonly clientSettings = signal<ClientSettings | null>(null);
+
+  // Clock + signature flow.
+  readonly clockPhase = signal<'ClockIn' | 'ClockOut' | null>(null);
+  readonly pendingCoords = signal<{ latitude: number; longitude: number } | null>(null);
+  readonly sigOpen = signal(false);
+  readonly sigData = signal<string | null>(null);
+  readonly sigName = signal('');
+  readonly sigError = signal('');
+  readonly sigView = signal<TimeEntrySignature[] | null>(null);
 
   // Detail modal state.
   readonly detail = signal<ScheduleDetail | null>(null);
@@ -144,6 +170,8 @@ export class Scheduler {
 
   constructor() {
     this.loadAccess();
+    this.serviceTypeService.active().subscribe({ next: (s) => this.serviceTypes.set(s), error: () => {} });
+    this.clients.getSettings().subscribe({ next: (s) => this.clientSettings.set(s), error: () => {} });
   }
 
   // ----------------------------------------------------------------- Loading
@@ -409,6 +437,10 @@ export class Scheduler {
     this.fRate.set(0);
     this.fOt.set(1.5);
     this.fNotifyAdmin.set(false);
+    this.fClientId.set(null);
+    this.fServiceTypeId.set(null);
+    this.clientQuery.set("");
+    this.eligible.set(null);
     this.fNotifyManager.set(false);
     // Prime defaults from settings.
     this.service.getSettings().subscribe({
@@ -440,6 +472,11 @@ export class Scheduler {
     this.fEnd.set(`${pad(end.getHours())}:${pad(end.getMinutes())}`);
     this.fRate.set(s.payRatePerHour);
     this.fOt.set(s.overtimeMultiplier);
+    this.fClientId.set(s.clientId ?? null);
+    this.fServiceTypeId.set(s.serviceTypeId ?? null);
+    this.clientQuery.set(s.clientName ?? "");
+    this.eligible.set(null);
+    if (s.clientId != null) this.loadEligible();
     this.detail.set(null);
     this.formOpen.set(true);
   }
@@ -474,6 +511,8 @@ export class Scheduler {
       endUtc,
       payRatePerHour: Number(this.fRate()) || 0,
       overtimeMultiplier: Number(this.fOt()) || 1.5,
+      clientId: this.fClientId(),
+      serviceTypeId: this.fServiceTypeId(),
       colorTag: null,
     };
     const id = this.editingId();
@@ -583,42 +622,174 @@ export class Scheduler {
       });
   }
 
-  clockIn(): void {
+  // ------------------------------------------------------- Client picker
+
+  searchClients(q: string): void {
+    this.clientQuery.set(q);
+    if (!q.trim()) {
+      this.clientOptions.set([]);
+      this.clientPickerOpen.set(false);
+      return;
+    }
+    this.clients.list(1, 8, { status: 'Active', search: q.trim() }).subscribe({
+      next: (res) => {
+        this.clientOptions.set(res.items);
+        this.clientPickerOpen.set(true);
+      },
+      error: () => this.clientOptions.set([]),
+    });
+  }
+
+  selectClient(c: Client): void {
+    this.fClientId.set(c.clientId);
+    this.clientQuery.set(c.fullName);
+    this.clientPickerOpen.set(false);
+    this.fCustomer.set(c.fullName);
+    const addr = [c.addressLine1, c.addressLine2, c.city, c.state, c.postalCode].filter((x) => !!x).join(', ');
+    if (addr) this.fLocation.set(addr);
+    if (c.serviceTypes.length === 1 && this.fServiceTypeId() == null) {
+      this.fServiceTypeId.set(c.serviceTypes[0].serviceTypeId);
+    }
+    if (!this.fTitle().trim() && this.fServiceTypeId() != null) {
+      const st = this.serviceTypes().find((s) => s.serviceTypeId === this.fServiceTypeId());
+      if (st) this.fTitle.set(`${st.name} — ${c.fullName}`);
+    }
+    this.loadEligible();
+  }
+
+  clearClient(): void {
+    this.fClientId.set(null);
+    this.clientQuery.set('');
+    this.clientOptions.set([]);
+    this.eligible.set(null);
+  }
+
+  setServiceType(id: number | null): void {
+    this.fServiceTypeId.set(id);
+    if (this.fClientId() != null) this.loadEligible();
+  }
+
+  loadEligible(): void {
+    const clientId = this.fClientId();
+    if (clientId == null) {
+      this.eligible.set(null);
+      return;
+    }
+    this.clients.eligibleCaregivers(clientId, this.fServiceTypeId() ?? undefined).subscribe({
+      next: (list) => {
+        this.eligible.set(list);
+        // If the current assignee is no longer eligible, clear it.
+        const cur = this.fAssignee();
+        if (cur != null && !list.some((e) => e.userId === cur)) this.fAssignee.set(null);
+      },
+      error: () => this.eligible.set(null),
+    });
+  }
+
+  // ------------------------------------------------------- Clock + signature
+
+  async startClock(phase: 'ClockIn' | 'ClockOut'): Promise<void> {
     const d = this.detail();
     if (!d) return;
     this.actionBusy.set(true);
     this.detailError.set('');
-    this.service.clockIn(d.schedule.scheduleId).subscribe({
+    this.clockPhase.set(phase);
+
+    const settings = this.clientSettings();
+    let coords: { latitude: number; longitude: number } | null = null;
+    if (settings?.captureClockLocation) {
+      coords = await this.locationTracking.getCurrentPosition();
+    }
+
+    const isClient = d.schedule.clientId != null;
+    const needsSignature =
+      isClient &&
+      (phase === 'ClockIn'
+        ? !!settings?.requireClientSignatureOnClockIn
+        : !!settings?.requireClientSignatureOnClockOut);
+
+    if (needsSignature) {
+      this.pendingCoords.set(coords);
+      this.sigData.set(null);
+      this.sigName.set(d.schedule.clientName ?? '');
+      this.sigError.set('');
+      this.sigOpen.set(true);
+      this.actionBusy.set(false);
+      return;
+    }
+
+    this.sendClock(phase, { latitude: coords?.latitude ?? null, longitude: coords?.longitude ?? null });
+  }
+
+  confirmSignature(): void {
+    const phase = this.clockPhase();
+    if (!phase) return;
+    if (!this.sigData()) {
+      this.sigError.set('A signature is required.');
+      return;
+    }
+    const coords = this.pendingCoords();
+    this.actionBusy.set(true);
+    this.sendClock(phase, {
+      latitude: coords?.latitude ?? null,
+      longitude: coords?.longitude ?? null,
+      signatureBase64: this.stripDataUrl(this.sigData()!),
+      signedByName: this.sigName().trim() || null,
+    });
+  }
+
+  cancelSignature(): void {
+    this.sigOpen.set(false);
+    this.clockPhase.set(null);
+    this.actionBusy.set(false);
+  }
+
+  private sendClock(phase: 'ClockIn' | 'ClockOut', body: ClockRequest): void {
+    const d = this.detail();
+    if (!d) return;
+    this.actionBusy.set(true);
+    const call$ =
+      phase === 'ClockIn'
+        ? this.service.clockIn(d.schedule.scheduleId, body)
+        : this.service.clockOut(d.schedule.scheduleId, body);
+    call$.subscribe({
       next: (msg) => {
         this.actionBusy.set(false);
         this.actionNotice.set(msg);
-        this.locationTracking.start(d.schedule.scheduleId);
+        this.sigOpen.set(false);
+        this.clockPhase.set(null);
+        if (phase === 'ClockIn') this.locationTracking.start(d.schedule.scheduleId);
+        else this.locationTracking.stop();
         this.reloadDetail();
       },
       error: (err: Error) => {
-        this.detailError.set(err.message || 'Could not clock in.');
         this.actionBusy.set(false);
+        const message = err.message || 'Could not record the clock action.';
+        if (this.sigOpen()) this.sigError.set(message);
+        else this.detailError.set(message);
       },
     });
   }
 
-  clockOut(): void {
-    const d = this.detail();
-    if (!d) return;
-    this.actionBusy.set(true);
-    this.detailError.set('');
-    this.service.clockOut(d.schedule.scheduleId).subscribe({
-      next: (msg) => {
-        this.actionBusy.set(false);
-        this.actionNotice.set(msg);
-        this.locationTracking.stop();
-        this.reloadDetail();
-      },
-      error: (err: Error) => {
-        this.detailError.set(err.message || 'Could not clock out.');
-        this.actionBusy.set(false);
-      },
+  private stripDataUrl(dataUrl: string): string {
+    const comma = dataUrl.indexOf(',');
+    return comma >= 0 ? dataUrl.substring(comma + 1) : dataUrl;
+  }
+
+  openSignatures(scheduleId: number, entryId: number): void {
+    this.sigView.set([]);
+    this.service.signatures(scheduleId, entryId).subscribe({
+      next: (sigs) => this.sigView.set(sigs),
+      error: () => this.sigView.set([]),
     });
+  }
+
+  closeSignatureViewer(): void {
+    this.sigView.set(null);
+  }
+
+  mapsUrl(lat: number, lng: number): string {
+    return `https://www.google.com/maps?q=${lat},${lng}`;
   }
 
   hasOpenTimer(): boolean {

@@ -1,0 +1,307 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-09-03
+     ============================================================================= -->
+<section>
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Clients</h1>
+      <p class="mt-1 text-sm text-slate-500">{{ total() }} client(s).</p>
+    </div>
+    @if (canManage()) {
+      <button type="button" (click)="openCreate()" class="wp-btn-primary self-start sm:self-auto">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
+        Add client
+      </button>
+    }
+  </div>
+
+  <app-alert type="success" [message]="notice()" />
+  <app-alert type="error" [message]="listError()" />
+
+  @if (!hasAccess()) {
+    <div class="wp-card mt-4 py-16 text-center">
+      <p class="text-sm text-slate-500">You do not have access to clients.</p>
+    </div>
+  } @else {
+    <div class="wp-card mt-4 flex flex-wrap items-end gap-3">
+      <div>
+        <label class="wp-label">Search</label>
+        <input type="text" class="wp-input !py-2" placeholder="Name, email, city…"
+          [ngModel]="search()" (ngModelChange)="search.set($event)" (keyup.enter)="applyFilters()" />
+      </div>
+      <div>
+        <label class="wp-label">Status</label>
+        <select class="wp-input !py-2 !w-auto" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event); applyFilters()">
+          <option value="">All</option>
+          <option value="Active">Active</option>
+          <option value="OnHold">On hold</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+      <div>
+        <label class="wp-label">Service</label>
+        <select class="wp-input !py-2 !w-auto" [ngModel]="serviceFilter()" (ngModelChange)="serviceFilter.set($event); applyFilters()">
+          <option [ngValue]="null">All</option>
+          @for (s of allServices(); track s.serviceTypeId) { <option [ngValue]="s.serviceTypeId">{{ s.name }}</option> }
+        </select>
+      </div>
+      <button type="button" (click)="applyFilters()" class="wp-btn-ghost !py-2">Filter</button>
+    </div>
+
+    @if (loading()) {
+      <div class="wp-card mt-4 flex items-center justify-center py-16 text-slate-400"><span class="text-sm">Loading clients…</span></div>
+    } @else if (items().length === 0) {
+      <div class="wp-card mt-4 py-16 text-center"><p class="text-sm text-slate-500">No clients match the filters.</p></div>
+    } @else {
+      <div class="wp-card mt-4 overflow-hidden !p-0">
+        <div class="max-h-[58vh] overflow-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-sm">
+            <thead class="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <tr>
+                <th class="px-6 py-3">Client</th>
+                <th class="px-6 py-3">Contact</th>
+                <th class="px-6 py-3">Office</th>
+                <th class="px-6 py-3">Services</th>
+                <th class="px-6 py-3">Portal</th>
+                <th class="px-6 py-3">Status</th>
+                <th class="px-6 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (c of items(); track c.clientId) {
+                <tr class="cursor-pointer hover:bg-slate-50/60" (click)="openDetail(c)">
+                  <td class="px-6 py-3">
+                    <div class="font-semibold text-slate-800">{{ c.fullName }}</div>
+                    <div class="text-xs text-slate-400">{{ c.city || c.addressLine1 }}</div>
+                  </td>
+                  <td class="px-6 py-3 text-slate-500">
+                    <div>{{ c.phone || '—' }}</div>
+                    <div class="text-xs text-slate-400">{{ c.email || '' }}</div>
+                  </td>
+                  <td class="px-6 py-3 text-slate-500">{{ c.officeName || '—' }}</td>
+                  <td class="px-6 py-3 text-slate-500">{{ c.serviceTypes.length }}</td>
+                  <td class="px-6 py-3">
+                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="c.portalEnabled ? 'bg-portal-100 text-portal-700' : 'bg-slate-100 text-slate-500'">
+                      {{ c.portalEnabled ? 'Enabled' : 'Off' }}
+                    </span>
+                  </td>
+                  <td class="px-6 py-3">
+                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusBadge(c.status)">{{ c.status }}</span>
+                  </td>
+                  <td class="px-6 py-3 text-right" (click)="$event.stopPropagation()">
+                    <button type="button" (click)="openDetail(c)" class="wp-link text-sm">View</button>
+                    @if (canManage()) {
+                      <button type="button" (click)="openEdit(c)" class="ml-3 wp-link text-sm">Edit</button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="sticky bottom-0 bg-white">
+          <app-paginator [total]="total()" [page]="page()" [pageSize]="pageSize()" (pageChange)="goPage($event)" (pageSizeChange)="setPageSize($event)" />
+        </div>
+      </div>
+    }
+  }
+
+  @if (modalOpen()) {
+    <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4">
+      <div class="absolute inset-0 bg-slate-900/50" (click)="closeModal()"></div>
+      <div class="relative my-6 w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl">
+        <div class="flex items-start justify-between">
+          <h2 class="text-lg font-bold text-slate-900">{{ editingId() ? 'Edit client' : 'Add client' }}</h2>
+          <button type="button" (click)="closeModal()" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close">
+            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+          </button>
+        </div>
+
+        <app-alert type="error" [message]="formError()" />
+
+        <form [formGroup]="form" (ngSubmit)="save()" class="mt-4 space-y-5" novalidate>
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400">Identity</h3>
+            <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div><label class="wp-label">First name</label><input formControlName="firstName" class="wp-input" /></div>
+              <div><label class="wp-label">Last name</label><input formControlName="lastName" class="wp-input" /></div>
+              <div>
+                <label class="wp-label">Date of birth @if (req('requireClientDateOfBirth')) { <span class="text-red-500">*</span> }</label>
+                <input type="date" formControlName="dateOfBirth" class="wp-input" />
+              </div>
+              <div><label class="wp-label">Gender</label><input formControlName="gender" class="wp-input" /></div>
+              <div>
+                <label class="wp-label">Preferred language</label><input formControlName="preferredLanguage" class="wp-input" />
+              </div>
+              @if (isSuperAdmin()) {
+                <div>
+                  <label class="wp-label">Office</label>
+                  <select formControlName="officeId" class="wp-input">
+                    <option value="">— None —</option>
+                    @for (o of officeList(); track o.officeId) { <option [value]="o.officeId">{{ o.officeName }}</option> }
+                  </select>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400">Contact</h3>
+            <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label class="wp-label">Email @if (req('requireClientEmail')) { <span class="text-red-500">*</span> }</label>
+                <input type="email" formControlName="email" class="wp-input" />
+              </div>
+              <div>
+                <label class="wp-label">Phone @if (req('requireClientPhone')) { <span class="text-red-500">*</span> }</label>
+                <input formControlName="phone" class="wp-input" />
+              </div>
+              <div><label class="wp-label">Alternate phone</label><input formControlName="alternatePhone" class="wp-input" /></div>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400">Address</h3>
+            <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div class="sm:col-span-2"><label class="wp-label">Address line 1</label><input formControlName="addressLine1" class="wp-input" /></div>
+              <div class="sm:col-span-2"><label class="wp-label">Address line 2</label><input formControlName="addressLine2" class="wp-input" /></div>
+              <div><label class="wp-label">City</label><input formControlName="city" class="wp-input" /></div>
+              <div><label class="wp-label">State</label><input formControlName="state" class="wp-input" /></div>
+              <div><label class="wp-label">Postal code</label><input formControlName="postalCode" class="wp-input" /></div>
+              <div><label class="wp-label">Country</label><input formControlName="country" class="wp-input" /></div>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400">Emergency contact @if (req('requireEmergencyContact')) { <span class="text-red-500">*</span> }</h3>
+            <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div><label class="wp-label">Name</label><input formControlName="emergencyContactName" class="wp-input" /></div>
+              <div><label class="wp-label">Phone</label><input formControlName="emergencyContactPhone" class="wp-input" /></div>
+              <div><label class="wp-label">Relationship</label><input formControlName="emergencyContactRelation" class="wp-input" /></div>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400">Care &amp; access</h3>
+            <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div class="sm:col-span-2"><label class="wp-label">Access instructions</label><textarea formControlName="accessInstructions" rows="2" class="wp-input"></textarea></div>
+              <div><label class="wp-label">Allergies</label><input formControlName="allergies" class="wp-input" /></div>
+              <div><label class="wp-label">Mobility notes</label><input formControlName="mobilityNotes" class="wp-input" /></div>
+              <div class="sm:col-span-2"><label class="wp-label">Care notes</label><textarea formControlName="careNotes" rows="2" class="wp-input"></textarea></div>
+              <div><label class="wp-label">Start date</label><input type="date" formControlName="startDate" class="wp-input" /></div>
+              <div class="sm:col-span-2"><label class="wp-label">Notes</label><input formControlName="notes" class="wp-input" /></div>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400">Services wanted @if (req('requireClientServiceTypes')) { <span class="text-red-500">*</span> }</h3>
+            <div class="mt-2 flex flex-wrap gap-2">
+              @for (s of allServices(); track s.serviceTypeId) {
+                <button type="button" (click)="toggleService(s.serviceTypeId)"
+                  class="rounded-full border px-3 py-1.5 text-xs font-semibold"
+                  [class]="hasService(s.serviceTypeId) ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-500'">
+                  {{ s.name }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-3 pt-2">
+            <button type="button" (click)="closeModal()" class="wp-btn-ghost">Cancel</button>
+            <button type="submit" class="wp-btn-primary" [disabled]="saving()">
+              @if (saving()) { Saving… } @else { {{ editingId() ? 'Save client' : 'Create client' }} }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  @if (detail(); as c) {
+    <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4">
+      <div class="absolute inset-0 bg-slate-900/50" (click)="closeDetail()"></div>
+      <div class="relative my-6 w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+        <div class="flex items-start justify-between">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">{{ c.fullName }}</h2>
+            <p class="mt-0.5 text-sm text-slate-500">{{ c.email || 'No email' }} · {{ c.phone || 'No phone' }}</p>
+          </div>
+          <button type="button" (click)="closeDetail()" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close">
+            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+          </button>
+        </div>
+
+        <app-alert type="success" [message]="detailNotice()" />
+        <app-alert type="error" [message]="detailError()" />
+
+        <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="wp-card !p-4">
+            <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400">Profile</h3>
+            <dl class="mt-2 space-y-1 text-sm">
+              <div><dt class="inline text-slate-400">Address:</dt> <dd class="inline text-slate-700">{{ c.addressLine1 }}{{ c.city ? ', ' + c.city : '' }}</dd></div>
+              <div><dt class="inline text-slate-400">Office:</dt> <dd class="inline text-slate-700">{{ c.officeName || '—' }}</dd></div>
+              <div><dt class="inline text-slate-400">Status:</dt> <dd class="inline"><span class="rounded-full px-2 py-0.5 text-xs font-semibold" [class]="statusBadge(c.status)">{{ c.status }}</span></dd></div>
+              <div><dt class="inline text-slate-400">Emergency:</dt> <dd class="inline text-slate-700">{{ c.emergencyContactName || '—' }} {{ c.emergencyContactPhone ? '(' + c.emergencyContactPhone + ')' : '' }}</dd></div>
+            </dl>
+            <div class="mt-2 flex flex-wrap gap-1">
+              @for (s of c.serviceTypes; track s.serviceTypeId) {
+                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{{ s.name }}</span>
+              }
+            </div>
+            @if (canManage()) {
+              <div class="mt-3 flex flex-wrap gap-2">
+                <button type="button" (click)="setStatus('Active')" class="wp-btn-ghost !py-1.5 !px-3 text-xs" [disabled]="detailBusy()">Active</button>
+                <button type="button" (click)="setStatus('OnHold')" class="wp-btn-ghost !py-1.5 !px-3 text-xs" [disabled]="detailBusy()">On hold</button>
+                <button type="button" (click)="setStatus('Inactive')" class="wp-btn-ghost !py-1.5 !px-3 text-xs" [disabled]="detailBusy()">Inactive</button>
+                <button type="button" (click)="openEdit(c)" class="wp-btn-ghost !py-1.5 !px-3 text-xs">Edit</button>
+              </div>
+            }
+          </div>
+
+          <div class="wp-card !p-4">
+            <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400">Portal access</h3>
+            @if (c.portalEnabled) {
+              <p class="mt-2 text-sm text-slate-600">Enabled for <span class="font-semibold">{{ c.portalEmail || c.email }}</span>.</p>
+              @if (c.portalIsLockedOut) { <p class="text-xs font-semibold text-red-600">Account locked.</p> }
+              @if (canManage()) {
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <button type="button" (click)="resendCredentials()" class="wp-btn-ghost !py-1.5 !px-3 text-xs" [disabled]="detailBusy()">Resend credentials</button>
+                  <button type="button" (click)="togglePortal(false)" class="!py-1.5 !px-3 text-xs font-semibold text-red-600" [disabled]="detailBusy()">Disable</button>
+                </div>
+              }
+            } @else {
+              <p class="mt-2 text-sm text-slate-500">The portal is off for this client.</p>
+              @if (canManage()) {
+                <button type="button" (click)="togglePortal(true)" class="wp-btn-portal mt-3 !py-1.5 !px-3 text-xs" [disabled]="detailBusy() || !c.email">
+                  Enable portal &amp; email login
+                </button>
+                @if (!c.email) { <p class="mt-1 text-xs text-amber-600">Add an email first.</p> }
+              }
+            }
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400">Recent visits</h3>
+          @if (detailVisits().length === 0) {
+            <p class="mt-2 text-sm text-slate-400">No visits recorded.</p>
+          } @else {
+            <div class="mt-2 space-y-1">
+              @for (v of detailVisits(); track v.scheduleId) {
+                <div class="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                  <div>
+                    <span class="font-semibold text-slate-700">{{ v.serviceTypeName || v.title }}</span>
+                    <span class="text-slate-400"> · {{ v.assignedUserName }}</span>
+                  </div>
+                  <div class="text-xs text-slate-400">{{ v.startUtc | date: 'MMM d, h:mm a' }}</div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</section>

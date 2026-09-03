@@ -7,6 +7,8 @@
    ============================================================================= */
 
 import { RoleDto } from './role.model';
+import { ServiceType } from './service-type.model';
+import { AvailabilitySlot } from './user-profile.model';
 
 export type ApplicationStatus = 'Pending' | 'Approved' | 'Rejected';
 
@@ -24,6 +26,11 @@ export interface PublicFormConfig {
   questions: Question[];
   requirePhone: boolean;
   requireAddress: boolean;
+  requireDateOfBirth: boolean;
+  requireQualifications: boolean;
+  requireSkills: boolean;
+  requireAvailability: boolean;
+  serviceTypes: ServiceType[];
 }
 
 export interface SubmitAnswer {
@@ -36,9 +43,21 @@ export interface SubmitApplicationRequest {
   email: string;
   phone?: string | null;
   address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  qualifications?: string | null;
+  yearsOfExperience?: number | null;
+  about?: string | null;
+  hasDrivingLicense: boolean;
+  hasVehicle: boolean;
   requestedRoleId: number;
   desiredSalary?: number | null;
   answers: SubmitAnswer[];
+  serviceTypeIds: number[];
+  availability: AvailabilitySlot[];
 }
 
 export interface ApplicationListItem {
@@ -64,6 +83,16 @@ export interface ApplicationDetail {
   email: string;
   phone?: string | null;
   address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  qualifications?: string | null;
+  yearsOfExperience?: number | null;
+  about?: string | null;
+  hasDrivingLicense?: boolean | null;
+  hasVehicle?: boolean | null;
   requestedRoleId: number;
   requestedRoleName: string;
   desiredSalary?: number | null;
@@ -72,6 +101,8 @@ export interface ApplicationDetail {
   reviewedOn?: string | null;
   createdOn: string;
   answers: ApplicationAnswer[];
+  skills: ServiceType[];
+  availability: AvailabilitySlot[];
 }
 
 export interface ApplicationSettings {
@@ -80,6 +111,10 @@ export interface ApplicationSettings {
   emailNotificationsEnabled: boolean;
   notificationEmail?: string | null;
   allowStaffUnlock: boolean;
+  requireQualifications: boolean;
+  requireSkills: boolean;
+  requireAvailability: boolean;
+  requireDateOfBirth: boolean;
   updatedOn: string;
 }
 
@@ -89,6 +124,10 @@ export interface UpsertApplicationSettings {
   emailNotificationsEnabled: boolean;
   notificationEmail?: string | null;
   allowStaffUnlock: boolean;
+  requireQualifications: boolean;
+  requireSkills: boolean;
+  requireAvailability: boolean;
+  requireDateOfBirth: boolean;
 }
 
 export interface CreateQuestionRequest {

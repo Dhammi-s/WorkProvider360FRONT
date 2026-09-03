@@ -1,0 +1,149 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-09-03
+     ============================================================================= -->
+<section>
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Skills &amp; Services</h1>
+      <p class="mt-1 text-sm text-slate-500">{{ items().length }} service type(s) your team can perform.</p>
+    </div>
+    @if (canManage()) {
+      <button type="button" (click)="openCreate()" class="wp-btn-primary self-start sm:self-auto">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
+        Add service type
+      </button>
+    }
+  </div>
+
+  <app-alert type="success" [message]="notice()" />
+  <app-alert type="error" [message]="listError()" />
+
+  @if (loading()) {
+    <div class="wp-card mt-4 flex items-center justify-center py-16 text-slate-400">
+      <span class="text-sm">Loading services…</span>
+    </div>
+  } @else if (items().length === 0) {
+    <div class="wp-card mt-4 py-16 text-center">
+      <p class="text-sm text-slate-500">No service types yet.</p>
+      @if (canManage()) {
+        <button type="button" (click)="openCreate()" class="wp-link mt-2 text-sm">Add your first service</button>
+      }
+    </div>
+  } @else {
+    <div class="wp-card mt-4 overflow-hidden !p-0">
+      <div class="max-h-[64vh] overflow-auto">
+        <table class="min-w-full divide-y divide-slate-100 text-sm">
+          <thead class="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <tr>
+              <th class="px-6 py-3">Service</th>
+              <th class="px-6 py-3">Category</th>
+              <th class="px-6 py-3">Clients</th>
+              <th class="px-6 py-3">Team</th>
+              <th class="px-6 py-3">Status</th>
+              <th class="px-6 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (s of items(); track s.serviceTypeId) {
+              <tr class="hover:bg-slate-50/60">
+                <td class="px-6 py-3">
+                  <div class="flex items-center gap-2">
+                    <span class="h-3 w-3 rounded-full" [style.background-color]="s.colorTag || '#94a3b8'"></span>
+                    <div>
+                      <div class="font-semibold text-slate-800">{{ s.name }}</div>
+                      @if (s.description) { <div class="text-xs text-slate-400">{{ s.description }}</div> }
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-3 text-slate-500">{{ s.category || '—' }}</td>
+                <td class="px-6 py-3 text-slate-500">{{ s.clientCount ?? 0 }}</td>
+                <td class="px-6 py-3 text-slate-500">{{ s.userCount ?? 0 }}</td>
+                <td class="px-6 py-3">
+                  <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="s.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'">
+                    {{ s.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
+                <td class="px-6 py-3 text-right">
+                  @if (canManage()) {
+                    <button type="button" (click)="openEdit(s)" class="wp-link text-sm">Edit</button>
+                    @if (s.isActive) {
+                      @if (confirmId() === s.serviceTypeId) {
+                        <span class="ml-3 inline-flex items-center gap-2 text-xs">
+                          <span class="text-slate-500">Deactivate?</span>
+                          <button type="button" (click)="deactivate(s)" class="font-semibold text-red-600">Yes</button>
+                          <button type="button" (click)="confirmId.set(null)" class="font-semibold text-slate-400">No</button>
+                        </span>
+                      } @else {
+                        <button type="button" (click)="confirmId.set(s.serviceTypeId)" class="ml-3 text-sm font-semibold text-red-600 hover:text-red-700">Deactivate</button>
+                      }
+                    }
+                  } @else {
+                    <span class="text-xs text-slate-400">Read only</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  @if (modalOpen()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/50" (click)="close()"></div>
+      <div class="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+        <div class="flex items-start justify-between">
+          <h2 class="text-lg font-bold text-slate-900">{{ editingId() ? 'Edit service type' : 'Add service type' }}</h2>
+          <button type="button" (click)="close()" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close">
+            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+          </button>
+        </div>
+
+        <app-alert type="error" [message]="formError()" />
+
+        <form [formGroup]="form" (ngSubmit)="save()" class="mt-4 space-y-4" novalidate>
+          <div>
+            <label class="wp-label">Name</label>
+            <input type="text" formControlName="name" class="wp-input" placeholder="Nursing" />
+            @if (form.controls.name.touched && form.controls.name.invalid) {
+              <p class="mt-1 text-xs font-medium text-red-600">A name is required.</p>
+            }
+          </div>
+          <div>
+            <label class="wp-label">Description</label>
+            <textarea formControlName="description" rows="2" class="wp-input" placeholder="Short description"></textarea>
+          </div>
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label class="wp-label">Category</label>
+              <input type="text" formControlName="category" class="wp-input" placeholder="Care" />
+            </div>
+            <div>
+              <label class="wp-label">Colour</label>
+              <input type="color" formControlName="colorTag" class="wp-input !h-[46px] !p-1" />
+            </div>
+            <div>
+              <label class="wp-label">Sort order</label>
+              <input type="number" formControlName="sortOrder" class="wp-input" />
+            </div>
+          </div>
+          @if (editingId()) {
+            <label class="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" formControlName="isActive" class="h-4 w-4" />
+              Active
+            </label>
+          }
+          <div class="flex justify-end gap-3 pt-2">
+            <button type="button" (click)="close()" class="wp-btn-ghost">Cancel</button>
+            <button type="submit" class="wp-btn-primary" [disabled]="saving()">
+              @if (saving()) { Saving… } @else { {{ editingId() ? 'Save service' : 'Create service' }} }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</section>

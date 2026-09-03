@@ -40,6 +40,11 @@ export class AuthService {
     () => (this._user()?.roleName as RoleName) ?? null,
   );
 
+  /** Where a role should land after sign-in. Clients get their portal. */
+  homeRouteFor(role: RoleName | null = this.roleName()): string {
+    return role === 'Client' ? '/portal' : '/dashboard';
+  }
+
   login(request: LoginRequest, remember: boolean): Observable<SessionUser> {
     return this.http.post<ApiResponse<AuthResponse>>(`${this.baseUrl}/login`, request).pipe(
       map((res) => this.unwrap(res)),

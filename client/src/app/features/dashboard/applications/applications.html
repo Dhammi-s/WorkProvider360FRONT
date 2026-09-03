@@ -116,6 +116,17 @@
             <div><dt class="text-xs text-slate-400">Phone</dt><dd class="text-sm font-medium text-slate-700">{{ app.phone || '—' }}</dd></div>
             <div class="sm:col-span-2"><dt class="text-xs text-slate-400">Address</dt><dd class="text-sm font-medium text-slate-700">{{ app.address || '—' }}</dd></div>
             <div><dt class="text-xs text-slate-400">Expected salary</dt><dd class="text-sm font-bold text-slate-900">{{ app.desiredSalary != null ? (app.desiredSalary | currency:'USD') : '—' }}</dd></div>
+            <div><dt class="text-xs text-slate-400">City</dt><dd class="text-sm font-medium text-slate-700">{{ app.city || '—' }}</dd></div>
+            <div><dt class="text-xs text-slate-400">Date of birth</dt><dd class="text-sm font-medium text-slate-700">{{ app.dateOfBirth || '—' }}</dd></div>
+            <div><dt class="text-xs text-slate-400">Experience</dt><dd class="text-sm font-medium text-slate-700">{{ app.yearsOfExperience != null ? app.yearsOfExperience + ' yrs' : '—' }}</dd></div>
+            <div><dt class="text-xs text-slate-400">Driving / vehicle</dt><dd class="text-sm font-medium text-slate-700">{{ app.hasDrivingLicense ? 'Licence' : 'No licence' }} · {{ app.hasVehicle ? 'Vehicle' : 'No vehicle' }}</dd></div>
+            <div class="sm:col-span-2"><dt class="text-xs text-slate-400">Qualifications</dt><dd class="text-sm font-medium text-slate-700">{{ app.qualifications || '—' }}</dd></div>
+            @if (app.skills.length) {
+              <div class="sm:col-span-2"><dt class="text-xs text-slate-400">Skills</dt><dd class="mt-1 flex flex-wrap gap-1">@for (s of app.skills; track s.serviceTypeId) { <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{{ s.name }}</span> }</dd></div>
+            }
+            @if (app.availability.length) {
+              <div class="sm:col-span-2"><dt class="text-xs text-slate-400">Availability</dt><dd class="text-sm text-slate-700">{{ app.availability.length }} time range(s) provided</dd></div>
+            }
           </dl>
 
           @if (app.answers.length) {

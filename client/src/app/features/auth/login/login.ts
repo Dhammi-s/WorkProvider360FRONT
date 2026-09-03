@@ -9,6 +9,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { RoleName } from '../../../core/models/role.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { AuthShell } from '../auth-shell/auth-shell';
@@ -59,9 +60,10 @@ export class Login {
 
     const { email, password, remember } = this.form.getRawValue();
     this.auth.login({ email, password }, remember).subscribe({
-      next: () => {
-        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/dashboard';
-        this.router.navigateByUrl(returnUrl);
+      next: (user) => {
+        const home = this.auth.homeRouteFor(user.roleName as RoleName);
+        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+        this.router.navigateByUrl(returnUrl && returnUrl.startsWith(home) ? returnUrl : home);
       },
       error: (err: Error) => {
         this.error.set(err.message || 'Sign in failed. Please try again.');

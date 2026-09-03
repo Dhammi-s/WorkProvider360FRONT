@@ -16,13 +16,18 @@ import { AuthService } from '../../../core/services/auth.service';
 import { OfficeService } from '../../../core/services/office.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { UserService } from '../../../core/services/user.service';
+import { UserProfileService } from '../../../core/services/user-profile.service';
+import { ServiceTypeService } from '../../../core/services/service-type.service';
+import { ServiceType } from '../../../core/models/service-type.model';
+import { AvailabilitySlot } from '../../../core/models/user-profile.model';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { Paginator } from '../../../shared/ui/paginator/paginator';
+import { AvailabilityEditor } from '../../../shared/ui/availability-editor/availability-editor';
 
 /** Admin team management: list tenant users and create new ones. */
 @Component({
   selector: 'app-users',
-  imports: [ReactiveFormsModule, FormsModule, DatePipe, Alert, Paginator],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe, Alert, Paginator, AvailabilityEditor],
   templateUrl: './users.html',
 })
 export class Users {
@@ -31,6 +36,8 @@ export class Users {
   private readonly officeService = inject(OfficeService);
   private readonly auth = inject(AuthService);
   private readonly notifications = inject(NotificationService);
+  private readonly profiles = inject(UserProfileService);
+  private readonly serviceTypes = inject(ServiceTypeService);
 
   readonly isSuperAdmin = computed(() => this.auth.roleName() === 'SuperAdmin');
   /** SuperAdmin + Admin can create/resend/notify; Managers get a view-only list (for unlocking). */
@@ -155,7 +162,7 @@ export class Users {
       error: () => this.allowStaffUnlock.set(false),
     });
     this.userService.getRoles().subscribe({
-      next: (roles) => this.roles.set(roles.filter((r) => r.isActive)),
+      next: (roles) => this.roles.set(roles.filter((r) => r.isActive && r.roleName !== 'Client')),
       error: () => this.roles.set([]),
     });
     // Load offices for the filter + (SuperAdmin) the create-user office picker.
@@ -387,4 +394,123 @@ export class Users {
         return 'bg-slate-100 text-slate-600';
     }
   }
+
+  // ---- Staff profile modal ----
+  readonly allServices = signal<ServiceType[]>([]);
+  readonly profileOpen = signal(false);
+  readonly profileUserId = signal<number | null>(null);
+  readonly profileName = signal('');
+  readonly profileSaving = signal(false);
+  readonly profileError = signal('');
+  readonly profileNotice = signal('');
+  readonly profileSkills = signal<number[]>([]);
+  readonly profileAvailability = signal<AvailabilitySlot[]>([]);
+
+  readonly profileForm = this.fb.nonNullable.group({
+    addressLine1: [''],
+    city: [''],
+    state: [''],
+    postalCode: [''],
+    country: [''],
+    dateOfBirth: [''],
+    gender: [''],
+    qualifications: [''],
+    yearsOfExperience: [null as number | null],
+    about: [''],
+    hasDrivingLicense: [false],
+    hasVehicle: [false],
+    emergencyContactName: [''],
+    emergencyContactPhone: [''],
+    hireDate: [''],
+  });
+
+  loadServices(): void {
+    this.serviceTypes.active().subscribe({ next: (s) => this.allServices.set(s), error: () => {} });
+  }
+
+  openProfile(user: UserDto): void {
+    this.profileUserId.set(user.userId);
+    this.profileName.set(user.fullName);
+    this.profileError.set('');
+    this.profileNotice.set('');
+    this.profileOpen.set(true);
+    if (this.allServices().length === 0) this.loadServices();
+    this.profiles.get(user.userId).subscribe({
+      next: (p) => {
+        this.profileForm.reset({
+          addressLine1: p.addressLine1 ?? '',
+          city: p.city ?? '',
+          state: p.state ?? '',
+          postalCode: p.postalCode ?? '',
+          country: p.country ?? '',
+          dateOfBirth: (p.dateOfBirth ?? '').substring(0, 10),
+          gender: p.gender ?? '',
+          qualifications: p.qualifications ?? '',
+          yearsOfExperience: p.yearsOfExperience ?? null,
+          about: p.about ?? '',
+          hasDrivingLicense: p.hasDrivingLicense,
+          hasVehicle: p.hasVehicle,
+          emergencyContactName: p.emergencyContactName ?? '',
+          emergencyContactPhone: p.emergencyContactPhone ?? '',
+          hireDate: (p.hireDate ?? '').substring(0, 10),
+        });
+        this.profileSkills.set(p.skills.map((s) => s.serviceTypeId));
+        this.profileAvailability.set(p.availability ?? []);
+      },
+      error: (err: Error) => this.profileError.set(err.message || 'Could not load the profile.'),
+    });
+  }
+
+  closeProfile(): void {
+    this.profileOpen.set(false);
+  }
+
+  toggleProfileSkill(id: number): void {
+    const current = this.profileSkills();
+    this.profileSkills.set(current.includes(id) ? current.filter((x) => x !== id) : [...current, id]);
+  }
+
+  hasProfileSkill(id: number): boolean {
+    return this.profileSkills().includes(id);
+  }
+
+  saveProfile(): void {
+    const id = this.profileUserId();
+    if (id == null) return;
+    this.profileSaving.set(true);
+    this.profileError.set('');
+    const v = this.profileForm.getRawValue();
+    const clean = (s: string) => (s.trim() ? s.trim() : null);
+    this.profiles
+      .update(id, {
+        addressLine1: clean(v.addressLine1),
+        city: clean(v.city),
+        state: clean(v.state),
+        postalCode: clean(v.postalCode),
+        country: clean(v.country),
+        dateOfBirth: v.dateOfBirth || null,
+        gender: clean(v.gender),
+        qualifications: clean(v.qualifications),
+        yearsOfExperience: v.yearsOfExperience != null ? Number(v.yearsOfExperience) : null,
+        about: clean(v.about),
+        hasDrivingLicense: v.hasDrivingLicense,
+        hasVehicle: v.hasVehicle,
+        emergencyContactName: clean(v.emergencyContactName),
+        emergencyContactPhone: clean(v.emergencyContactPhone),
+        hireDate: v.hireDate || null,
+        serviceTypeIds: this.profileSkills(),
+        availability: this.profileAvailability(),
+      })
+      .subscribe({
+        next: () => {
+          this.profileSaving.set(false);
+          this.profileOpen.set(false);
+        },
+        error: (err: Error) => {
+          this.profileSaving.set(false);
+          this.profileError.set(err.message || 'Could not save the profile.');
+        },
+      });
+  }
+
 }

@@ -91,6 +91,35 @@
         <p class="mt-1 text-xs text-slate-400">The amount you'd expect to be paid. Reviewed by the admin.</p>
       </div>
 
+      <div class="space-y-4 border-t border-slate-100 pt-5">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div><label class="wp-label">Date of birth</label><input type="date" formControlName="dateOfBirth" class="wp-input" /></div>
+          <div><label class="wp-label">Gender</label><input formControlName="gender" class="wp-input" /></div>
+          <div><label class="wp-label">City</label><input formControlName="city" class="wp-input" /></div>
+          <div><label class="wp-label">State</label><input formControlName="state" class="wp-input" /></div>
+          <div><label class="wp-label">Postal code</label><input formControlName="postalCode" class="wp-input" /></div>
+          <div><label class="wp-label">Years of experience</label><input type="number" min="0" formControlName="yearsOfExperience" class="wp-input" /></div>
+        </div>
+        <div><label class="wp-label">Qualifications</label><textarea formControlName="qualifications" rows="2" class="wp-input"></textarea></div>
+        <div><label class="wp-label">About you</label><textarea formControlName="about" rows="3" class="wp-input"></textarea></div>
+        <div class="flex flex-wrap gap-6">
+          <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" formControlName="hasDrivingLicense" class="h-4 w-4" /> I have a driving licence</label>
+          <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" formControlName="hasVehicle" class="h-4 w-4" /> I have my own vehicle</label>
+        </div>
+        <div>
+          <label class="wp-label">Skills you offer</label>
+          <div class="flex flex-wrap gap-2">
+            @for (s of serviceTypes(); track s.serviceTypeId) {
+              <button type="button" (click)="toggleSkill(s.serviceTypeId)" class="rounded-full border px-3 py-1.5 text-xs font-semibold" [class]="hasSkill(s.serviceTypeId) ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-500'">{{ s.name }}</button>
+            }
+          </div>
+        </div>
+        <div>
+          <label class="wp-label">Weekly availability</label>
+          <app-availability-editor formControlName="availability" />
+        </div>
+      </div>
+
       @if (questions().length) {
         <div class="space-y-5 border-t border-slate-100 pt-5" formGroupName="answers">
           @for (q of questions(); track q.questionId) {
