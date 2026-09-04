@@ -76,7 +76,7 @@ export class PwaService {
    * Replace the linked manifest with a per-agency one so the installed app is
    * white-labeled (name + icon). Called after the public branding loads.
    */
-  applyManifest(agencyName: string, logo?: string | null): void {
+  applyManifest(agencyName: string, logo?: string | null, startUrl: string = '/'): void {
     if (typeof document === 'undefined') return;
     const name = (agencyName || 'WorkProvider360').trim();
 
@@ -84,7 +84,7 @@ export class PwaService {
       name,
       short_name: name.length > 12 ? name.slice(0, 12) : name,
       description: `${name} — field-service & workforce management.`,
-      start_url: '/',
+      start_url: startUrl,
       scope: '/',
       display: 'standalone',
       orientation: 'portrait',

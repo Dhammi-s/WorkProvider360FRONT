@@ -6,7 +6,7 @@
    SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
    ============================================================================= */
 
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
@@ -14,6 +14,8 @@ import { AgencyService } from '../../../core/services/agency.service';
 import { BrandingService } from '../../../core/services/branding.service';
 import { RoleName } from '../../../core/models/role.model';
 import { Alert } from '../../../shared/ui/alert/alert';
+import { InstallPrompt } from '../../auth/install-prompt/install-prompt';
+import { PwaService } from '../../../core/services/pwa.service';
 
 /**
  * Dedicated client-portal sign-in. Styled distinctly (teal) from the staff
@@ -22,7 +24,7 @@ import { Alert } from '../../../shared/ui/alert/alert';
  */
 @Component({
   selector: 'app-portal-login',
-  imports: [ReactiveFormsModule, RouterLink, Alert],
+  imports: [ReactiveFormsModule, RouterLink, Alert, InstallPrompt],
   templateUrl: './portal-login.html',
 })
 export class PortalLogin {
@@ -32,6 +34,7 @@ export class PortalLogin {
   private readonly route = inject(ActivatedRoute);
   readonly agency = inject(AgencyService);
   readonly branding = inject(BrandingService);
+  private readonly pwa = inject(PwaService);
 
   readonly loading = signal(false);
   readonly error = signal('');
@@ -46,6 +49,8 @@ export class PortalLogin {
   constructor() {
     this.branding.load();
     this.agency.load();
+    // Brand the installable app as the client care portal (opens at /portal).
+    effect(() => this.pwa.applyManifest(this.agency.name(), this.branding.logo(), "/portal"));
   }
 
   togglePassword(): void {
@@ -62,7 +67,10 @@ export class PortalLogin {
     const { email, password, remember } = this.form.getRawValue();
     this.auth.login({ email, password }, remember).subscribe({
       next: (user) => {
-        this.router.navigateByUrl(this.auth.homeRouteFor(user.roleName as RoleName));
+        const home = this.auth.homeRouteFor(user.roleName as RoleName);
+        // Honour a portal deep-link only; otherwise land on the role's home.
+        const ret = this.route.snapshot.queryParamMap.get('returnUrl');
+        this.router.navigateByUrl(ret && ret.startsWith('/portal') ? ret : home);
       },
       error: (err: Error) => {
         this.error.set(err.message || 'Sign in failed. Please check your details.');

@@ -8,6 +8,7 @@
 
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { portalAuthGuard } from './core/guards/portal-auth.guard';
 import { roleGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
@@ -208,7 +209,7 @@ export const routes: Routes = [
 
   {
     path: 'portal',
-    canActivate: [authGuard, roleGuard],
+    canActivate: [portalAuthGuard, roleGuard],
     data: { roles: ['Client'] },
     loadComponent: () =>
       import('./features/portal/portal-layout/portal-layout').then((m) => m.PortalLayout),
