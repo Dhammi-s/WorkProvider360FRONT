@@ -41,6 +41,8 @@ module.exports = {
       },
       boxShadow: {
         card: '0 10px 30px -12px rgba(15, 23, 42, 0.25)',
+        portal: '0 22px 48px -22px rgba(13, 148, 136, 0.55)',
+        'portal-sm': '0 10px 26px -16px rgba(13, 148, 136, 0.45)',
       },
       backgroundImage: {
         'brand-panel':

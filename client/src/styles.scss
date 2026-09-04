@@ -104,3 +104,86 @@
 .wp-scroll::-webkit-scrollbar-thumb:hover {
   background-color: rgba(255, 255, 255, 0.4);
 }
+
+/* =============================================================================
+   Client portal — premium animated UI (global; no component-style budget cost)
+   ============================================================================= */
+.wp-glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.wp-pcard {
+  position: relative;
+  border-radius: 1.25rem;
+  background: #ffffff;
+  border: 1px solid rgba(204, 251, 241, 0.9);
+  box-shadow: 0 14px 34px -20px rgba(13, 148, 136, 0.4);
+}
+
+/* Entrance + micro-interaction animations */
+@keyframes wp-fade-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes wp-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wp-pop { 0% { opacity: 0; transform: scale(0.94); } 60% { transform: scale(1.02); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes wp-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+@keyframes wp-gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes wp-shimmer { 100% { transform: translateX(100%); } }
+@keyframes wp-ring { 0% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.4); } 100% { box-shadow: 0 0 0 14px rgba(20, 184, 166, 0); } }
+@keyframes wp-slide-down { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+.wp-anim-up { animation: wp-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.wp-anim-in { animation: wp-fade-in 0.6s ease both; }
+.wp-anim-pop { animation: wp-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.wp-anim-menu { animation: wp-slide-down 0.18s ease both; }
+.wp-d1 { animation-delay: 0.06s; }
+.wp-d2 { animation-delay: 0.12s; }
+.wp-d3 { animation-delay: 0.18s; }
+.wp-d4 { animation-delay: 0.24s; }
+.wp-d5 { animation-delay: 0.30s; }
+.wp-d6 { animation-delay: 0.36s; }
+
+.wp-lift { transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.28s ease; }
+.wp-lift:hover { transform: translateY(-5px); box-shadow: 0 26px 48px -22px rgba(13, 148, 136, 0.55); }
+
+/* Animated teal mesh for the portal hero + login panel */
+.wp-portal-hero {
+  background: linear-gradient(120deg, #042f2e, #0f766e 38%, #0e7490 68%, #0891b2);
+  background-size: 220% 220%;
+  animation: wp-gradient 16s ease infinite;
+}
+
+/* Soft mesh app background behind portal pages */
+.wp-portal-app-bg {
+  background:
+    radial-gradient(1200px 520px at 100% -12%, rgba(45, 212, 191, 0.16), transparent 60%),
+    radial-gradient(920px 520px at -12% 112%, rgba(6, 182, 212, 0.13), transparent 55%),
+    #f0fdfa;
+}
+
+.wp-blob { position: absolute; border-radius: 9999px; filter: blur(46px); animation: wp-float 9s ease-in-out infinite; }
+.wp-blob-slow { animation-duration: 13s; }
+
+/* Skeleton shimmer */
+.wp-skeleton { position: relative; overflow: hidden; background: #dcf3ee; }
+.wp-skeleton::after {
+  content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  animation: wp-shimmer 1.5s infinite;
+}
+
+.wp-avatar-ring { animation: wp-ring 2.4s ease-out infinite; }
+
+/* Sidebar active-item indicator */
+.wp-nav-active { position: relative; }
+.wp-nav-active::before {
+  content: ''; position: absolute; left: -0.75rem; top: 50%; height: 60%; width: 3px;
+  transform: translateY(-50%); border-radius: 9999px; background: #5eead4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wp-anim-up, .wp-anim-in, .wp-anim-pop, .wp-anim-menu, .wp-portal-hero,
+  .wp-blob, .wp-avatar-ring, .wp-skeleton::after { animation: none !important; }
+  .wp-anim-up, .wp-anim-pop { opacity: 1 !important; transform: none !important; }
+}

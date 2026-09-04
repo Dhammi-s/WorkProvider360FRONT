@@ -1,49 +1,61 @@
 <!-- =============================================================================
      WorkProvider360 - Multi-tenant SaaS platform
      Developed by : Jasmeet Singh  (Full Stack Software Engineer)
-     Date         : 2026-09-03
+     Date         : 2026-07-31
+     NOTE TO DEVELOPERS: Do NOT change functionality without full knowledge of the
+     SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
      ============================================================================= -->
-<div class="flex min-h-screen bg-portal-50">
+
+<div class="flex min-h-screen wp-portal-app-bg">
   <!-- Mobile overlay -->
   @if (sidebarOpen()) {
-    <div class="fixed inset-0 z-30 bg-slate-900/40 lg:hidden" (click)="sidebarOpen.set(false)"></div>
+    <div class="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-sm lg:hidden wp-anim-in" (click)="sidebarOpen.set(false)"></div>
   }
 
   <!-- Sidebar -->
   <aside
-    class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-portal-panel py-6 text-white transition-transform lg:static lg:translate-x-0"
+    class="wp-portal-hero fixed inset-y-0 left-0 z-40 flex w-64 flex-col overflow-hidden py-6 text-white shadow-2xl transition-transform duration-300 lg:static lg:translate-x-0"
     [class.-translate-x-full]="!sidebarOpen()"
   >
-    <div class="flex items-center gap-3 px-6">
+    <!-- decorative glow -->
+    <div class="wp-blob pointer-events-none absolute -right-10 -top-10 h-40 w-40 bg-teal-300/25"></div>
+    <div class="wp-blob wp-blob-slow pointer-events-none absolute -bottom-12 -left-8 h-44 w-44 bg-cyan-400/20"></div>
+
+    <div class="relative flex items-center gap-3 px-6">
       @if (branding.logo()) {
-        <img [src]="branding.logo()" alt="logo" class="h-9 w-9 rounded-lg bg-white/10 object-contain p-1" />
+        <img [src]="branding.logo()" alt="logo" class="h-10 w-10 rounded-xl bg-white/10 object-contain p-1 ring-1 ring-white/25" />
       } @else {
-        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 text-sm font-bold">C</span>
+        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 text-base font-black ring-1 ring-white/25">C</span>
       }
       <div>
-        <div class="text-sm font-bold">{{ agency.name() || 'WorkProvider360' }}</div>
-        <div class="text-xs text-white/70">Care portal</div>
+        <div class="text-sm font-extrabold tracking-tight">{{ agency.name() || 'WorkProvider360' }}</div>
+        <div class="text-[11px] font-medium uppercase tracking-wider text-white/60">Care portal</div>
       </div>
     </div>
 
-    <nav class="wp-scroll mt-6 flex-1 space-y-1 overflow-y-auto px-3">
-      @for (item of nav; track item.path) {
+    <nav class="wp-scroll relative mt-8 flex-1 space-y-1.5 overflow-y-auto px-4">
+      @for (item of nav; track item.path; let i = $index) {
         <a
           [routerLink]="item.path"
-          routerLinkActive="bg-white/15 text-white"
+          routerLinkActive="wp-nav-active bg-white/15 text-white shadow-lg shadow-black/10"
           [routerLinkActiveOptions]="{ exact: !!item.exact }"
           (click)="sidebarOpen.set(false)"
-          class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+          class="wp-anim-up group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/75 transition-all duration-200 hover:translate-x-1 hover:bg-white/10 hover:text-white"
+          [class]="'wp-d' + (i + 1)"
         >
-          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="item.icon" /></svg>
+          <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/5 transition group-hover:bg-white/15">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="item.icon" /></svg>
+          </span>
           {{ item.label }}
         </a>
       }
     </nav>
 
-    <div class="px-3">
-      <button type="button" (click)="logout()" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white">
-        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 16l4-4m0 0l-4-4m4 4H7M13 16v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+    <div class="relative px-4">
+      <button type="button" (click)="logout()" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/75 transition hover:bg-white/10 hover:text-white">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/5">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 16l4-4m0 0l-4-4m4 4H7M13 16v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+        </span>
         Sign out
       </button>
     </div>
@@ -51,19 +63,19 @@
 
   <!-- Main -->
   <div class="flex min-w-0 flex-1 flex-col">
-    <header class="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-portal-100 bg-white px-4 lg:px-8">
-      <button type="button" (click)="sidebarOpen.set(!sidebarOpen())" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden" aria-label="Menu">
+    <header class="wp-glass sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/40 px-4 lg:px-8">
+      <button type="button" (click)="sidebarOpen.set(!sidebarOpen())" class="rounded-lg p-2 text-portal-700 transition hover:bg-portal-50 lg:hidden" aria-label="Menu">
         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
       </button>
-      <div class="hidden text-sm font-semibold text-slate-500 lg:block">{{ agency.name() || 'Care portal' }}</div>
+      <div class="hidden text-sm font-bold text-portal-800 lg:block">{{ agency.name() || 'Care portal' }}</div>
       <div class="relative ml-auto">
-        <button type="button" (click)="menuOpen.set(!menuOpen())" class="flex h-9 w-9 items-center justify-center rounded-full bg-portal-100 text-sm font-bold text-portal-700">
+        <button type="button" (click)="menuOpen.set(!menuOpen())" class="flex h-10 w-10 items-center justify-center rounded-full bg-portal-panel text-sm font-bold text-white ring-2 ring-white shadow-portal-sm transition hover:scale-105">
           {{ initials() }}
         </button>
         @if (menuOpen()) {
-          <div class="absolute right-0 z-20 mt-2 w-44 rounded-xl bg-white p-1 text-slate-700 shadow-2xl ring-1 ring-slate-100">
-            <a routerLink="/portal/profile" (click)="menuOpen.set(false)" class="block rounded-lg px-3 py-2 text-sm hover:bg-slate-50">My profile</a>
-            <button type="button" (click)="logout()" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">Sign out</button>
+          <div class="wp-anim-menu absolute right-0 z-20 mt-2 w-48 rounded-2xl bg-white p-1.5 text-slate-700 shadow-2xl ring-1 ring-slate-100">
+            <a routerLink="/portal/profile" (click)="menuOpen.set(false)" class="block rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-portal-50 hover:text-portal-700">My profile</a>
+            <button type="button" (click)="logout()" class="block w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-red-600 transition hover:bg-red-50">Sign out</button>
           </div>
         }
       </div>
