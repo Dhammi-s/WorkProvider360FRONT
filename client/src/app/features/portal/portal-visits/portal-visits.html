@@ -57,7 +57,7 @@
           </button>
         </div>
         <dl class="mt-3 space-y-1 text-sm">
-          <div><dt class="inline text-slate-400">Team member:</dt> <dd class="inline font-semibold text-slate-700">{{ d.assignedUserName }}</dd></div>
+          <div><dt class="inline text-slate-400">Caregiver:</dt> <dd class="inline font-semibold text-slate-700">{{ d.assignedUserName }}</dd></div>
           <div><dt class="inline text-slate-400">Scheduled:</dt> <dd class="inline text-slate-700">{{ d.startUtc | date: 'MMM d, h:mm a' }} – {{ d.endUtc | date: 'h:mm a' }}</dd></div>
           @if (d.clockInUtc) { <div><dt class="inline text-slate-400">Actual:</dt> <dd class="inline text-slate-700">{{ d.clockInUtc | date: 'h:mm a' }}{{ d.clockOutUtc ? ' – ' + (d.clockOutUtc | date: 'h:mm a') : '' }}</dd></div> }
           <div><dt class="inline text-slate-400">Worked:</dt> <dd class="inline text-slate-700">{{ hours(d.workedSeconds) }} h</dd></div>

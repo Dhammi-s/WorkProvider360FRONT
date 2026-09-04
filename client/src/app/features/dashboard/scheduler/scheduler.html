@@ -424,6 +424,21 @@
               </div>
             </div>
 
+            <!-- Care log (clock events, notes, client signature) -->
+            <div class="mt-5">
+              <div class="flex items-center justify-between">
+                <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Care log</p>
+                <button type="button" (click)="toggleCareLog()" class="text-xs font-semibold text-brand-600 hover:text-brand-700">
+                  {{ careLogOpen() ? 'Hide' : 'Show' }}
+                </button>
+              </div>
+              @if (careLogOpen()) {
+                <div class="mt-2 rounded-xl border border-slate-100 p-3">
+                  <app-care-log [entries]="careLogEntries()" />
+                </div>
+              }
+            </div>
+
             <!-- Notes / injuries -->
             <div class="mt-5">
               <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Notes &amp; injury reports</p>

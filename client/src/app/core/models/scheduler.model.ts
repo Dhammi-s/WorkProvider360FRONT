@@ -231,3 +231,17 @@ export interface TimeEntrySignature {
   signedByName?: string | null;
   signedOnUtc: string;
 }
+
+/** One chronological event on a shift's care log (mirrors CareLogEntryDto). */
+export interface CareLogEntry {
+  type: 'ClockIn' | 'ClockOut' | 'Note' | 'Injury' | 'Signature';
+  timestampUtc: string;
+  actorName: string;
+  message?: string | null;
+  source?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  phase?: string | null;
+  signedByName?: string | null;
+  signatureBase64?: string | null;
+}

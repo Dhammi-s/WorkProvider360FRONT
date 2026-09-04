@@ -28,6 +28,7 @@ import {
   SchedulingAccess,
   SchedulingSettings,
   TimeEntrySignature,
+  CareLogEntry,
   TimeEntry,
   UpdateSchedulingAccess,
   UpdateSchedulingDefaults,
@@ -147,6 +148,12 @@ export class SchedulerService {
   signatures(id: number, entryId: number): Observable<TimeEntrySignature[]> {
     return this.http
       .get<ApiResponse<TimeEntrySignature[]>>(`${this.baseUrl}/${id}/time/${entryId}/signatures`)
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  careLog(id: number): Observable<CareLogEntry[]> {
+    return this.http
+      .get<ApiResponse<CareLogEntry[]>>(`${this.baseUrl}/${id}/care-log`)
       .pipe(map((r) => r.data ?? []));
   }
 

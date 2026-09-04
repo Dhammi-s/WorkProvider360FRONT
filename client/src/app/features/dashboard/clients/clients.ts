@@ -20,10 +20,14 @@ import { Office } from '../../../core/models/office.model';
 import { ClientVisit } from '../../../core/models/portal.model';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { Paginator } from '../../../shared/ui/paginator/paginator';
+import { VisitCalendar } from '../../../shared/ui/visit-calendar/visit-calendar';
+import { CareLog } from '../../../shared/ui/care-log/care-log';
+import { SchedulerService } from '../../../core/services/scheduler.service';
+import { CareLogEntry } from '../../../core/models/scheduler.model';
 
 @Component({
   selector: 'app-clients',
-  imports: [ReactiveFormsModule, FormsModule, DatePipe, Alert, Paginator],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe, Alert, Paginator, VisitCalendar, CareLog],
   templateUrl: './clients.html',
 })
 export class Clients {
@@ -32,6 +36,7 @@ export class Clients {
   private readonly serviceTypes = inject(ServiceTypeService);
   private readonly offices = inject(OfficeService);
   private readonly auth = inject(AuthService);
+  private readonly scheduler = inject(SchedulerService);
 
   readonly access = signal<ClientAccess | null>(null);
   readonly settings = signal<ClientSettings | null>(null);
@@ -65,6 +70,10 @@ export class Clients {
   readonly detailBusy = signal(false);
   readonly detailNotice = signal('');
   readonly detailError = signal('');
+  readonly detailTab = signal<'profile' | 'schedule' | 'carelog'>('profile');
+  readonly careLogVisit = signal<ClientVisit | null>(null);
+  readonly careLogEntries = signal<CareLogEntry[]>([]);
+  readonly careLogBusy = signal(false);
 
   readonly form = this.fb.nonNullable.group({
     firstName: ['', [Validators.required]],
@@ -259,6 +268,9 @@ export class Clients {
 
   openDetail(c: Client): void {
     this.detailNotice.set('');
+    this.detailTab.set("profile");
+    this.careLogVisit.set(null);
+    this.careLogEntries.set([]);
     this.detailError.set('');
     this.detailVisits.set([]);
     this.service.get(c.clientId).subscribe({
@@ -275,6 +287,24 @@ export class Clients {
 
   closeDetail(): void {
     this.detail.set(null);
+  }
+
+  setDetailTab(tab: "profile" | "schedule" | "carelog"): void {
+    this.detailTab.set(tab);
+  }
+
+  openCareLog(visit: ClientVisit): void {
+    this.detailTab.set("carelog");
+    this.careLogVisit.set(visit);
+    this.careLogEntries.set([]);
+    this.careLogBusy.set(true);
+    this.scheduler.careLog(visit.scheduleId).subscribe({
+      next: (log) => {
+        this.careLogEntries.set(log);
+        this.careLogBusy.set(false);
+      },
+      error: () => this.careLogBusy.set(false),
+    });
   }
 
   setStatus(status: ClientStatus): void {

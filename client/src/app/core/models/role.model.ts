@@ -25,7 +25,7 @@ export const ROLE_LABELS: Record<RoleName, string> = {
   SuperAdmin: 'Super Admin',
   Admin: 'Administrator',
   Manager: 'Manager',
-  User: 'Team Member',
+  User: 'Caregiver',
   Client: 'Client',
 };
 

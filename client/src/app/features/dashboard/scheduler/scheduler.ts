@@ -17,6 +17,7 @@ import {
   ScheduleStatus,
   SchedulingAccess,
   TimeEntrySignature,
+  CareLogEntry,
 } from '../../../core/models/scheduler.model';
 import { Client, ClientSettings, EligibleCaregiver } from '../../../core/models/client.model';
 import { ServiceType } from '../../../core/models/service-type.model';
@@ -27,6 +28,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { LocationTrackingService } from '../../../core/services/location-tracking.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { Alert } from '../../../shared/ui/alert/alert';
+import { CareLog } from '../../../shared/ui/care-log/care-log';
 
 type CalView = 'week' | 'day' | 'month';
 
@@ -89,7 +91,7 @@ const HOUR_PX = 56;
 
 @Component({
   selector: 'app-scheduler',
-  imports: [FormsModule, DatePipe, DecimalPipe, Alert, SignaturePad],
+  imports: [FormsModule, DatePipe, DecimalPipe, Alert, SignaturePad, CareLog],
   templateUrl: './scheduler.html',
 })
 export class Scheduler {
@@ -153,6 +155,8 @@ export class Scheduler {
   readonly sigError = signal('');
   readonly sigRequired = signal(false);
   readonly sigView = signal<TimeEntrySignature[] | null>(null);
+  readonly careLogEntries = signal<CareLogEntry[]>([]);
+  readonly careLogOpen = signal(false);
 
   // Detail modal state.
   readonly detail = signal<ScheduleDetail | null>(null);
@@ -549,6 +553,7 @@ export class Scheduler {
       next: (d) => {
         this.detail.set(d);
         this.detailLoading.set(false);
+        this.loadCareLog(id);
       },
       error: (err: Error) => {
         this.detailError.set(err.message || 'Could not load the schedule.');
@@ -796,6 +801,18 @@ export class Scheduler {
 
   closeSignatureViewer(): void {
     this.sigView.set(null);
+  }
+
+  loadCareLog(id: number): void {
+    this.careLogEntries.set([]);
+    this.service.careLog(id).subscribe({
+      next: (log) => this.careLogEntries.set(log),
+      error: () => this.careLogEntries.set([]),
+    });
+  }
+
+  toggleCareLog(): void {
+    this.careLogOpen.update((v) => !v);
   }
 
   mapsUrl(lat: number, lng: number): string {
