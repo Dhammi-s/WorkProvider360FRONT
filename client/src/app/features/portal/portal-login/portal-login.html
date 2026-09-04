@@ -8,10 +8,10 @@
   <div class="relative hidden wp-portal-hero overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between">
     <div class="wp-blob pointer-events-none absolute -right-16 top-10 h-72 w-72 bg-portal-300/25"></div>
     <div class="flex items-center gap-3">
-      @if (branding.logo()) {
-        <img [src]="branding.logo()" alt="logo" class="h-10 w-10 rounded-lg bg-white/10 object-contain p-1" />
+      @if (logo()) {
+        <img [src]="logo()" alt="logo" class="h-10 w-10 rounded-lg bg-white/10 object-contain p-1" />
       }
-      <span class="text-lg font-bold">{{ agency.name() || 'WorkProvider360' }}</span>
+      <span class="text-lg font-bold">{{ agencyName() || 'WorkProvider360' }}</span>
     </div>
     <div class="relative">
       <h1 class="text-4xl font-extrabold leading-tight">Your care, <span class="text-portal-200">in your hands</span></h1>
@@ -29,10 +29,10 @@
   <div class="flex items-center justify-center wp-portal-app-bg px-6 py-12">
       <div class="w-full max-w-sm wp-anim-up">
       <div class="mb-8 flex items-center gap-3 lg:hidden">
-        @if (branding.logo()) {
-          <img [src]="branding.logo()" alt="logo" class="h-9 w-9 rounded-lg object-contain" />
+        @if (logo()) {
+          <img [src]="logo()" alt="logo" class="h-9 w-9 rounded-lg object-contain" />
         }
-        <span class="text-lg font-bold text-portal-800">{{ agency.name() || 'Care portal' }}</span>
+        <span class="text-lg font-bold text-portal-800">{{ agencyName() || 'Care portal' }}</span>
       </div>
 
       <h2 class="text-2xl font-extrabold tracking-tight text-slate-900">Client sign in</h2>

@@ -6,11 +6,10 @@
    SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
    ============================================================================= */
 
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
-import { AgencyService } from '../../../core/services/agency.service';
 import { BrandingService } from '../../../core/services/branding.service';
 import { RoleName } from '../../../core/models/role.model';
 import { Alert } from '../../../shared/ui/alert/alert';
@@ -32,10 +31,11 @@ export class PortalLogin {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  readonly agency = inject(AgencyService);
-  readonly branding = inject(BrandingService);
+  private readonly branding = inject(BrandingService);
   private readonly pwa = inject(PwaService);
 
+  readonly agencyName = signal('');
+  readonly logo = signal<string | null>(null);
   readonly loading = signal(false);
   readonly error = signal('');
   readonly showPassword = signal(false);
@@ -47,10 +47,19 @@ export class PortalLogin {
   });
 
   constructor() {
-    this.branding.load();
-    this.agency.load();
-    // Brand the installable app as the client care portal (opens at /portal).
-    effect(() => this.pwa.applyManifest(this.agency.name(), this.branding.logo(), "/portal"));
+    // Public page: use ONLY the anonymous login-branding endpoint. Authed calls
+    // (agency/branding) would 401 while logged out and the error interceptor
+    // would bounce the visitor to the staff /login.
+    this.branding.getLoginPage().subscribe({
+      next: (page) => {
+        if (!page) return;
+        if (page.agencyName) this.agencyName.set(page.agencyName);
+        this.logo.set(page.logo ?? null);
+        // White-label the installable client app (opens at /portal).
+        this.pwa.applyManifest(this.agencyName(), page.logo, '/portal');
+      },
+      error: () => {},
+    });
   }
 
   togglePassword(): void {
