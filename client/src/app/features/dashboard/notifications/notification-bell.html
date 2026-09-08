@@ -10,10 +10,10 @@
   <button
     type="button"
     (click)="toggle()"
-    class="relative rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+    class="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-900 transition hover:bg-slate-100"
     [attr.aria-label]="'Notifications' + (unread() ? ' (' + unread() + ' unread)' : '')"
   >
-    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" /></svg>
+    <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" /></svg>
     @if (unread() > 0) {
       <span class="absolute -right-0.5 -top-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{{ unread() > 99 ? '99+' : unread() }}</span>
     }

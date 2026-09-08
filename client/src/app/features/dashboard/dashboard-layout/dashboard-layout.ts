@@ -110,17 +110,27 @@ export class DashboardLayout {
     { label: 'Accounting', path: '/dashboard/accounting', icon: 'M12 8c-1.7 0-3 .9-3 2s1.3 2 3 2 3 .9 3 2-1.3 2-3 2m0-8V6m0 12v-2M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z', roles: ['SuperAdmin'] },
     { label: 'Point of Sale', path: '/dashboard/pos', icon: 'M3 3h2l.4 2M7 13h10l3-8H6.4M7 13L5.4 5M7 13l-2 4h12M9 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z', roles: ['SuperAdmin', 'Admin'] },
     { label: 'Email Logs', path: '/dashboard/logs', icon: 'M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2M4 6l8 6 8-6', roles: ['SuperAdmin', 'Admin', 'Manager'] },
-    { label: 'Security', path: '/dashboard/security', icon: 'M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-4z M9.5 12l2 2 3.5-4', roles: ['SuperAdmin'] },
-    { label: 'Settings', path: '/dashboard/settings', icon: 'M10.3 3.3a2 2 0 013.4 0l.5.9 1 .1a2 2 0 011.7 1.7l.1 1 .9.5a2 2 0 010 3.4l-.9.5-.1 1a2 2 0 01-1.7 1.7l-1 .1-.5.9a2 2 0 01-3.4 0l-.5-.9-1-.1a2 2 0 01-1.7-1.7l-.1-1-.9-.5a2 2 0 010-3.4l.9-.5.1-1a2 2 0 011.7-1.7l1-.1.5-.9zM12 15a3 3 0 100-6 3 3 0 000 6z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
     { label: 'My Profile', path: '/dashboard/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
-    { label: 'Help Center', path: '/dashboard/help', icon: 'M9.1 9a3 3 0 115.8 1c0 2-3 2-3 4M12 17h.01M12 21a9 9 0 100-18 9 9 0 000 18z' },
-    { label: 'Support', path: '/dashboard/support', icon: 'M18.4 5.6a9 9 0 11-12.8 0M12 8a4 4 0 100 8 4 4 0 000-8zM8.5 8.5L5.6 5.6m9.9 2.9l2.9-2.9m-2.9 9.9l2.9 2.9m-9.9-2.9l-2.9 2.9' },
-    { label: 'About', path: '/dashboard/about', icon: 'M12 8h.01M11 12h1v4h1M12 21a9 9 0 100-18 9 9 0 000 18z' },
+  ];
+
+  // Quick-access items shown as icon buttons in the topbar (next to the bell),
+  // not in the sidebar.
+  private readonly allTopNav: NavItem[] = [
+    { label: 'Security', path: '/dashboard/security', icon: 'M12 3l7 3v5c0 4.4-3 7.3-7 8.5-4-1.2-7-4.1-7-8.5V6l7-3zM9.5 11.8l1.8 1.8 3.2-3.6', roles: ['SuperAdmin'] },
+    { label: 'Settings', path: '/dashboard/settings', icon: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+    { label: 'Help Center', path: '/dashboard/help', icon: 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.8 9.3a2.3 2.3 0 114 1.6c-.7.8-1.8 1.1-1.8 2.3M12 17h.01' },
+    { label: 'Support', path: '/dashboard/support', icon: 'M20 15a2 2 0 01-2 2H8l-4 3V6a2 2 0 012-2h12a2 2 0 012 2v9zM9 9h6M9 12.5h4' },
+    { label: 'About', path: '/dashboard/about', icon: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 8h.01M11 11.5h1V16h1' },
   ];
 
   readonly nav = computed<NavItem[]>(() => {
     const role = this.auth.roleName();
     return this.allNav.filter((item) => !item.roles || (role && item.roles.includes(role)));
+  });
+
+  readonly topNav = computed<NavItem[]>(() => {
+    const role = this.auth.roleName();
+    return this.allTopNav.filter((item) => !item.roles || (role && item.roles.includes(role)));
   });
 
   readonly initials = computed(() => {
