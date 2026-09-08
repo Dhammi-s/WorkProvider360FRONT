@@ -49,6 +49,12 @@ export class UserService {
       .pipe(map((res) => this.unwrap(res)));
   }
 
+  getById(id: number): Observable<UserDto> {
+    return this.http
+      .get<ApiResponse<UserDto>>(`${this.usersUrl}/${id}`)
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
   createUser(request: CreateUserRequest): Observable<UserDto> {
     return this.http
       .post<ApiResponse<UserDto>>(this.usersUrl, request)

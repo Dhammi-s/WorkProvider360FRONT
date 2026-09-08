@@ -29,6 +29,7 @@ import {
   SchedulingSettings,
   TimeEntrySignature,
   CareLogEntry,
+  ScheduleConflict,
   TimeEntry,
   UpdateSchedulingAccess,
   UpdateSchedulingDefaults,
@@ -154,6 +155,17 @@ export class SchedulerService {
   careLog(id: number): Observable<CareLogEntry[]> {
     return this.http
       .get<ApiResponse<CareLogEntry[]>>(`${this.baseUrl}/${id}/care-log`)
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  conflicts(userId: number, startUtc: string, endUtc: string, excludeScheduleId?: number): Observable<ScheduleConflict[]> {
+    let params = new HttpParams()
+      .set("userId", userId)
+      .set("startUtc", startUtc)
+      .set("endUtc", endUtc);
+    if (excludeScheduleId != null) params = params.set("excludeScheduleId", excludeScheduleId);
+    return this.http
+      .get<ApiResponse<ScheduleConflict[]>>(`${this.baseUrl}/conflicts`, { params })
       .pipe(map((r) => r.data ?? []));
   }
 

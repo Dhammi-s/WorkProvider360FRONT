@@ -90,6 +90,14 @@ export const routes: Routes = [
         title: 'Team · WorkProvider360',
       },
       {
+        path: 'users/:id',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () =>
+          import('./features/dashboard/users/user-profile/user-profile').then((m) => m.UserProfile),
+        title: 'Team member · WorkProvider360',
+      },
+      {
         path: 'applications',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin'] },
@@ -110,6 +118,14 @@ export const routes: Routes = [
         data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
         loadComponent: () => import('./features/dashboard/clients/clients').then((m) => m.Clients),
         title: 'Clients · WorkProvider360',
+      },
+      {
+        path: 'clients/:id',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () =>
+          import('./features/dashboard/clients/client-profile/client-profile').then((m) => m.ClientProfile),
+        title: 'Client · WorkProvider360',
       },
       {
         path: 'service-types',

@@ -1,0 +1,83 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-07-31
+     ============================================================================= -->
+<section>
+  <a routerLink="/dashboard/users" class="wp-link text-sm">‹ Back to team</a>
+
+  <app-alert type="error" [message]="error()" />
+
+  @if (loading()) {
+    <div class="wp-card mt-4 flex items-center justify-center py-16 text-slate-400"><span class="text-sm">Loading…</span></div>
+  } @else if (user(); as u) {
+    <div class="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-[240px_1fr]">
+      <!-- Sidebar -->
+      <aside class="wp-card h-fit !p-3">
+        <div class="flex items-center gap-3 px-1 pb-3">
+          @if (u.avatarUrl) {
+            <img [src]="u.avatarUrl" alt="" class="h-11 w-11 rounded-full object-cover" />
+          } @else {
+            <span class="flex h-11 w-11 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">{{ initials(u.fullName) }}</span>
+          }
+          <div class="min-w-0">
+            <div class="truncate font-bold text-slate-900">{{ u.fullName }}</div>
+            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{{ u.roleName }}</span>
+          </div>
+        </div>
+        <nav class="space-y-1">
+          @for (item of [['main','Main'],['schedule','Schedule']]; track item[0]) {
+            <button type="button" (click)="setSection($any(item[0]))"
+              class="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition"
+              [class]="section() === item[0] ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50'">
+              {{ item[1] }}
+            </button>
+          }
+        </nav>
+      </aside>
+
+      <!-- Content -->
+      <div class="min-w-0">
+        <!-- MAIN -->
+        @if (section() === 'main') {
+          <div class="wp-card">
+            <h2 class="text-lg font-bold text-slate-900">General information</h2>
+            <dl class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+              <div><dt class="text-xs text-slate-400">Full name</dt><dd class="font-semibold text-slate-700">{{ u.fullName }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Role</dt><dd class="font-semibold text-slate-700">{{ u.roleName }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Email</dt><dd class="font-semibold text-slate-700">{{ u.email }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Phone</dt><dd class="font-semibold text-slate-700">{{ u.phone || '—' }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Office</dt><dd class="font-semibold text-slate-700">{{ u.officeName || '—' }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Status</dt><dd class="font-semibold" [class]="u.isActive ? 'text-emerald-600' : 'text-slate-400'">{{ u.isActive ? 'Active' : 'Inactive' }}</dd></div>
+            </dl>
+          </div>
+        }
+
+        <!-- SCHEDULE -->
+        @if (section() === 'schedule') {
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-bold text-slate-900">Schedule</h2>
+              @if (canManage()) {
+                <button type="button" (click)="openEditor()" class="wp-btn-primary !py-2 !px-3 text-sm">+ Add shift</button>
+              }
+            </div>
+            @if (canManage() && editorOpen()) {
+              <app-schedule-editor
+                [fixedUserId]="userId"
+                [fixedUserName]="u.fullName"
+                [start]="editorStart()"
+                (saved)="onSaved()"
+                (cancelled)="editorOpen.set(false)" />
+            }
+            <div class="wp-card">
+              <app-visit-calendar
+                [visits]="shifts()"
+                (daySelected)="canManage() && openEditor($event)" />
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</section>

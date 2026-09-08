@@ -18,6 +18,7 @@ import {
   SchedulingAccess,
   TimeEntrySignature,
   CareLogEntry,
+  ScheduleConflict,
 } from '../../../core/models/scheduler.model';
 import { Client, ClientSettings, EligibleCaregiver } from '../../../core/models/client.model';
 import { ServiceType } from '../../../core/models/service-type.model';
@@ -126,6 +127,7 @@ export class Scheduler {
   readonly editingId = signal<number | null>(null);
   readonly formBusy = signal(false);
   readonly formError = signal('');
+  readonly schedConflicts = signal<ScheduleConflict[] | null>(null);
   readonly fTitle = signal('');
   readonly fCustomer = signal('');
   readonly fLocation = signal('');
@@ -507,6 +509,34 @@ export class Scheduler {
     }
     this.formBusy.set(true);
     this.formError.set('');
+    // Double-booking check before saving; the warning box lets the scheduler save anyway.
+    this.service.conflicts(this.fAssignee()!, startUtc, endUtc, this.editingId() ?? undefined).subscribe({
+      next: (list) => {
+        if (list.length) {
+          this.schedConflicts.set(list);
+          this.formBusy.set(false);
+        } else {
+          this.doSaveForm(startUtc, endUtc);
+        }
+      },
+      error: () => this.doSaveForm(startUtc, endUtc),
+    });
+  }
+
+  ignoreConflictsSave(): void {
+    const startUtc = `${this.fDate()}T${this.fStart()}:00`;
+    const endUtc = `${this.fDate()}T${this.fEnd()}:00`;
+    this.schedConflicts.set(null);
+    this.formBusy.set(true);
+    this.doSaveForm(startUtc, endUtc);
+  }
+
+  cancelConflicts(): void {
+    this.schedConflicts.set(null);
+    this.formBusy.set(false);
+  }
+
+  private doSaveForm(startUtc: string, endUtc: string): void {
     const base = {
       title: this.fTitle().trim(),
       customerName: this.fCustomer().trim() || null,

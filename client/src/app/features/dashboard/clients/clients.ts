@@ -8,6 +8,7 @@
 
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ClientService } from '../../../core/services/client.service';
@@ -27,7 +28,7 @@ import { CareLogEntry } from '../../../core/models/scheduler.model';
 
 @Component({
   selector: 'app-clients',
-  imports: [ReactiveFormsModule, FormsModule, DatePipe, Alert, Paginator, VisitCalendar, CareLog],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe, RouterLink, Alert, Paginator, VisitCalendar, CareLog],
   templateUrl: './clients.html',
 })
 export class Clients {

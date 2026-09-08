@@ -245,3 +245,16 @@ export interface CareLogEntry {
   signedByName?: string | null;
   signatureBase64?: string | null;
 }
+
+/** An overlapping shift for a caregiver (double-booking check; ScheduleConflictDto). */
+export interface ScheduleConflict {
+  scheduleId: number;
+  title: string;
+  clientId?: number | null;
+  clientName?: string | null;
+  assignedUserId: number;
+  assignedUserName: string;
+  startUtc: string;
+  endUtc: string;
+  status: string;
+}

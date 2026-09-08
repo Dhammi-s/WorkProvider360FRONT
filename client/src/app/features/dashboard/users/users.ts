@@ -7,6 +7,7 @@
    ============================================================================= */
 
 import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Office } from '../../../core/models/office.model';
@@ -27,7 +28,7 @@ import { AvailabilityEditor } from '../../../shared/ui/availability-editor/avail
 /** Admin team management: list tenant users and create new ones. */
 @Component({
   selector: 'app-users',
-  imports: [ReactiveFormsModule, FormsModule, DatePipe, Alert, Paginator, AvailabilityEditor],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe, Alert, Paginator, AvailabilityEditor, RouterLink],
   templateUrl: './users.html',
 })
 export class Users {

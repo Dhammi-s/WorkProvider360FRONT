@@ -10,11 +10,23 @@ import { Component, computed, input, output, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ClientVisit } from '../../../core/models/portal.model';
 
+/** Minimal shape the calendar needs; both ClientVisit and Schedule satisfy it. */
+export interface CalendarShift {
+  scheduleId: number;
+  startUtc: string;
+  endUtc: string;
+  status: string;
+  title: string;
+  serviceTypeName?: string | null;
+  clientName?: string | null;
+  assignedUserName?: string | null;
+}
+
 interface Day {
   date: Date;
   inMonth: boolean;
   isToday: boolean;
-  visits: ClientVisit[];
+  visits: CalendarShift[];
 }
 
 function pad(n: number): string {
@@ -47,13 +59,14 @@ function pad(n: number): string {
       @for (week of weeks(); track $index) {
         <div class="grid grid-cols-7">
           @for (day of week; track day.date.getTime()) {
-            <div class="min-h-[76px] border-b border-r border-slate-100 p-1 last:border-r-0"
+            <div (click)="daySelected.emit(day.date)"
+                 class="min-h-[76px] cursor-pointer border-b border-r border-slate-100 p-1 last:border-r-0 hover:bg-brand-50/40"
                  [class]="day.inMonth ? 'bg-white' : 'bg-slate-50/60'">
               <span class="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold"
                     [class]="day.isToday ? 'bg-brand-600 text-white' : (day.inMonth ? 'text-slate-500' : 'text-slate-300')">{{ day.date.getDate() }}</span>
               <div class="mt-0.5 space-y-0.5">
                 @for (v of day.visits; track v.scheduleId) {
-                  <button type="button" (click)="visitSelected.emit(v)"
+                  <button type="button" (click)="$event.stopPropagation(); visitSelected.emit(v)"
                           class="flex w-full items-center gap-1 truncate rounded bg-brand-50 px-1 py-0.5 text-left text-[10px] font-medium text-brand-800 hover:bg-brand-100">
                     <span class="h-1.5 w-1.5 shrink-0 rounded-full" [class]="dot(v.status)"></span>
                     <span class="truncate">{{ v.startUtc | date: 'HH:mm' }} {{ v.serviceTypeName || v.title }}</span>
@@ -68,8 +81,9 @@ function pad(n: number): string {
   `,
 })
 export class VisitCalendar {
-  readonly visits = input<ClientVisit[]>([]);
-  readonly visitSelected = output<ClientVisit>();
+  readonly visits = input<CalendarShift[]>([]);
+  readonly visitSelected = output<CalendarShift>();
+  readonly daySelected = output<Date>();
   readonly monthChange = output<{ fromUtc: string; toUtc: string }>();
 
   readonly weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -84,7 +98,7 @@ export class VisitCalendar {
     const start = new Date(first);
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
 
-    const byDay = new Map<string, ClientVisit[]>();
+    const byDay = new Map<string, CalendarShift[]>();
     for (const v of this.visits()) {
       const d = new Date(v.startUtc);
       const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

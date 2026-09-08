@@ -165,6 +165,7 @@
                       </span>
                     } @else {
                       <div class="inline-flex items-center gap-4">
+                        <a [routerLink]="['/dashboard/users', u.userId]" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700" title="Open profile & schedule">View</a>
                         @if (canUnlock(u)) {
                           @if (unlockBusyId() === u.userId) {
                             <span class="inline-flex items-center gap-1.5 text-xs text-slate-400">
