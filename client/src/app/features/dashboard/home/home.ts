@@ -9,12 +9,14 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Invoice } from '../../../core/models/accounting.model';
+import { Meeting } from '../../../core/models/meeting.model';
 import { RoleName } from '../../../core/models/role.model';
 import { Schedule } from '../../../core/models/scheduler.model';
 import { UserDto } from '../../../core/models/user.model';
 import { AccountingService } from '../../../core/services/accounting.service';
 import { ApplicationService } from '../../../core/services/application.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { MeetingService } from '../../../core/services/meeting.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { UserService } from '../../../core/services/user.service';
 import { StatCard } from '../../../shared/ui/stat-card/stat-card';
@@ -56,6 +58,19 @@ const STATUS_COLORS: Record<string, string> = {
   Cancelled: '#94a3b8',
 };
 
+const MEETING_STATUS_COLORS: Record<string, string> = {
+  Scheduled: '#6366f1',
+  InProgress: '#f59e0b',
+  Completed: '#10b981',
+  Cancelled: '#ef4444',
+};
+
+const MEETING_TYPE_COLORS: Record<string, string> = {
+  InPerson: '#6366f1',
+  Online:   '#34d399',
+  Hybrid:   '#f472b6',
+};
+
 const ROLE_COLORS: Record<string, string> = {
   SuperAdmin: '#4f46e5',
   Admin: '#6366f1',
@@ -79,6 +94,7 @@ export class DashboardHome {
   private readonly scheduler = inject(SchedulerService);
   private readonly applications = inject(ApplicationService);
   private readonly accounting = inject(AccountingService);
+  private readonly meetingSvc = inject(MeetingService);
 
   readonly user = this.auth.user;
   readonly radius = RADIUS;
@@ -107,6 +123,7 @@ export class DashboardHome {
   private readonly shifts = signal<Schedule[]>([]);
   private readonly pendingApps = signal(0);
   private readonly invoices = signal<Invoice[]>([]);
+  private readonly meetingsRaw = signal<Meeting[]>([]);
 
   constructor() {
     const now = new Date();
@@ -115,6 +132,12 @@ export class DashboardHome {
     this.scheduler.list(isoLocal(monday), isoLocal(sunday)).subscribe({
       next: (rows) => this.shifts.set(rows),
       error: () => this.shifts.set([]),
+    });
+
+    // Load meetings for the current week
+    this.meetingSvc.list(isoLocal(monday), isoLocal(sunday)).subscribe({
+      next: (rows) => this.meetingsRaw.set(rows),
+      error: () => this.meetingsRaw.set([]),
     });
 
     if (this.isAdmin()) {
@@ -223,6 +246,67 @@ export class DashboardHome {
       .sort((a, b) => a.startUtc.localeCompare(b.startUtc))
       .slice(0, 6),
   );
+
+  // ---- Meetings: status donut ----
+  readonly meetingStatusDonut = computed<DonutSegment[]>(() => {
+    const map = new Map<string, number>();
+    for (const m of this.meetingsRaw()) map.set(m.status, (map.get(m.status) ?? 0) + 1);
+    return this.buildDonut(
+      [...map.entries()].map(([k, v]) => ({
+        key: k, label: k, count: v,
+        color: MEETING_STATUS_COLORS[k] ?? '#94a3b8',
+      })),
+    );
+  });
+
+  // ---- Meetings: type horizontal bars (InPerson / Online / Hybrid) ----
+  readonly meetingTypeBars = computed<Bar[]>(() => {
+    const meetings = this.meetingsRaw();
+    const types: Array<{ key: string; label: string }> = [
+      { key: 'InPerson', label: 'In-Person' },
+      { key: 'Online',   label: 'Online' },
+      { key: 'Hybrid',   label: 'Hybrid' },
+    ];
+    const counts = types.map(t => meetings.filter(m => m.meetingType === t.key).length);
+    const max = Math.max(1, ...counts);
+    return types.map((t, i) => ({
+      label: t.label,
+      value: counts[i],
+      pct: Math.round((counts[i] / max) * 100),
+      color: MEETING_TYPE_COLORS[t.key],
+    }));
+  });
+
+  // ---- Meetings: quick counts ----
+  readonly meetingCount      = computed(() => this.meetingsRaw().length);
+  readonly meetingScheduled  = computed(() => this.meetingsRaw().filter(m => m.status === 'Scheduled').length);
+  readonly meetingCompleted  = computed(() => this.meetingsRaw().filter(m => m.status === 'Completed').length);
+  readonly meetingPaid       = computed(() => this.meetingsRaw().filter(m => m.isPaid).length);
+
+  // ---- Upcoming meetings (next 4 from now, non-cancelled) ----
+  readonly upcomingMeetingsList = computed(() =>
+    [...this.meetingsRaw()]
+      .filter(m => new Date(m.startUtc) >= new Date() && m.status !== 'Cancelled')
+      .sort((a, b) => a.startUtc.localeCompare(b.startUtc))
+      .slice(0, 4),
+  );
+
+  meetingBadge(status: string): string {
+    switch (status) {
+      case 'Completed':  return 'bg-emerald-50 text-emerald-700';
+      case 'InProgress': return 'bg-amber-50 text-amber-700';
+      case 'Cancelled':  return 'bg-red-50 text-red-700';
+      default:           return 'bg-indigo-50 text-indigo-700';
+    }
+  }
+
+  meetingTypeIcon(type: string): string {
+    switch (type) {
+      case 'Online':  return 'M15 10l4.553-2.069A1 1 0 0121 8.876V15.124a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z';
+      case 'Hybrid':  return 'M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z';
+      default:        return 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z';
+    }
+  }
 
   statusBadge(status: string): string {
     switch (status) {

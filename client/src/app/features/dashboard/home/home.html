@@ -87,6 +87,130 @@
     </div>
   </div>
 
+  <!-- ── Meetings section ─────────────────────────────────────────────── -->
+  <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+
+    <!-- Left: type breakdown bars + mini-KPIs (col-span-2) -->
+    <a routerLink="/dashboard/meetings" class="wp-card block cursor-pointer transition hover:shadow-lg lg:col-span-2">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50">
+            <svg class="h-4 w-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </span>
+          <h2 class="text-base font-bold text-slate-900">Meetings this week</h2>
+        </div>
+        <span class="text-xs font-semibold text-brand-600 hover:text-brand-700">Open meetings →</span>
+      </div>
+
+      <!-- Mini KPIs -->
+      <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div class="rounded-xl bg-slate-50 px-3 py-3 text-center">
+          <p class="text-2xl font-extrabold tracking-tight text-slate-900">{{ meetingCount() }}</p>
+          <p class="mt-0.5 text-[11px] font-medium text-slate-500">Total</p>
+        </div>
+        <div class="rounded-xl bg-indigo-50 px-3 py-3 text-center">
+          <p class="text-2xl font-extrabold tracking-tight text-indigo-700">{{ meetingScheduled() }}</p>
+          <p class="mt-0.5 text-[11px] font-medium text-indigo-500">Scheduled</p>
+        </div>
+        <div class="rounded-xl bg-emerald-50 px-3 py-3 text-center">
+          <p class="text-2xl font-extrabold tracking-tight text-emerald-700">{{ meetingCompleted() }}</p>
+          <p class="mt-0.5 text-[11px] font-medium text-emerald-500">Completed</p>
+        </div>
+        <div class="rounded-xl bg-amber-50 px-3 py-3 text-center">
+          <p class="text-2xl font-extrabold tracking-tight text-amber-700">{{ meetingPaid() }}</p>
+          <p class="mt-0.5 text-[11px] font-medium text-amber-500">Paid</p>
+        </div>
+      </div>
+
+      <!-- Horizontal type bars -->
+      <div class="mt-5 space-y-3.5">
+        <p class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">By type</p>
+        @for (b of meetingTypeBars(); track b.label) {
+          <div class="flex items-center gap-3">
+            <span class="w-16 shrink-0 text-xs font-medium text-slate-500">{{ b.label }}</span>
+            <div class="flex-1 overflow-hidden rounded-full bg-slate-100">
+              <div class="h-3 rounded-full transition-all duration-700"
+                [style.width.%]="b.value > 0 ? (b.pct < 4 ? 4 : b.pct) : 0"
+                [style.background]="'linear-gradient(90deg,' + b.color + ',' + b.color + 'b0)'">
+              </div>
+            </div>
+            <span class="w-5 shrink-0 text-right text-xs font-bold text-slate-700">{{ b.value }}</span>
+          </div>
+        }
+      </div>
+    </a>
+
+    <!-- Right: status donut -->
+    <div class="wp-card flex flex-col">
+      <h2 class="text-base font-bold text-slate-900">Meetings by status</h2>
+
+      @if (meetingStatusDonut().length) {
+        <!-- Donut -->
+        <div class="mt-4 flex items-center gap-4">
+          <div class="relative shrink-0">
+            <svg viewBox="0 0 160 160" class="h-32 w-32 -rotate-90">
+              <circle cx="80" cy="80" [attr.r]="radius" fill="none" stroke="#f1f5f9" stroke-width="18" />
+              @for (seg of meetingStatusDonut(); track seg.label) {
+                <circle cx="80" cy="80" [attr.r]="radius" fill="none" [attr.stroke]="seg.color" stroke-width="18"
+                  [attr.stroke-dasharray]="seg.dash + ' ' + (circumference - seg.dash)"
+                  [attr.stroke-dashoffset]="seg.offset" />
+              }
+            </svg>
+            <!-- Centre label -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span class="text-xl font-extrabold text-slate-900">{{ meetingCount() }}</span>
+              <span class="text-[10px] text-slate-400">total</span>
+            </div>
+          </div>
+          <ul class="flex-1 space-y-2">
+            @for (seg of meetingStatusDonut(); track seg.label) {
+              <li class="flex items-center gap-2 text-xs">
+                <span class="h-2.5 w-2.5 shrink-0 rounded-full" [style.background]="seg.color"></span>
+                <span class="flex-1 truncate text-slate-600">{{ seg.label }}</span>
+                <span class="font-bold text-slate-900">{{ seg.count }}</span>
+                <span class="text-slate-400">({{ seg.pct }}%)</span>
+              </li>
+            }
+          </ul>
+        </div>
+
+        <!-- Upcoming meetings list -->
+        @if (upcomingMeetingsList().length) {
+          <div class="mt-auto pt-4">
+            <p class="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-400">Upcoming</p>
+            <ul class="space-y-2">
+              @for (m of upcomingMeetingsList(); track m.meetingId) {
+                <li class="flex items-center gap-2">
+                  <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
+                    [style.background]="m.colorTag ?? '#6366f1' + '1a'">
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path [attr.d]="meetingTypeIcon(m.meetingType)" />
+                    </svg>
+                  </span>
+                  <span class="min-w-0 flex-1 truncate text-xs text-slate-700">{{ m.title }}</span>
+                  <span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold" [class]="meetingBadge(m.status)">{{ m.status }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
+      } @else {
+        <div class="flex flex-1 flex-col items-center justify-center py-6 text-center">
+          <svg class="mb-2 h-10 w-10 text-slate-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <p class="text-sm text-slate-400">No meetings this week.</p>
+          <a routerLink="/dashboard/meetings" class="mt-2 text-xs font-semibold text-brand-600 hover:text-brand-700">Schedule one →</a>
+        </div>
+      }
+    </div>
+
+  </div>
+  <!-- ── /Meetings section ──────────────────────────────────────────────── -->
+
   <!-- Admin/SuperAdmin analytics -->
   @if (isAdmin()) {
     <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
