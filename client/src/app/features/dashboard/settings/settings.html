@@ -196,6 +196,127 @@
           </div>
         }
 
+        <!-- ===================== Meetings ===================== -->
+        @if (activeTab() === 'meetings') {
+          <div class="wp-card">
+            <div class="flex items-start justify-between">
+              <div>
+                <h3 class="text-base font-bold text-slate-900">Meeting Settings</h3>
+                <p class="mt-1 text-sm text-slate-500">Control who can create meetings, paid meeting fees, and notification preferences.</p>
+              </div>
+            </div>
+
+            <app-alert type="error"   [message]="mtgError()" />
+            <app-alert type="success" [message]="mtgNotice()" />
+
+            @if (!meetingAccess()) {
+              <p class="mt-4 text-sm text-slate-400">Loading…</p>
+            } @else {
+
+              <!-- Access levels -->
+              @if (isSuperAdmin()) {
+                <div class="mt-6 space-y-4">
+                  <h4 class="text-sm font-bold text-slate-800">Role Access Levels</h4>
+                  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label class="wp-label">Admin Access</label>
+                      <select class="wp-input" [ngModel]="mtgAdminAccess()" (ngModelChange)="mtgAdminAccess.set($event)">
+                        @for (l of levels; track l) { <option [value]="l">{{ l }}</option> }
+                      </select>
+                    </div>
+                    <div>
+                      <label class="wp-label">Manager Access</label>
+                      <select class="wp-input" [ngModel]="mtgManagerAccess()" (ngModelChange)="mtgManagerAccess.set($event)">
+                        @for (l of levels; track l) { <option [value]="l">{{ l }}</option> }
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              }
+
+              <!-- Toggle options -->
+              <div class="mt-6 space-y-3">
+                <h4 class="text-sm font-bold text-slate-800">Options</h4>
+
+                <label class="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-800">Users can create meetings</p>
+                    <p class="text-xs text-slate-500">Allow User-role members to schedule meetings themselves.</p>
+                  </div>
+                  <input type="checkbox" class="wp-toggle" [ngModel]="mtgUserCreate()" (ngModelChange)="mtgUserCreate.set($event)" />
+                </label>
+
+                <label class="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-800">Allow client participants</p>
+                    <p class="text-xs text-slate-500">Clients (portal users) can be added as meeting attendees.</p>
+                  </div>
+                  <input type="checkbox" class="wp-toggle" [ngModel]="mtgAllowClients()" (ngModelChange)="mtgAllowClients.set($event)" />
+                </label>
+
+                <label class="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-800">Allow paid meetings</p>
+                    <p class="text-xs text-slate-500">Enable fee-per-participant and payment tracking for meetings.</p>
+                  </div>
+                  <input type="checkbox" class="wp-toggle" [ngModel]="mtgAllowPaid()" (ngModelChange)="mtgAllowPaid.set($event)" />
+                </label>
+
+                @if (mtgAllowPaid()) {
+                  <div class="ml-4 border-l-2 border-brand-200 pl-4">
+                    <label class="wp-label">Default Fee per Participant ($)</label>
+                    <input type="number" min="0" step="0.01" class="wp-input max-w-xs"
+                      [ngModel]="mtgDefaultFee()" (ngModelChange)="mtgDefaultFee.set(+$event)" />
+                  </div>
+                }
+
+                <label class="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-800">Require approval</p>
+                    <p class="text-xs text-slate-500">Non-SuperAdmin meetings need approval before taking effect.</p>
+                  </div>
+                  <input type="checkbox" class="wp-toggle" [ngModel]="mtgRequireApproval()" (ngModelChange)="mtgRequireApproval.set($event)" />
+                </label>
+
+                <div>
+                  <label class="wp-label">Max Participants (default)</label>
+                  <input type="number" min="1" class="wp-input max-w-xs"
+                    [ngModel]="mtgMaxPart()" (ngModelChange)="mtgMaxPart.set(+$event)" />
+                </div>
+              </div>
+
+              <!-- Notifications -->
+              @if (isSuperAdmin()) {
+                <div class="mt-6 space-y-3">
+                  <h4 class="text-sm font-bold text-slate-800">Notifications</h4>
+                  <label class="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+                    <p class="text-sm font-semibold text-slate-800">Notify on meeting created</p>
+                    <input type="checkbox" class="wp-toggle" [ngModel]="mtgNotifyCreate()" (ngModelChange)="mtgNotifyCreate.set($event)" />
+                  </label>
+                  <label class="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+                    <p class="text-sm font-semibold text-slate-800">Notify on meeting updated</p>
+                    <input type="checkbox" class="wp-toggle" [ngModel]="mtgNotifyUpdate()" (ngModelChange)="mtgNotifyUpdate.set($event)" />
+                  </label>
+                  <label class="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+                    <p class="text-sm font-semibold text-slate-800">Notify on meeting cancelled</p>
+                    <input type="checkbox" class="wp-toggle" [ngModel]="mtgNotifyCancel()" (ngModelChange)="mtgNotifyCancel.set($event)" />
+                  </label>
+                </div>
+              }
+
+              @if (isSuperAdmin()) {
+                <div class="mt-6 flex justify-end">
+                  <button type="button" (click)="saveMeetingSettings()" class="wp-btn-primary" [disabled]="mtgSaving()">
+                    @if (mtgSaving()) {
+                      <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+                    } @else { Save Meeting Settings }
+                  </button>
+                </div>
+              }
+            }
+          </div>
+        }
+
         <!-- ===================== Application Form ===================== -->
         @if (activeTab() === 'clients') {
           <div class="wp-card">

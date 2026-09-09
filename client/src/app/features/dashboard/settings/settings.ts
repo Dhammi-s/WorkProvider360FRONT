@@ -12,6 +12,7 @@ import { RouterLink } from '@angular/router';
 import { Question } from '../../../core/models/application.model';
 import { DEFAULT_LOGIN_CONTENT, LoginContent } from '../../../core/models/login-content.model';
 import { AccessLevel, SchedulingAccess } from '../../../core/models/scheduler.model';
+import { MeetingAccessLevel, MeetingAccess, MeetingSettings } from '../../../core/models/meeting.model';
 import { ApplicationService } from '../../../core/services/application.service';
 import { ClientService } from '../../../core/services/client.service';
 import { ClientAccess, ClientSettings } from '../../../core/models/client.model';
@@ -20,6 +21,7 @@ import { BrandingService } from '../../../core/services/branding.service';
 import { AnnouncementService } from '../../../core/services/announcement.service';
 import { LogService } from '../../../core/services/log.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
+import { MeetingService } from '../../../core/services/meeting.service';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { LogoUploader } from '../branding/logo-uploader';
 
@@ -38,6 +40,7 @@ interface SettingsTab {
 export class Settings {
   private readonly service = inject(ApplicationService);
   private readonly scheduler = inject(SchedulerService);
+  private readonly meetingSvc = inject(MeetingService);
   private readonly logs = inject(LogService);
   private readonly announcements = inject(AnnouncementService);
   private readonly auth = inject(AuthService);
@@ -60,6 +63,8 @@ export class Settings {
       t.push({ id: 'roles', label: 'Roles & Permissions', icon: 'M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-4z' });
     if (this.showScheduling())
       t.push({ id: 'scheduling', label: 'Scheduling', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' });
+    if (this.showMeetings())
+      t.push({ id: 'meetings', label: 'Meetings', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' });
     if (this.showClients_())
       t.push({ id: 'clients', label: 'Clients & Visits', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z' });
     if (this.isSuperAdmin())
@@ -165,6 +170,28 @@ export class Settings {
   readonly annNotice = signal('');
   readonly annError = signal('');
 
+  // Meeting settings (levels already defined above as AccessLevel[] — values are identical)
+  readonly meetingAccess   = signal<MeetingAccess | null>(null);
+  readonly meetingSettings = signal<MeetingSettings | null>(null);
+  readonly mtgAdminAccess  = signal<MeetingAccessLevel>('Write');
+  readonly mtgManagerAccess = signal<MeetingAccessLevel>('Write');
+  readonly mtgUserCreate   = signal(false);
+  readonly mtgAllowClients = signal(true);
+  readonly mtgAllowPaid    = signal(false);
+  readonly mtgDefaultFee   = signal(0);
+  readonly mtgRequireApproval = signal(false);
+  readonly mtgNotifyCreate = signal(true);
+  readonly mtgNotifyUpdate = signal(false);
+  readonly mtgNotifyCancel = signal(true);
+  readonly mtgMaxPart      = signal(50);
+  readonly mtgSaving       = signal(false);
+  readonly mtgNotice       = signal('');
+  readonly mtgError        = signal('');
+  readonly showMeetings    = computed(() => {
+    const a = this.meetingAccess();
+    return !!a && a.access !== 'None';
+  });
+
   // Clients & Visits (ClientSettings)
   readonly clientAccess = signal<ClientAccess | null>(null);
   readonly clientSettings = signal<ClientSettings | null>(null);
@@ -195,6 +222,7 @@ export class Settings {
     }
     this.loadScheduling();
     this.loadClientData();
+    this.loadMeetingData();
   }
 
   // ---- Announcement visibility ----
@@ -446,6 +474,66 @@ export class Settings {
       error: (err: Error) => {
         this.clientSaving.set(false);
         this.clientError.set(err.message || "Could not save client settings.");
+      },
+    });
+  }
+
+  // ---- Meeting settings ----
+  loadMeetingData(): void {
+    this.meetingSvc.getAccess().subscribe({
+      next: (a) => {
+        this.meetingAccess.set(a);
+        if (a.access !== 'None') this.loadMeetingSettings();
+      },
+      error: () => this.meetingAccess.set(null),
+    });
+  }
+
+  loadMeetingSettings(): void {
+    this.meetingSvc.getSettings().subscribe({
+      next: (s) => {
+        this.meetingSettings.set(s);
+        this.mtgAdminAccess.set(s.adminAccess);
+        this.mtgManagerAccess.set(s.managerAccess);
+        this.mtgUserCreate.set(s.userCanCreate);
+        this.mtgAllowClients.set(s.allowClientParticipants);
+        this.mtgAllowPaid.set(s.allowPaidMeetings);
+        this.mtgDefaultFee.set(s.defaultFeePerParticipant);
+        this.mtgRequireApproval.set(s.requireApproval);
+        this.mtgNotifyCreate.set(s.notifyOnCreate);
+        this.mtgNotifyUpdate.set(s.notifyOnUpdate);
+        this.mtgNotifyCancel.set(s.notifyOnCancel);
+        this.mtgMaxPart.set(s.maxParticipantsDefault);
+      },
+      error: (err: Error) => this.mtgError.set(err.message || 'Could not load meeting settings.'),
+    });
+  }
+
+  saveMeetingSettings(): void {
+    this.mtgSaving.set(true);
+    this.mtgNotice.set('');
+    this.mtgError.set('');
+    this.meetingSvc.updateSettings({
+      adminAccess:              this.mtgAdminAccess(),
+      managerAccess:            this.mtgManagerAccess(),
+      userCanCreate:            this.mtgUserCreate(),
+      allowClientParticipants:  this.mtgAllowClients(),
+      allowPaidMeetings:        this.mtgAllowPaid(),
+      defaultFeePerParticipant: Number(this.mtgDefaultFee()) || 0,
+      requireApproval:          this.mtgRequireApproval(),
+      notifyOnCreate:           this.mtgNotifyCreate(),
+      notifyOnUpdate:           this.mtgNotifyUpdate(),
+      notifyOnCancel:           this.mtgNotifyCancel(),
+      maxParticipantsDefault:   Number(this.mtgMaxPart()) || 50,
+    }).subscribe({
+      next: (s) => {
+        this.meetingSettings.set(s);
+        this.mtgSaving.set(false);
+        this.mtgNotice.set('Meeting settings saved.');
+      },
+      error: (err: Error) => {
+        this.mtgError.set(err.message || 'Could not save meeting settings.');
+        this.mtgSaving.set(false);
       },
     });
   }

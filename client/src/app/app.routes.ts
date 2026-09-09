@@ -179,6 +179,13 @@ export const routes: Routes = [
         title: 'Scheduler · WorkProvider360',
       },
       {
+        path: 'meetings',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User', 'Client'] },
+        loadComponent: () => import('./features/dashboard/meetings/meetings').then((m) => m.Meetings),
+        title: 'Meetings · WorkProvider360',
+      },
+      {
         path: 'reports',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },
