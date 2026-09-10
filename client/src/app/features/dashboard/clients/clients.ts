@@ -184,6 +184,7 @@ export class Clients {
   openEdit(c: Client): void {
     this.editingId.set(c.clientId);
     this.formError.set('');
+    this.editDrawerNotice.set('');
     this.pickedServices.set(c.serviceTypes.map((s) => s.serviceTypeId));
     this.form.reset({
       firstName: c.firstName,
@@ -228,9 +229,33 @@ export class Clients {
       this.form.markAllAsTouched();
       return;
     }
+    // Mirror server-side ValidateClient so the user gets instant feedback
+    // without waiting for an API round-trip.
+    const v = this.form.getRawValue();
+    const cfg = this.settings();
+    if ((cfg?.requireClientEmail ?? true) && !v.email?.trim()) {
+      this.formError.set('Email is required.');
+      return;
+    }
+    if ((cfg?.requireClientPhone ?? true) && !v.phone?.trim()) {
+      this.formError.set('Phone is required.');
+      return;
+    }
+    if ((cfg?.requireClientDateOfBirth ?? false) && !v.dateOfBirth?.trim()) {
+      this.formError.set('Date of birth is required.');
+      return;
+    }
+    if ((cfg?.requireEmergencyContact ?? false) &&
+        (!v.emergencyContactName?.trim() || !v.emergencyContactPhone?.trim())) {
+      this.formError.set('An emergency contact name and phone are required.');
+      return;
+    }
+    if ((cfg?.requireClientServiceTypes ?? true) && this.pickedServices().length === 0) {
+      this.formError.set('Please select at least one service the client needs.');
+      return;
+    }
     this.saving.set(true);
     this.formError.set('');
-    const v = this.form.getRawValue();
     const clean = (s: string) => (s.trim() ? s.trim() : null);
     const payload = {
       firstName: v.firstName.trim(),
