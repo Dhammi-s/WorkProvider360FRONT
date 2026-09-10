@@ -30,6 +30,9 @@ export class PortalProfile {
   readonly notice = signal('');
   readonly error = signal('');
 
+  // ---- Edit drawer ----
+  readonly drawerOpen = signal(false);
+
   readonly pwSaving = signal(false);
   readonly pwNotice = signal('');
   readonly pwError = signal('');
@@ -71,6 +74,16 @@ export class PortalProfile {
     });
   }
 
+  openDrawer(): void {
+    this.notice.set('');
+    this.error.set('');
+    this.drawerOpen.set(true);
+  }
+
+  closeDrawer(): void {
+    this.drawerOpen.set(false);
+  }
+
   save(): void {
     this.saving.set(true);
     this.notice.set('');
@@ -90,8 +103,9 @@ export class PortalProfile {
       .subscribe({
         next: (p) => {
           this.profile.set(p);
-          this.notice.set('Profile saved.');
+          this.notice.set('Profile saved successfully.');
           this.saving.set(false);
+          setTimeout(() => { this.notice.set(''); this.drawerOpen.set(false); }, 1400);
         },
         error: (err: Error) => {
           this.error.set(err.message || 'Could not save your profile.');

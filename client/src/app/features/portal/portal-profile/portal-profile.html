@@ -1,70 +1,243 @@
 <!-- =============================================================================
      WorkProvider360 - Multi-tenant SaaS platform
      Developed by : Jasmeet Singh  (Full Stack Software Engineer)
-     Date         : 2026-09-03
+     Date         : 2026-09-10
+     NOTE TO DEVELOPERS: Do NOT change functionality without full knowledge of the
+     SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
      ============================================================================= -->
 <section class="space-y-4 wp-anim-up">
   <div>
     <h1 class="text-2xl font-extrabold tracking-tight text-portal-900">My profile</h1>
-    <p class="mt-1 text-sm text-slate-500">Keep your contact details up to date.</p>
+    <p class="mt-1 text-sm text-slate-500">Your account details and contact information.</p>
   </div>
 
   @if (loading()) {
-    <div class="wp-card flex items-center justify-center py-16 text-slate-400"><span class="text-sm">Loading…</span></div>
+    <div class="wp-card flex items-center justify-center py-16 text-slate-400">
+      <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+    </div>
   } @else if (profile(); as p) {
-    <app-alert type="success" [message]="notice()" />
-    <app-alert type="error" [message]="error()" />
 
+    <!-- ── Profile overview card ──────────────────────────────────────── -->
     <div class="wp-card">
-      <h2 class="text-base font-bold text-slate-900">{{ p.fullName }}</h2>
-      <dl class="mt-2 grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
-        <div><dt class="inline text-slate-400">Email:</dt> <dd class="inline text-slate-700">{{ p.email || '—' }}</dd></div>
-        <div><dt class="inline text-slate-400">Address:</dt> <dd class="inline text-slate-700">{{ p.addressLine1 }}{{ p.city ? ', ' + p.city : '' }}</dd></div>
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <!-- Avatar + name -->
+        <div class="flex items-center gap-4">
+          <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-portal-600 text-xl font-bold text-white shadow-sm">
+            {{ p.fullName ? p.fullName.charAt(0).toUpperCase() : '?' }}
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">{{ p.fullName }}</h2>
+            <p class="text-sm text-slate-500">{{ p.email }}</p>
+            @if (p.phone) {
+              <p class="mt-0.5 text-sm text-slate-500">{{ p.phone }}</p>
+            }
+          </div>
+        </div>
+
+        <!-- Edit button -->
+        <button type="button" (click)="openDrawer()"
+          class="flex items-center gap-2 self-start rounded-xl border border-portal-200 bg-portal-50 px-4 py-2.5 text-sm font-semibold text-portal-700 shadow-sm transition hover:bg-portal-100 focus:outline-none focus:ring-2 focus:ring-portal-500 focus:ring-offset-2">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit details
+        </button>
+      </div>
+
+      <!-- Key details grid -->
+      <dl class="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-100 pt-5 text-sm sm:grid-cols-3">
+        @if (p.phone) {
+          <div>
+            <dt class="text-xs text-slate-400">Phone</dt>
+            <dd class="mt-0.5 font-medium text-slate-700">{{ p.phone }}</dd>
+          </div>
+        }
+        @if (p.alternatePhone) {
+          <div>
+            <dt class="text-xs text-slate-400">Alt. phone</dt>
+            <dd class="mt-0.5 font-medium text-slate-700">{{ p.alternatePhone }}</dd>
+          </div>
+        }
+        @if (p.preferredLanguage) {
+          <div>
+            <dt class="text-xs text-slate-400">Language</dt>
+            <dd class="mt-0.5 font-medium text-slate-700">{{ p.preferredLanguage }}</dd>
+          </div>
+        }
+        @if (p.addressLine1) {
+          <div class="col-span-2 sm:col-span-3">
+            <dt class="text-xs text-slate-400">Address</dt>
+            <dd class="mt-0.5 font-medium text-slate-700">{{ p.addressLine1 }}{{ p.city ? ', ' + p.city : '' }}</dd>
+          </div>
+        }
+        @if (p.emergencyContactName) {
+          <div class="col-span-2 sm:col-span-3">
+            <dt class="text-xs text-slate-400">Emergency contact</dt>
+            <dd class="mt-0.5 font-medium text-slate-700">{{ p.emergencyContactName }}{{ p.emergencyContactPhone ? ' — ' + p.emergencyContactPhone : '' }}</dd>
+          </div>
+        }
       </dl>
     </div>
 
-    <form [formGroup]="form" (ngSubmit)="save()" class="wp-card space-y-4" novalidate>
-      <h2 class="text-sm font-bold text-slate-700">Contact details</h2>
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div><label class="wp-label">Phone</label><input formControlName="phone" class="wp-input wp-input-portal" /></div>
-        <div><label class="wp-label">Alternate phone</label><input formControlName="alternatePhone" class="wp-input wp-input-portal" /></div>
-        <div><label class="wp-label">Preferred language</label><input formControlName="preferredLanguage" class="wp-input wp-input-portal" /></div>
-      </div>
-      <div><label class="wp-label">Access instructions</label><textarea formControlName="accessInstructions" rows="2" class="wp-input wp-input-portal"></textarea></div>
-      <h2 class="text-sm font-bold text-slate-700">Emergency contact</h2>
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div><label class="wp-label">Name</label><input formControlName="emergencyContactName" class="wp-input wp-input-portal" /></div>
-        <div><label class="wp-label">Phone</label><input formControlName="emergencyContactPhone" class="wp-input wp-input-portal" /></div>
-        <div><label class="wp-label">Relationship</label><input formControlName="emergencyContactRelation" class="wp-input wp-input-portal" /></div>
-      </div>
-      <div class="flex justify-end">
-        <button type="submit" class="wp-btn-portal" [disabled]="saving()">@if (saving()) { Saving… } @else { Save changes }</button>
-      </div>
-    </form>
-
+    <!-- ── Change password card ───────────────────────────────────────── -->
     <form [formGroup]="pwForm" (ngSubmit)="changePassword()" class="wp-card space-y-4" novalidate>
-      <h2 class="text-sm font-bold text-slate-700">Change password</h2>
+      <div class="flex items-center gap-3">
+        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
+          <svg class="h-4 w-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-sm font-bold text-slate-700">Change password</h2>
+          <p class="text-xs text-slate-400">Keep your account secure.</p>
+        </div>
+      </div>
       <app-alert type="success" [message]="pwNotice()" />
       <app-alert type="error" [message]="pwError()" />
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label class="wp-label">Current password</label>
-          <input type="password" formControlName="currentPassword" class="wp-input wp-input-portal" />
+          <input type="password" formControlName="currentPassword" class="wp-input wp-input-portal" autocomplete="current-password" />
         </div>
         <div>
           <label class="wp-label">New password</label>
-          <input type="password" formControlName="newPassword" class="wp-input wp-input-portal" />
+          <input type="password" formControlName="newPassword" class="wp-input wp-input-portal" autocomplete="new-password" />
           @if (pwForm.controls.newPassword.touched && pwForm.controls.newPassword.invalid) {
             <p class="mt-1 text-xs font-medium text-red-600">At least 8 characters.</p>
           }
         </div>
       </div>
       <div class="flex justify-end">
-        <button type="submit" class="wp-btn-ghost" [disabled]="pwSaving()">@if (pwSaving()) { Updating… } @else { Update password }</button>
+        <button type="submit" class="wp-btn-ghost" [disabled]="pwSaving()">
+          @if (pwSaving()) { Updating… } @else { Update password }
+        </button>
       </div>
     </form>
   }
+
   <div class="wp-card">
     <app-shortcuts-panel />
   </div>
+
+  <!-- ═══════════════════════ Edit Details Drawer ════════════════════════ -->
+
+  <!-- Backdrop -->
+  <div class="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm transition-opacity duration-300"
+       [class.opacity-0]="!drawerOpen()" [class.pointer-events-none]="!drawerOpen()"
+       [class.opacity-100]="drawerOpen()"
+       (click)="closeDrawer()"></div>
+
+  <!-- Panel -->
+  <aside class="fixed inset-y-0 right-0 z-50 flex w-full max-w-[480px] flex-col bg-white shadow-2xl ring-1 ring-slate-200/60 transition-transform duration-300 ease-out"
+         [class.translate-x-0]="drawerOpen()" [class.translate-x-full]="!drawerOpen()">
+
+    <!-- Header -->
+    <div class="flex shrink-0 items-center justify-between border-b border-slate-100 bg-gradient-to-r from-portal-50 to-white px-6 py-4">
+      <div class="flex items-center gap-3">
+        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-portal-100">
+          <svg class="h-5 w-5 text-portal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-sm font-bold text-slate-900">Edit Contact Details</h2>
+          <p class="text-xs text-slate-400">Update your information</p>
+        </div>
+      </div>
+      <button type="button" (click)="closeDrawer()"
+        class="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-portal-500">
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Alerts -->
+    @if (notice()) {
+      <div class="mx-4 mt-3 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+        {{ notice() }}
+      </div>
+    }
+    @if (error()) {
+      <div class="mx-4 mt-3 flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+        {{ error() }}
+      </div>
+    }
+
+    <!-- Scrollable form body -->
+    <form [formGroup]="form" (ngSubmit)="save()" class="flex-1 overflow-y-auto">
+      <div class="space-y-7 px-6 py-5">
+
+        <!-- § Contact details -->
+        <div>
+          <div class="mb-4 flex items-center gap-3">
+            <span class="text-[11px] font-bold uppercase tracking-widest text-slate-400">Contact details</span>
+            <span class="h-px flex-1 bg-slate-100"></span>
+          </div>
+          <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="wp-label">Phone</label>
+                <input formControlName="phone" class="wp-input wp-input-portal" placeholder="+44…" />
+              </div>
+              <div>
+                <label class="wp-label">Alternate phone</label>
+                <input formControlName="alternatePhone" class="wp-input wp-input-portal" placeholder="+44…" />
+              </div>
+            </div>
+            <div>
+              <label class="wp-label">Preferred language</label>
+              <input formControlName="preferredLanguage" class="wp-input wp-input-portal" placeholder="e.g. English" />
+            </div>
+            <div>
+              <label class="wp-label">Access instructions</label>
+              <textarea formControlName="accessInstructions" rows="3" class="wp-input wp-input-portal resize-none"
+                placeholder="e.g. Gate code, lift location, parking instructions…"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- § Emergency contact -->
+        <div>
+          <div class="mb-4 flex items-center gap-3">
+            <span class="text-[11px] font-bold uppercase tracking-widest text-slate-400">Emergency contact</span>
+            <span class="h-px flex-1 bg-slate-100"></span>
+          </div>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label class="wp-label">Name</label>
+              <input formControlName="emergencyContactName" class="wp-input wp-input-portal" placeholder="Full name" />
+            </div>
+            <div>
+              <label class="wp-label">Phone</label>
+              <input formControlName="emergencyContactPhone" class="wp-input wp-input-portal" placeholder="+44…" />
+            </div>
+            <div>
+              <label class="wp-label">Relationship</label>
+              <input formControlName="emergencyContactRelation" class="wp-input wp-input-portal" placeholder="e.g. Spouse" />
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </form>
+
+    <!-- Sticky footer -->
+    <div class="flex shrink-0 items-center justify-between border-t border-slate-100 bg-slate-50 px-6 py-4">
+      <p class="text-xs text-slate-400">All fields are optional.</p>
+      <div class="flex items-center gap-3">
+        <button type="button" (click)="closeDrawer()" class="wp-btn-ghost text-sm" [disabled]="saving()">Cancel</button>
+        <button type="button" (click)="save()" class="wp-btn-portal text-sm" [disabled]="saving()">
+          @if (saving()) {
+            <svg class="mr-1.5 h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+            Saving…
+          } @else {
+            Save changes
+          }
+        </button>
+      </div>
+    </div>
+
+  </aside>
 </section>

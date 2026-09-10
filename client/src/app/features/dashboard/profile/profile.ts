@@ -13,9 +13,11 @@ import { RouterLink } from '@angular/router';
 import { ImageCroppedEvent, ImageCropperComponent } from 'ngx-image-cropper';
 import { Schedule } from '../../../core/models/scheduler.model';
 import { UserDto } from '../../../core/models/user.model';
+import { UserProfile } from '../../../core/models/user-profile.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { UserService } from '../../../core/services/user.service';
+import { UserProfileService } from '../../../core/services/user-profile.service';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { ShortcutsPanel } from '../../../shared/ui/shortcuts-panel/shortcuts-panel';
 
@@ -30,6 +32,7 @@ export class Profile {
   private readonly auth = inject(AuthService);
   private readonly userService = inject(UserService);
   private readonly scheduler = inject(SchedulerService);
+  private readonly userProfileSvc = inject(UserProfileService);
 
   readonly profile = signal<UserDto | null>(null);
   readonly loadError = signal('');
@@ -49,6 +52,31 @@ export class Profile {
   readonly pwError = signal('');
   readonly pwSuccess = signal('');
   readonly showPassword = signal(false);
+
+  // ---- Edit profile drawer ----
+  readonly profileDetails = signal<UserProfile | null>(null);
+  readonly drawerOpen = signal(false);
+  readonly drawerSaving = signal(false);
+  readonly drawerError = signal('');
+  readonly drawerSuccess = signal('');
+
+  readonly editForm = this.fb.nonNullable.group({
+    dateOfBirth:           [''],
+    gender:                [''],
+    about:                 [''],
+    addressLine1:          [''],
+    addressLine2:          [''],
+    city:                  [''],
+    state:                 [''],
+    postalCode:            [''],
+    country:               [''],
+    qualifications:        [''],
+    yearsOfExperience:     [0],
+    hasDrivingLicense:     [false],
+    hasVehicle:            [false],
+    emergencyContactName:  [''],
+    emergencyContactPhone: [''],
+  });
 
   readonly form = this.fb.nonNullable.group(
     {
@@ -177,6 +205,85 @@ export class Profile {
       error: (err: Error) => {
         this.pwError.set(err.message || 'Could not change the password.');
         this.saving.set(false);
+      },
+    });
+  }
+
+  // ---- Edit profile drawer ----
+
+  openDrawer(): void {
+    this.drawerError.set('');
+    this.drawerSuccess.set('');
+    this.drawerOpen.set(true);
+    if (!this.profileDetails()) {
+      this.userProfileSvc.getMine().subscribe({
+        next: (p) => { this.profileDetails.set(p); this.patchEdit(p); },
+        error: () => {},
+      });
+    } else {
+      this.patchEdit(this.profileDetails()!);
+    }
+  }
+
+  private patchEdit(p: UserProfile): void {
+    this.editForm.patchValue({
+      dateOfBirth:           p.dateOfBirth ?? '',
+      gender:                p.gender ?? '',
+      about:                 p.about ?? '',
+      addressLine1:          p.addressLine1 ?? '',
+      addressLine2:          p.addressLine2 ?? '',
+      city:                  p.city ?? '',
+      state:                 p.state ?? '',
+      postalCode:            p.postalCode ?? '',
+      country:               p.country ?? '',
+      qualifications:        p.qualifications ?? '',
+      yearsOfExperience:     p.yearsOfExperience ?? 0,
+      hasDrivingLicense:     p.hasDrivingLicense,
+      hasVehicle:            p.hasVehicle,
+      emergencyContactName:  p.emergencyContactName ?? '',
+      emergencyContactPhone: p.emergencyContactPhone ?? '',
+    });
+  }
+
+  closeDrawer(): void {
+    this.drawerOpen.set(false);
+  }
+
+  saveProfile(): void {
+    const v = this.editForm.getRawValue();
+    this.drawerSaving.set(true);
+    this.drawerError.set('');
+    const clean = (s: string): string | null => s.trim() || null;
+
+    this.userProfileSvc.updateMine({
+      dateOfBirth:            clean(v.dateOfBirth),
+      gender:                 clean(v.gender),
+      about:                  clean(v.about),
+      addressLine1:           clean(v.addressLine1),
+      addressLine2:           clean(v.addressLine2),
+      city:                   clean(v.city),
+      state:                  clean(v.state),
+      postalCode:             clean(v.postalCode),
+      country:                clean(v.country),
+      qualifications:         clean(v.qualifications),
+      yearsOfExperience:      v.yearsOfExperience > 0 ? v.yearsOfExperience : null,
+      hasDrivingLicense:      v.hasDrivingLicense,
+      hasVehicle:             v.hasVehicle,
+      emergencyContactName:   clean(v.emergencyContactName),
+      emergencyContactPhone:  clean(v.emergencyContactPhone),
+      hireDate:               this.profileDetails()?.hireDate ?? null,
+      serviceTypeIds:         this.profileDetails()?.skills.map((s) => s.serviceTypeId) ?? [],
+      availability:           this.profileDetails()?.availability ?? [],
+    }).subscribe({
+      next: (p) => {
+        this.profileDetails.set(p);
+        this.drawerSaving.set(false);
+        this.drawerSuccess.set('Profile updated successfully.');
+        setTimeout(() => { this.drawerSuccess.set(''); this.drawerOpen.set(false); }, 1400);
+      },
+      error: (err: Error) => {
+        this.drawerError.set(err.message || 'Could not save your profile.');
+        this.drawerSaving.set(false);
       },
     });
   }
