@@ -505,7 +505,8 @@ export class Users {
       .subscribe({
         next: () => {
           this.profileSaving.set(false);
-          this.profileOpen.set(false);
+          this.profileNotice.set('Profile saved successfully.');
+          setTimeout(() => { this.profileNotice.set(''); this.profileOpen.set(false); }, 1400);
         },
         error: (err: Error) => {
           this.profileSaving.set(false);

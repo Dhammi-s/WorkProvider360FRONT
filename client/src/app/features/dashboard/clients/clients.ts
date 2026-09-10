@@ -61,6 +61,8 @@ export class Clients {
   readonly search = signal('');
 
   readonly modalOpen = signal(false);
+  readonly editDrawerOpen = signal(false);
+  readonly editDrawerNotice = signal('');
   readonly editingId = signal<number | null>(null);
   readonly saving = signal(false);
   readonly formError = signal('');
@@ -209,11 +211,16 @@ export class Clients {
       startDate: (c.startDate ?? '').substring(0, 10),
       notes: c.notes ?? '',
     });
-    this.modalOpen.set(true);
+    this.editDrawerOpen.set(true);
   }
 
   closeModal(): void {
     this.modalOpen.set(false);
+  }
+
+  closeEditDrawer(): void {
+    this.editDrawerOpen.set(false);
+    this.editDrawerNotice.set('');
   }
 
   save(): void {
@@ -255,9 +262,19 @@ export class Clients {
     const id = this.editingId();
     const done = (msg: string) => {
       this.saving.set(false);
-      this.modalOpen.set(false);
-      this.notice.set(msg);
-      this.load();
+      if (id) {
+        this.editDrawerNotice.set('Client saved.');
+        setTimeout(() => {
+          this.editDrawerNotice.set('');
+          this.editDrawerOpen.set(false);
+          this.notice.set(msg);
+          this.load();
+        }, 1400);
+      } else {
+        this.modalOpen.set(false);
+        this.notice.set(msg);
+        this.load();
+      }
     };
     const fail = (err: Error) => {
       this.formError.set(err.message || 'Could not save the client.');
