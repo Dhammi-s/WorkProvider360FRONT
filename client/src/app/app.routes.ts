@@ -193,6 +193,13 @@ export const routes: Routes = [
         title: 'Reports · WorkProvider360',
       },
       {
+        path: 'analysis',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () => import('./features/dashboard/analysis/analysis').then((m) => m.Analysis),
+        title: 'AI Analysis · WorkProvider360',
+      },
+      {
         path: 'live-map',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
