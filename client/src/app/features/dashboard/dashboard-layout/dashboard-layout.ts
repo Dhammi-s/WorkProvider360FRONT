@@ -21,6 +21,7 @@ import { ChatWidget } from '../chatbot/chat-widget';
 import { NotificationBell } from '../notifications/notification-bell';
 import { RoleName } from '../../../core/models/role.model';
 import { AgencyService } from '../../../core/services/agency.service';
+import { AnalysisService } from '../../../core/services/analysis.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { BrandingService } from '../../../core/services/branding.service';
 import { ShortcutService } from '../../../core/services/shortcut.service';
@@ -32,6 +33,8 @@ interface NavItem {
   icon: string; // inline SVG path data
   roles?: RoleName[]; // undefined = all roles
   soon?: boolean;
+  /** Hidden for Admin/Manager unless the SuperAdmin granted AI Analysis access. */
+  analysis?: boolean;
 }
 
 /** Authenticated app shell: role-filtered sidebar + topbar + routed content. */
@@ -47,6 +50,10 @@ export class DashboardLayout {
   private readonly shortcuts = inject(ShortcutService);
   private readonly agency = inject(AgencyService);
   private readonly users = inject(UserService);
+  private readonly analysis = inject(AnalysisService);
+
+  /** AI Analysis tab visibility (SuperAdmin always; Admin/Manager per Settings). */
+  readonly analysisAllowed = signal(false);
 
   readonly user = this.auth.user;
   readonly logo = this.branding.logo;
@@ -72,6 +79,14 @@ export class DashboardLayout {
     this.branding.load();
     this.shortcuts.load();
     this.agency.load();
+    const role = this.auth.roleName();
+    if (role === 'SuperAdmin') this.analysisAllowed.set(true);
+    else if (role === 'Admin' || role === 'Manager') {
+      this.analysis.access().subscribe({
+        next: (a) => this.analysisAllowed.set(a.canView),
+        error: () => this.analysisAllowed.set(false),
+      });
+    }
     this.users.getMe().subscribe({
       next: (me) => this.avatarUrl.set(me.avatarUrl ?? null),
       error: () => {},
@@ -105,6 +120,7 @@ export class DashboardLayout {
     { label: 'Skills & Services', path: '/dashboard/service-types', icon: 'M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 16.6 5.7 21l2.3-7.2-6-4.4h7.6L12 2z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
     { label: 'Scheduler', path: '/dashboard/scheduler', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
     { label: 'Meetings', path: '/dashboard/meetings', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+    { label: 'AI Analysis', path: '/dashboard/analysis', icon: 'M9.5 2a2.5 2.5 0 00-2.45 2A3 3 0 004 7a3 3 0 00.5 5.5A3 3 0 007 17a2.5 2.5 0 005 0V4.5A2.5 2.5 0 009.5 2zM14.5 2a2.5 2.5 0 012.45 2A3 3 0 0120 7a3 3 0 01-.5 5.5A3 3 0 0117 17a2.5 2.5 0 01-5 0', roles: ['SuperAdmin', 'Admin', 'Manager'], analysis: true },
     { label: 'Reports', path: '/dashboard/reports', icon: 'M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z' },
     { label: 'Live Map', path: '/dashboard/live-map', icon: 'M9 20l-5.4 1.8a1 1 0 01-1.3-1V5.5a1 1 0 01.7-1L9 3m0 17l6-2m-6 2V3m6 15l5.4 1.8a1 1 0 001.3-1V4.5a1 1 0 00-.7-1L15 1.7m0 16.3V3.7m0 0L9 3M12 11a2 2 0 100-4 2 2 0 000 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
     { label: 'Announcements', path: '/dashboard/announcements', icon: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 11-5.8-1.6' },
@@ -126,7 +142,10 @@ export class DashboardLayout {
 
   readonly nav = computed<NavItem[]>(() => {
     const role = this.auth.roleName();
-    return this.allNav.filter((item) => !item.roles || (role && item.roles.includes(role)));
+    const analysisOk = this.analysisAllowed();
+    return this.allNav.filter(
+      (item) => (!item.roles || (role && item.roles.includes(role))) && (!item.analysis || analysisOk),
+    );
   });
 
   readonly topNav = computed<NavItem[]>(() => {

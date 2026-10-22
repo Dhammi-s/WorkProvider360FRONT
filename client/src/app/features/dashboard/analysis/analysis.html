@@ -1,0 +1,527 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-10-22
+     NOTE TO DEVELOPERS: Do NOT change functionality without full knowledge of the
+     SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
+     ============================================================================= -->
+
+<section>
+  <!-- Header -->
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <div class="flex items-center gap-2">
+        <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">AI Analysis</h1>
+        <span class="rounded-full bg-gradient-to-r from-brand-600 to-sky-500 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">Neural network</span>
+      </div>
+      <p class="mt-1 text-sm text-slate-500">Predictions and insights learned from your agency's own history.</p>
+    </div>
+
+    @if (access()?.canView) {
+      <div class="flex rounded-xl bg-slate-100 p-1 text-sm font-semibold">
+        @if (access()?.canRun) {
+          <button type="button" (click)="setView('new')" class="rounded-lg px-4 py-1.5 transition"
+            [class]="view() === 'new' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'">New analysis</button>
+        }
+        @if (result()) {
+          <button type="button" (click)="setView('report')" class="rounded-lg px-4 py-1.5 transition"
+            [class]="view() === 'report' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'">Report #{{ result()!.reportId }}</button>
+        }
+        <button type="button" (click)="setView('history')" class="rounded-lg px-4 py-1.5 transition"
+          [class]="view() === 'history' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'">History</button>
+      </div>
+    }
+  </div>
+
+  <app-alert type="error" [message]="error()" />
+  <app-alert type="success" [message]="notice()" />
+
+  @if (loading()) {
+    <div class="wp-card mt-6 flex items-center justify-center py-16 text-slate-400">
+      <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+    </div>
+  } @else if (!access()?.canView) {
+    <div class="wp-card mt-6 py-16 text-center">
+      <p class="text-sm font-semibold text-slate-700">You don't have access to AI Analysis.</p>
+      <p class="mt-1 text-sm text-slate-400">Ask a Super Admin to enable it for your role under Settings → AI Analysis.</p>
+    </div>
+  } @else {
+
+    <!-- ===================================================== NEW ANALYSIS -->
+    @if (view() === 'new') {
+      @if (running()) {
+        <div class="wp-card wp-anim-in mt-6 overflow-hidden !p-0">
+          <div class="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr]">
+            <div class="flex items-center justify-center bg-brand-panel p-6">
+              <svg viewBox="0 0 400 220" class="w-full max-w-md">
+                @for (e of netEdges; track $index) {
+                  <line [attr.x1]="e.a.x" [attr.y1]="e.a.y" [attr.x2]="e.b.x" [attr.y2]="e.b.y" stroke="#a5b4fc" stroke-width="1" class="nn-edge" [style.animation-delay.s]="e.delay" />
+                }
+                @for (n of netNodes; track $index) {
+                  <circle [attr.cx]="n.x" [attr.cy]="n.y" r="7" fill="#1e1b4b" stroke="#818cf8" stroke-width="2" class="nn-node" [style.animation-delay.s]="n.layer * 0.25" />
+                }
+              </svg>
+            </div>
+            <div class="p-6">
+              <p class="text-xs font-semibold uppercase tracking-wide text-brand-600">Training in progress</p>
+              <h2 class="mt-1 text-lg font-extrabold text-slate-900">The neural network is learning your agency…</h2>
+              <ul class="mt-4 space-y-2">
+                @for (s of runSteps(); track $index) {
+                  <li class="flex items-center gap-2.5 text-sm" [class.text-slate-300]="$index > runStep()">
+                    @if ($index < runStep()) {
+                      <span class="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white"><svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 011.4-1.4L8 12.6l7.3-7.3a1 1 0 011.4 0z" clip-rule="evenodd"/></svg></span>
+                      <span class="text-slate-500">{{ s }}</span>
+                    } @else if ($index === runStep()) {
+                      <svg class="h-5 w-5 animate-spin text-brand-600" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+                      <span class="font-semibold text-slate-800">{{ s }}</span>
+                    } @else {
+                      <span class="h-5 w-5 rounded-full border-2 border-slate-200"></span>
+                      <span>{{ s }}</span>
+                    }
+                  </li>
+                }
+              </ul>
+            </div>
+          </div>
+        </div>
+      } @else {
+        <div class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[1fr_320px]">
+          <!-- Module picker -->
+          <div class="space-y-4">
+            <div class="wp-card">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <h2 class="text-base font-bold text-slate-900">What should the network analyse?</h2>
+                  <p class="mt-1 text-sm text-slate-500">Pick the areas you want predictions for. Each one trains its own model.</p>
+                </div>
+                <button type="button" (click)="toggleAll()" class="wp-btn-ghost !px-3 !py-2 text-xs">{{ allSelected() ? 'Clear all' : 'Select all' }}</button>
+              </div>
+
+              @for (group of [{ name: 'Agency', items: agencyModules() }, { name: 'Product', items: productModules() }]; track group.name) {
+                <p class="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-400">{{ group.name }}</p>
+                <div class="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                  @for (m of group.items; track m.key) {
+                    <button type="button" (click)="toggleModule(m.key)"
+                      class="group relative flex h-full flex-col rounded-2xl border-2 p-4 text-left transition"
+                      [class]="isSelected(m.key) ? 'border-brand-500 bg-brand-50/60 shadow-sm' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50'">
+                      <div class="flex items-start justify-between">
+                        <span class="flex h-10 w-10 items-center justify-center rounded-xl"
+                          [class]="isSelected(m.key) ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:text-brand-600'">
+                          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="m.icon" /></svg>
+                        </span>
+                        <span class="flex h-5 w-5 items-center justify-center rounded-md border-2 transition"
+                          [class]="isSelected(m.key) ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300'">
+                          @if (isSelected(m.key)) { <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 011.4-1.4L8 12.6l7.3-7.3a1 1 0 011.4 0z" clip-rule="evenodd"/></svg> }
+                        </span>
+                      </div>
+                      <p class="mt-3 text-sm font-bold text-slate-900">{{ m.title }}</p>
+                      <p class="mt-1 flex-1 text-xs leading-relaxed text-slate-500">{{ m.description }}</p>
+                      <span class="mt-3 inline-flex w-fit items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 11l3-4m-3 6l3 4m4-10l3 4m-3 6l3-4"/></svg>
+                        {{ m.model }}
+                      </span>
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Run options -->
+          <aside class="space-y-4">
+            <div class="wp-card xl:sticky xl:top-4">
+              <h3 class="text-base font-bold text-slate-900">Run settings</h3>
+              <div class="mt-4 space-y-4">
+                <div>
+                  <label class="wp-label">Train on</label>
+                  <select class="wp-input" [ngModel]="lookbackDays()" (ngModelChange)="lookbackDays.set(+$event)">
+                    @for (o of lookbackOptions; track o.value) { <option [ngValue]="o.value">{{ o.label }}</option> }
+                  </select>
+                </div>
+                <div>
+                  <label class="wp-label">Predict ahead</label>
+                  <div class="grid grid-cols-5 gap-1.5">
+                    @for (h of horizonOptions; track h) {
+                      <button type="button" (click)="horizonDays.set(h)" class="rounded-lg py-2 text-xs font-bold transition"
+                        [class]="horizonDays() === h ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">{{ h }}d</button>
+                    }
+                  </div>
+                </div>
+                <div>
+                  <label class="wp-label">Report title <span class="font-normal text-slate-400">(optional)</span></label>
+                  <input class="wp-input" maxlength="200" placeholder="e.g. Q4 planning review" [ngModel]="title()" (ngModelChange)="title.set($event)" />
+                </div>
+              </div>
+
+              <div class="mt-5 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
+                <p><b class="text-slate-700">{{ selectedCount() }}</b> area(s) selected · predicting <b class="text-slate-700">{{ horizonDays() }}</b> days ahead.</p>
+                <p class="mt-1">Every run is saved to History and can be e-mailed to Admins &amp; Managers.</p>
+              </div>
+
+              <button type="button" (click)="run()" [disabled]="!selectedCount()" class="wp-btn-primary mt-4 w-full">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                Run analysis
+              </button>
+            </div>
+          </aside>
+        </div>
+      }
+    }
+
+    <!-- ===================================================== REPORT -->
+    @if (view() === 'report') {
+      @if (reportLoading()) {
+        <div class="wp-card mt-6 flex items-center justify-center py-16 text-slate-400">
+          <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+        </div>
+      } @else if (result(); as r) {
+        <!-- Hero -->
+        <div class="wp-anim-up mt-6 overflow-hidden rounded-2xl bg-brand-panel p-6 text-white shadow-card">
+          <div class="flex flex-col gap-6 lg:flex-row lg:items-center">
+            <div class="relative h-32 w-32 shrink-0">
+              <svg viewBox="0 0 120 120" class="h-32 w-32 -rotate-90">
+                <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="10" />
+                <circle cx="60" cy="60" r="52" fill="none" [attr.stroke]="scoreColor(r.healthScore)" stroke-width="10" stroke-linecap="round" [attr.stroke-dasharray]="gauge(r.healthScore)" />
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="text-3xl font-extrabold">{{ r.healthScore }}</span>
+                <span class="text-[11px] font-semibold uppercase tracking-wide text-indigo-200">{{ r.healthLabel }}</span>
+              </div>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold">{{ r.runType === 'Scheduled' ? 'Scheduled daily run' : 'Manual run' }}</span>
+                <span class="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold">{{ r.horizonDays }}-day forecast</span>
+                @if (r.shareCount) { <span class="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold">Shared {{ r.shareCount }}×</span> }
+              </div>
+              <h2 class="mt-2 text-xl font-extrabold tracking-tight">{{ r.title }}</h2>
+              <p class="mt-1 text-xs text-indigo-200">
+                {{ r.agencyName }} · {{ r.createdOn | date: 'medium' }} · data {{ r.dataFrom | date: 'mediumDate' }} – {{ r.dataTo | date: 'mediumDate' }}
+                @if (r.createdByName) { · by {{ r.createdByName }} }
+              </p>
+              <p class="mt-3 text-sm leading-relaxed text-indigo-50">{{ r.summary }}</p>
+            </div>
+            <div class="flex shrink-0 flex-row flex-wrap gap-2 lg:flex-col">
+              @if (access()?.canShare) {
+                <button type="button" (click)="openShare()" class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-700 shadow hover:bg-indigo-50">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2zM22 8l-10 6L2 8"/></svg>
+                  E-mail report
+                </button>
+              }
+              <button type="button" (click)="downloadPdf()" [disabled]="pdfBusy()" class="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/25 hover:bg-white/20 disabled:opacity-60">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+                @if (pdfBusy()) { Building PDF… } @else { Download PDF }
+              </button>
+              <button type="button" (click)="downloadFile()" [disabled]="fileBusy()" class="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/25 hover:bg-white/20 disabled:opacity-60">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2z"/></svg>
+                Report file
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Headline KPIs -->
+        <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          @for (k of r.kpis; track k.label; let i = $index) {
+            <div class="wp-card wp-anim-up !p-4" [class]="'wp-d' + ((i % 6) + 1)">
+              <p class="text-xs font-semibold text-slate-500">{{ k.label }}</p>
+              <p class="mt-1 text-xl font-extrabold" [class]="toneText(k.tone)">{{ k.value }}</p>
+              @if (k.hint) { <p class="text-[11px] text-slate-400">{{ k.hint }}</p> }
+            </div>
+          }
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_340px]">
+          <!-- Key findings -->
+          <div class="wp-card">
+            <h3 class="text-base font-bold text-slate-900">Key findings</h3>
+            <ul class="mt-3 space-y-2">
+              @for (h of r.highlights; track $index) {
+                <li class="flex gap-2.5 text-sm text-slate-600">
+                  <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500"></span>{{ h }}
+                </li>
+              }
+            </ul>
+          </div>
+          <!-- Network stats -->
+          <div class="wp-card">
+            <h3 class="text-base font-bold text-slate-900">Model summary</h3>
+            <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div class="rounded-xl bg-slate-50 p-3"><dt class="text-[11px] font-semibold text-slate-400">Neural networks</dt><dd class="text-lg font-extrabold text-slate-900">{{ r.network.neuralModels }} <span class="text-xs font-medium text-slate-400">/ {{ r.network.modelsTrained }} models</span></dd></div>
+              <div class="rounded-xl bg-slate-50 p-3"><dt class="text-[11px] font-semibold text-slate-400">Parameters</dt><dd class="text-lg font-extrabold text-slate-900">{{ r.network.totalParameters | number }}</dd></div>
+              <div class="rounded-xl bg-slate-50 p-3"><dt class="text-[11px] font-semibold text-slate-400">Training samples</dt><dd class="text-lg font-extrabold text-slate-900">{{ r.network.trainingSamples | number }}</dd></div>
+              <div class="rounded-xl bg-slate-50 p-3"><dt class="text-[11px] font-semibold text-slate-400">Avg confidence</dt><dd class="text-lg font-extrabold text-slate-900">{{ r.network.averageConfidence }}%</dd></div>
+            </dl>
+            <p class="mt-3 text-[11px] text-slate-400">Trained {{ r.network.totalEpochs | number }} epochs in {{ r.durationMs | number }} ms.</p>
+          </div>
+        </div>
+
+        <!-- Section nav -->
+        <div class="sticky top-0 z-20 -mx-1 mt-4 flex gap-2 overflow-x-auto bg-slate-50/90 px-1 py-2 backdrop-blur">
+          @for (s of r.sections; track s.key) {
+            <button type="button" (click)="scrollTo(s)" class="flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+              [class]="activeSection() === s.key ? 'border-brand-500 bg-white text-brand-700 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'">
+              <span class="h-2 w-2 rounded-full" [style.background]="scoreColor(s.score)"></span>
+              {{ s.title }} <span class="text-slate-400">{{ s.score }}</span>
+            </button>
+          }
+        </div>
+
+        <!-- Sections -->
+        @for (s of r.sections; track s.key) {
+          <div class="wp-card mt-4 scroll-mt-16" [id]="'sec-' + s.key">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div class="flex items-start gap-3">
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600">
+                  <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="s.icon" /></svg>
+                </span>
+                <div>
+                  <h3 class="text-lg font-extrabold text-slate-900">{{ s.title }}</h3>
+                  <p class="mt-0.5 text-sm text-slate-500">{{ s.summary }}</p>
+                </div>
+              </div>
+              <div class="flex shrink-0 items-center gap-3">
+                <div class="w-28">
+                  <div class="h-2 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full" [style.width.%]="s.score" [style.background]="scoreColor(s.score)"></div></div>
+                  <p class="mt-1 text-right text-[11px] font-semibold text-slate-400">Score {{ s.score }}/100</p>
+                </div>
+                <span class="rounded-full px-3 py-1 text-xs font-bold ring-1" [class]="statusBadge(s.status)">{{ s.status }}</span>
+              </div>
+            </div>
+
+            <!-- KPIs -->
+            <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+              @for (k of s.kpis; track k.label) {
+                <div class="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+                  <p class="truncate text-[11px] font-semibold text-slate-500" [title]="k.label">{{ k.label }}</p>
+                  <p class="mt-0.5 flex items-center gap-1 text-lg font-extrabold" [class]="toneText(k.tone)">
+                    {{ k.value }}
+                    @if (k.trend === 'up') { <svg class="h-3.5 w-3.5 text-emerald-500" viewBox="0 0 20 20" fill="currentColor"><path d="M10 4l6 8H4z"/></svg> }
+                    @if (k.trend === 'down') { <svg class="h-3.5 w-3.5 text-rose-500" viewBox="0 0 20 20" fill="currentColor"><path d="M10 16l-6-8h12z"/></svg> }
+                  </p>
+                  @if (k.hint) { <p class="truncate text-[11px] text-slate-400" [title]="k.hint">{{ k.hint }}</p> }
+                </div>
+              }
+            </div>
+
+            <!-- Charts -->
+            @if (s.charts.length) {
+              <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                @for (c of s.charts; track $index) {
+                  <div [class]="chartCellClass(c.type, s.charts.length, $index)">
+                    <app-analysis-chart [chart]="c" />
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Insights + recommendations -->
+            <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div>
+                <h4 class="text-sm font-bold text-slate-800">What the network found</h4>
+                <ul class="mt-2 space-y-2">
+                  @for (i of s.insights; track $index) {
+                    <li class="flex gap-2 rounded-xl border px-3 py-2 text-sm" [class]="insightClass(i)">
+                      <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="insightIcon(i)" /></svg>
+                      <span>{{ i.text }}</span>
+                    </li>
+                  }
+                </ul>
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-slate-800">Recommended actions</h4>
+                <ol class="mt-2 space-y-2">
+                  @for (rec of s.recommendations; track $index) {
+                    <li class="flex gap-2.5 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                      <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-600 text-[11px] font-bold text-white">{{ $index + 1 }}</span>
+                      {{ rec }}
+                    </li>
+                  }
+                </ol>
+              </div>
+            </div>
+
+            <!-- Tables -->
+            @for (t of s.tables; track t.title) {
+              @if (t.rows.length) {
+                <div class="mt-4 overflow-hidden rounded-2xl border border-slate-100">
+                  <p class="bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-800">{{ t.title }}</p>
+                  <div class="max-h-80 overflow-auto">
+                    <table class="min-w-full divide-y divide-slate-100 text-sm">
+                      <thead class="sticky top-0 bg-white text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        <tr>@for (col of t.columns; track col) { <th class="px-4 py-2">{{ col }}</th> }</tr>
+                      </thead>
+                      <tbody class="divide-y divide-slate-100">
+                        @for (row of t.rows; track $index) {
+                          <tr class="hover:bg-slate-50/60">
+                            @for (cell of row; track $index) {
+                              <td class="whitespace-nowrap px-4 py-2" [class]="$index === 0 ? 'font-semibold text-slate-800' : 'text-slate-600'">
+                                @if (t.columns[$index] === 'Risk') {
+                                  <span class="rounded-full px-2 py-0.5 text-xs font-bold" [class]="riskClass(cell)">{{ cell }}</span>
+                                } @else { {{ cell }} }
+                              </td>
+                            }
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              }
+            }
+
+            <!-- Model details -->
+            <details class="group mt-4 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
+              <summary class="cursor-pointer select-none font-semibold text-slate-600">Model details ({{ s.models.length }})</summary>
+              <div class="mt-2 space-y-2">
+                @for (m of s.models; track m.name) {
+                  <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span class="font-bold text-slate-700">{{ m.name }}</span>
+                    <span class="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                      [class]="m.method === 'NeuralNetwork' ? 'bg-brand-100 text-brand-700' : 'bg-slate-200 text-slate-600'">{{ m.method === 'NeuralNetwork' ? 'Neural network' : m.method }}</span>
+                    <span>{{ m.architecture }}</span>
+                    @if (m.parameters) { <span>{{ m.parameters | number }} params</span> }
+                    @if (m.epochs) { <span>{{ m.epochs }} epochs</span> }
+                    @if (m.trainingSamples) { <span>{{ m.trainingSamples | number }} samples</span> }
+                    @if (m.metric) { <span>{{ m.metric }}: {{ m.metricValue }}</span> }
+                    <span class="font-semibold" [style.color]="scoreColor(m.confidence)">confidence {{ m.confidence }}%</span>
+                  </div>
+                }
+              </div>
+            </details>
+          </div>
+        }
+      }
+    }
+
+    <!-- ===================================================== HISTORY -->
+    @if (view() === 'history') {
+      <div class="wp-card mt-6 overflow-hidden !p-0">
+        <div class="flex items-center justify-between px-6 py-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Saved analyses</h2>
+            <p class="text-sm text-slate-500">Every manual and scheduled (00:00 UTC) run is stored here.</p>
+          </div>
+          <button type="button" (click)="loadHistory()" class="wp-btn-ghost !px-3 !py-2 text-xs">Refresh</button>
+        </div>
+        @if (historyLoading()) {
+          <div class="flex justify-center py-12 text-slate-400"><svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg></div>
+        } @else if (!history().length) {
+          <p class="px-6 pb-12 pt-4 text-center text-sm text-slate-400">No analyses yet.@if (access()?.canRun) { Run your first one from “New analysis”. }</p>
+        } @else {
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-100 text-sm">
+              <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th class="px-6 py-3">Report</th>
+                  <th class="px-6 py-3">Health</th>
+                  <th class="px-6 py-3">Areas</th>
+                  <th class="px-6 py-3">Run</th>
+                  <th class="px-6 py-3">Created</th>
+                  <th class="px-6 py-3 text-right"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                @for (h of history(); track h.reportId) {
+                  <tr class="cursor-pointer hover:bg-slate-50/60" (click)="openReport(h.reportId)">
+                    <td class="px-6 py-3">
+                      <p class="font-semibold text-slate-800">{{ h.title }}</p>
+                      <p class="max-w-md truncate text-xs text-slate-400">{{ h.summary }}</p>
+                    </td>
+                    <td class="px-6 py-3">
+                      <span class="inline-flex items-center gap-1.5 font-bold" [style.color]="scoreColor(h.healthScore)">
+                        <span class="h-2 w-2 rounded-full" [style.background]="scoreColor(h.healthScore)"></span>{{ h.healthScore }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-3 text-slate-600" [title]="h.modules.join(', ')">{{ h.modules.length }} · {{ h.horizonDays }}d</td>
+                    <td class="px-6 py-3">
+                      <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="h.runType === 'Scheduled' ? 'bg-sky-50 text-sky-700' : 'bg-brand-50 text-brand-700'">{{ h.runType }}</span>
+                      @if (h.shareCount) { <span class="ml-1 text-xs text-slate-400">✉ {{ h.shareCount }}</span> }
+                    </td>
+                    <td class="px-6 py-3 text-slate-500">
+                      {{ h.createdOn | date: 'medium' }}
+                      <p class="text-xs text-slate-400">{{ h.createdByName || 'System' }}</p>
+                    </td>
+                    <td class="px-6 py-3 text-right"><span class="wp-link text-xs">Open →</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <app-paginator [total]="historyTotal()" [page]="historyPage()" [pageSize]="historyPageSize()" [pageSizeOptions]="[10, 20, 50]"
+            (pageChange)="onHistoryPage($event)" (pageSizeChange)="onHistorySize($event)" />
+        }
+      </div>
+    }
+  }
+
+  <!-- ===================================================== SHARE DRAWER -->
+  @if (shareOpen() && result()) {
+    <div class="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm" (click)="closeShare()">
+      <div class="wp-anim-in flex h-full w-full max-w-md flex-col bg-white shadow-2xl" (click)="$event.stopPropagation()">
+        <div class="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+          <div>
+            <h3 class="text-base font-bold text-slate-900">E-mail this report</h3>
+            <p class="mt-0.5 text-xs text-slate-500">Send report #{{ result()!.reportId }} to other Admins &amp; Managers.</p>
+          </div>
+          <button type="button" (click)="closeShare()" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-6 py-4">
+          <app-alert type="error" [message]="shareError()" />
+          <app-alert type="success" [message]="shareNotice()" />
+
+          <div class="flex items-center gap-2">
+            <input class="wp-input !py-2" placeholder="Search people…" [ngModel]="recipientFilter()" (ngModelChange)="recipientFilter.set($event)" />
+          </div>
+          <div class="mt-2 flex flex-wrap gap-1.5 text-xs">
+            <button type="button" (click)="selectRole('Admin')" class="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600 hover:bg-slate-200">+ All Admins</button>
+            <button type="button" (click)="selectRole('Manager')" class="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600 hover:bg-slate-200">+ All Managers</button>
+            @if (shareSelected().size) {
+              <button type="button" (click)="clearShareSelection()" class="rounded-full px-2.5 py-1 font-semibold text-slate-400 hover:text-slate-600">Clear ({{ shareSelected().size }})</button>
+            }
+          </div>
+
+          <ul class="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-100">
+            @for (p of filteredRecipients(); track p.userId) {
+              <li>
+                <label class="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-slate-50">
+                  <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" [checked]="shareSelected().has(p.userId)" (change)="toggleRecipient(p.userId)" />
+                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-bold text-brand-700">{{ initials(p.fullName) }}</span>
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-semibold text-slate-800">{{ p.fullName }}</span>
+                    <span class="block truncate text-xs text-slate-400">{{ p.email }}</span>
+                  </span>
+                  <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{{ p.roleName }}</span>
+                </label>
+              </li>
+            } @empty {
+              <li class="px-3 py-6 text-center text-xs text-slate-400">No Admins or Managers found.</li>
+            }
+          </ul>
+
+          <div class="mt-4">
+            <label class="wp-label">Message <span class="font-normal text-slate-400">(optional)</span></label>
+            <textarea rows="3" maxlength="2000" class="wp-input" placeholder="Add a note for the recipients…" [ngModel]="shareMessage()" (ngModelChange)="shareMessage.set($event)"></textarea>
+          </div>
+          <label class="mt-3 flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3">
+            <span>
+              <span class="block text-sm font-semibold text-slate-800">Attach as PDF</span>
+              <span class="block text-xs text-slate-500">Off = attach the interactive HTML report file instead.</span>
+            </span>
+            <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" [ngModel]="attachPdf()" (ngModelChange)="attachPdf.set($event)" />
+          </label>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 border-t border-slate-100 px-6 py-4">
+          <button type="button" (click)="closeShare()" class="wp-btn-ghost">Close</button>
+          <button type="button" (click)="send()" [disabled]="shareBusy() || !shareSelected().size" class="wp-btn-primary">
+            @if (shareBusy()) { Sending… } @else { Send to {{ shareSelected().size }} }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</section>

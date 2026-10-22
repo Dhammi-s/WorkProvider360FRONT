@@ -517,6 +517,74 @@
           </div>
         }
 
+        <!-- ===================== AI Analysis ===================== -->
+        @if (activeTab() === 'analysis') {
+          <div class="wp-card">
+            <h2 class="text-base font-bold text-slate-900">AI Analysis access</h2>
+            <p class="mt-1 text-sm text-slate-500">Choose what Admins and Managers can do in the AI Analysis tab. Super Admins always have full access.</p>
+            <app-alert type="success" [message]="aiNotice()" />
+            <app-alert type="error" [message]="aiError()" />
+            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label class="wp-label">Admin access</label>
+                <select class="wp-input" [ngModel]="aiAdminAccess()" (ngModelChange)="aiAdminAccess.set($event)">
+                  @for (l of aiLevels; track l) { <option [ngValue]="l">{{ l === 'Write' ? 'Run & e-mail analyses' : (l === 'Read' ? 'View saved reports only' : 'No access') }}</option> }
+                </select>
+              </div>
+              <div>
+                <label class="wp-label">Manager access</label>
+                <select class="wp-input" [ngModel]="aiManagerAccess()" (ngModelChange)="aiManagerAccess.set($event)">
+                  @for (l of aiLevels; track l) { <option [ngValue]="l">{{ l === 'Write' ? 'Run & e-mail analyses' : (l === 'Read' ? 'View saved reports only' : 'No access') }}</option> }
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="wp-card mt-4">
+            <label class="flex cursor-pointer items-start justify-between gap-3">
+              <span>
+                <span class="block text-base font-bold text-slate-900">Daily automatic report</span>
+                <span class="mt-1 block text-sm text-slate-500">
+                  Every day at <b>{{ aiRunUtc() }} UTC</b> the neural network runs a full analysis, saves it to History and e-mails it to all Super Admins.
+                  @if (aiLastRun()) { Last run: {{ aiLastRun() }}. }
+                </span>
+              </span>
+              <input type="checkbox" class="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500" [ngModel]="aiDailyEnabled()" (ngModelChange)="aiDailyEnabled.set($event)" />
+            </label>
+
+            <p class="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Areas in the daily report</p>
+            <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              @for (m of aiModules(); track m.key) {
+                <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5 hover:bg-slate-50">
+                  <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" [checked]="aiDailyModules().has(m.key)" (change)="toggleAiModule(m.key)" [disabled]="!aiDailyEnabled()" />
+                  <span class="text-sm font-medium text-slate-700">{{ m.title }}</span>
+                </label>
+              }
+            </div>
+            <p class="mt-1 text-xs text-slate-400">Leave all unticked to include every area.</p>
+
+            <div class="mt-4 space-y-3 border-t border-slate-100 pt-4">
+              <label class="flex items-center justify-between">
+                <span class="text-sm font-medium text-slate-700">Also e-mail Admins</span>
+                <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" [ngModel]="aiCcAdmins()" (ngModelChange)="aiCcAdmins.set($event)" [disabled]="!aiDailyEnabled()" />
+              </label>
+              <label class="flex items-center justify-between">
+                <span class="text-sm font-medium text-slate-700">Also e-mail Managers</span>
+                <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" [ngModel]="aiCcManagers()" (ngModelChange)="aiCcManagers.set($event)" [disabled]="!aiDailyEnabled()" />
+              </label>
+            </div>
+
+            <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+              <button type="button" (click)="sendDailyNow()" [disabled]="aiSending()" class="wp-btn-ghost">
+                @if (aiSending()) { Running analysis… } @else { Run &amp; e-mail daily report now }
+              </button>
+              <button type="button" (click)="saveAnalysisSettings()" [disabled]="aiSaving()" class="wp-btn-primary">
+                @if (aiSaving()) { Saving… } @else { Save AI Analysis settings }
+              </button>
+            </div>
+          </div>
+        }
+
         <!-- ===================== Login Page ===================== -->
         @if (activeTab() === 'login') {
           <div class="wp-card">

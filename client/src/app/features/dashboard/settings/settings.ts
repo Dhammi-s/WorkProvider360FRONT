@@ -22,6 +22,8 @@ import { AnnouncementService } from '../../../core/services/announcement.service
 import { LogService } from '../../../core/services/log.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { MeetingService } from '../../../core/services/meeting.service';
+import { AnalysisService } from '../../../core/services/analysis.service';
+import { AnalysisAccessLevel, AnalysisModule } from '../../../core/models/analysis.model';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { LogoUploader } from '../branding/logo-uploader';
 
@@ -46,6 +48,7 @@ export class Settings {
   private readonly auth = inject(AuthService);
   private readonly branding = inject(BrandingService);
   private readonly clients = inject(ClientService);
+  private readonly analysis = inject(AnalysisService);
 
   readonly user = this.auth.user;
   readonly isSuperAdmin = computed(() => this.auth.roleName() === 'SuperAdmin');
@@ -74,9 +77,95 @@ export class Settings {
     if (this.isSuperAdmin())
       t.push({ id: 'announcements', label: 'Announcements', icon: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 11-5.8-1.6' });
     if (this.isSuperAdmin())
+      t.push({ id: 'analysis', label: 'AI Analysis', icon: 'M9.5 2a2.5 2.5 0 00-2.45 2A3 3 0 004 7a3 3 0 00.5 5.5A3 3 0 007 17a2.5 2.5 0 005 0V4.5A2.5 2.5 0 009.5 2zM14.5 2a2.5 2.5 0 012.45 2A3 3 0 0120 7a3 3 0 01-.5 5.5A3 3 0 0117 17a2.5 2.5 0 01-5 0' });
+    if (this.isSuperAdmin())
       t.push({ id: 'login', label: 'Login Page', icon: 'M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3' });
     return t;
   });
+
+  // ---- AI Analysis access + daily report (SuperAdmin) ----
+  readonly aiLevels: AnalysisAccessLevel[] = ['None', 'Read', 'Write'];
+  readonly aiModules = signal<AnalysisModule[]>([]);
+  readonly aiAdminAccess = signal<AnalysisAccessLevel>('Write');
+  readonly aiManagerAccess = signal<AnalysisAccessLevel>('None');
+  readonly aiDailyEnabled = signal(true);
+  readonly aiDailyModules = signal<Set<string>>(new Set());
+  readonly aiCcAdmins = signal(false);
+  readonly aiCcManagers = signal(false);
+  readonly aiRunUtc = signal('00:00');
+  readonly aiLastRun = signal<string | null>(null);
+  readonly aiSaving = signal(false);
+  readonly aiSending = signal(false);
+  readonly aiNotice = signal('');
+  readonly aiError = signal('');
+
+  loadAnalysisSettings(): void {
+    this.analysis.modules().subscribe({ next: (m) => this.aiModules.set(m), error: () => {} });
+    this.analysis.getSettings().subscribe({
+      next: (s) => {
+        this.aiAdminAccess.set(s.adminAccess);
+        this.aiManagerAccess.set(s.managerAccess);
+        this.aiDailyEnabled.set(s.dailyReportEnabled);
+        this.aiDailyModules.set(new Set(s.dailyReportModules));
+        this.aiCcAdmins.set(s.dailyCcAdmins);
+        this.aiCcManagers.set(s.dailyCcManagers);
+        this.aiRunUtc.set(s.dailyRunUtc);
+        this.aiLastRun.set(s.lastScheduledRunDate ? s.lastScheduledRunDate.slice(0, 10) : null);
+      },
+      error: (err: Error) => this.aiError.set(err.message || 'Could not load AI Analysis settings.'),
+    });
+  }
+
+  toggleAiModule(key: string): void {
+    this.aiDailyModules.update((s) => {
+      const next = new Set(s);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  saveAnalysisSettings(): void {
+    this.aiSaving.set(true);
+    this.aiNotice.set('');
+    this.aiError.set('');
+    this.analysis
+      .updateSettings({
+        adminAccess: this.aiAdminAccess(),
+        managerAccess: this.aiManagerAccess(),
+        dailyReportEnabled: this.aiDailyEnabled(),
+        dailyReportModules: [...this.aiDailyModules()],
+        dailyCcAdmins: this.aiCcAdmins(),
+        dailyCcManagers: this.aiCcManagers(),
+      })
+      .subscribe({
+        next: (s) => {
+          this.aiSaving.set(false);
+          this.aiDailyModules.set(new Set(s.dailyReportModules));
+          this.aiNotice.set('AI Analysis settings saved.');
+        },
+        error: (err: Error) => {
+          this.aiSaving.set(false);
+          this.aiError.set(err.message || 'Could not save AI Analysis settings.');
+        },
+      });
+  }
+
+  sendDailyNow(): void {
+    this.aiSending.set(true);
+    this.aiNotice.set('');
+    this.aiError.set('');
+    this.analysis.runDailyNow().subscribe({
+      next: (msg) => {
+        this.aiSending.set(false);
+        this.aiNotice.set(msg);
+      },
+      error: (err: Error) => {
+        this.aiSending.set(false);
+        this.aiError.set(err.message || 'Could not run the daily report.');
+      },
+    });
+  }
 
   // ---- Login page content (SuperAdmin) ----
   readonly loginContent = signal<LoginContent>({ ...DEFAULT_LOGIN_CONTENT });
@@ -217,6 +306,7 @@ export class Settings {
       this.loadLogSettings();
       this.loadAnnouncementSettings();
       this.loadLoginContent();
+      this.loadAnalysisSettings();
     } else {
       this.loading.set(false);
     }
