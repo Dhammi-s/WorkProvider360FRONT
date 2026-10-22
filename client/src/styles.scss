@@ -105,6 +105,28 @@
   background-color: rgba(255, 255, 255, 0.4);
 }
 
+/* Same thin scrollbar for light panels (chat assistant, dropdowns). */
+.wp-scroll-light {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.wp-scroll-light::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.wp-scroll-light::-webkit-scrollbar-track {
+  background: transparent;
+}
+.wp-scroll-light::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.wp-scroll-light::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
 /* =============================================================================
    Client portal — premium animated UI (global; no component-style budget cost)
    ============================================================================= */
