@@ -19,9 +19,9 @@ import { Alert } from '../../../../shared/ui/alert/alert';
 import { VisitCalendar } from '../../../../shared/ui/visit-calendar/visit-calendar';
 import { ScheduleEditor } from '../../../../shared/ui/schedule-editor/schedule-editor';
 import { CareLog } from '../../../../shared/ui/care-log/care-log';
-
-type Section = 'main' | 'schedule' | 'carelog';
-
+import { ClientPayer } from '../../../../core/models/payer.model';
+import { ClientPayerService } from '../../../../core/services/ClientPayerService';
+type Section = 'main' | 'schedule' | 'carelog' | 'payers';
 /** Full-page client profile: Main details, a Schedule calendar with inline shift creation, and Care Logs. */
 @Component({
   selector: 'app-client-profile',
@@ -33,10 +33,13 @@ export class ClientProfile {
   private readonly service = inject(ClientService);
   private readonly scheduler = inject(SchedulerService);
   private readonly auth = inject(AuthService);
+  private readonly clientPayerService = inject(ClientPayerService);
 
   readonly clientId = Number(this.route.snapshot.paramMap.get('id'));
   readonly canManage = computed(() => !!this.access()?.canManage);
-
+  readonly payers = signal<ClientPayer[]>([]);
+  readonly payersLoading = signal(false);
+  readonly payersError = signal('');
   readonly client = signal<Client | null>(null);
   readonly access = signal<ClientAccess | null>(null);
   readonly loading = signal(true);
@@ -55,7 +58,49 @@ export class ClientProfile {
     this.service.access().subscribe({ next: (a) => this.access.set(a), error: () => {} });
     this.load();
   }
+private loadedPayersForClient: number | null = null;
 
+
+loadClientPayers(): void {
+  const clientId = this.clientId;
+
+  if (!Number.isInteger(clientId) || clientId <= 0) {
+    this.payersError.set('Invalid client ID.');
+    this.payers.set([]);
+    return;
+  }
+
+  this.payersLoading.set(true);
+  this.payersError.set('');
+
+  this.clientPayerService.getPayersByClient(clientId).subscribe({
+    next: (payers) => {
+      this.payers.set(payers);
+      this.loadedPayersForClient = clientId;
+      this.payersLoading.set(false);
+    },
+    error: (error: unknown) => {
+      this.payers.set([]);
+      this.payersError.set(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load client payers.'
+      );
+      this.payersLoading.set(false);
+    }
+  });
+}
+
+
+openPayers(): void {
+  this.setSection('payers');
+
+  const clientId = Number(this.clientId);
+
+  if (this.loadedPayersForClient !== clientId) {
+    this.loadClientPayers();
+  }
+}
   load(): void {
     this.loading.set(true);
     this.service.get(this.clientId).subscribe({

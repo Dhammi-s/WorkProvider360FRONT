@@ -24,14 +24,23 @@
           </div>
         </div>
         <nav class="space-y-1">
-          @for (item of [['main','Main'],['schedule','Schedule'],['carelog','Care Logs']]; track item[0]) {
-            <button type="button" (click)="setSection($any(item[0]))"
-              class="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition"
-              [class]="section() === item[0] ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50'">
-              {{ item[1] }}
-            </button>
-          }
-        </nav>
+  @for (item of [
+    ['main', 'Main'],
+    ['schedule', 'Schedule'],
+    ['carelog', 'Care Logs'],
+    ['payers', 'Payers']
+  ]; track item[0]) {
+    <button
+      type="button"
+      (click)="setSection($any(item[0]))"
+      class="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition"
+      [class]="section() === item[0]
+        ? 'bg-brand-50 text-brand-700'
+        : 'text-slate-600 hover:bg-slate-50'">
+      {{ item[1] }}
+    </button>
+  }
+</nav>
       </aside>
 
       <!-- Content -->
@@ -62,7 +71,34 @@
             }
           </div>
         }
+        <!-- PAYERS -->
 
+         
+         @if (section() === 'payers') {
+           <div class="wp-card">
+             <div class="flex items-center justify-between gap-3">
+               <div>
+                 <h2 class="text-lg font-bold text-slate-900">Client Payers</h2>
+                 <p class="mt-1 text-sm text-slate-500">
+                   Manage insurance providers and other payers for this client.
+                 </p>
+               </div>
+         
+               @if (canManage()) {
+                 
+               }
+             </div>
+         
+             
+         
+             <div class="mt-5 rounded-xl border border-dashed border-slate-300 p-8 text-center">
+               <h3 class="font-semibold text-slate-700">No payers loaded</h3>
+               <p class="mt-1 text-sm text-slate-500">
+                 Connect the client payer API to display assigned payers here.
+               </p>
+             </div>
+           </div>
+         }
         <!-- SCHEDULE -->
         @if (section() === 'schedule') {
           <div class="space-y-4">
