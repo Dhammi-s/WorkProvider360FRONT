@@ -125,6 +125,9 @@ openPayers(): void {
 
   setSection(s: Section): void {
     this.section.set(s);
+    if( s === 'payers') {
+      this.loadClientPayers();
+    }
   }
 
   openEditor(date?: Date): void {

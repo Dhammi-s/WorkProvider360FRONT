@@ -74,31 +74,148 @@
         <!-- PAYERS -->
 
          
-         @if (section() === 'payers') {
-           <div class="wp-card">
-             <div class="flex items-center justify-between gap-3">
-               <div>
-                 <h2 class="text-lg font-bold text-slate-900">Client Payers</h2>
-                 <p class="mt-1 text-sm text-slate-500">
-                   Manage insurance providers and other payers for this client.
-                 </p>
-               </div>
-         
-               @if (canManage()) {
-                 
-               }
-             </div>
-         
-             
-         
-             <div class="mt-5 rounded-xl border border-dashed border-slate-300 p-8 text-center">
-               <h3 class="font-semibold text-slate-700">No payers loaded</h3>
-               <p class="mt-1 text-sm text-slate-500">
-                 Connect the client payer API to display assigned payers here.
-               </p>
-             </div>
-           </div>
-         }
+        
+@if (section() === 'payers') {
+  <div class="wp-card">
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-bold text-slate-900">Client Payers</h2>
+        <p class="mt-1 text-sm text-slate-500">
+          Manage insurance providers and other payers for this client.
+        </p>
+      </div>
+
+      @if (canManage()) {
+        <!-- Add payer button can go here -->
+      }
+    </div>
+
+    @if (payers().length > 0) {
+      <div class="mt-5 overflow-x-auto rounded-xl border border-slate-200">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 text-slate-600">
+            <tr>
+              <th class="px-4 py-3 font-semibold">Payer Name</th>
+              <th class="px-4 py-3 font-semibold">Email</th>
+              <th class="px-4 py-3 font-semibold">Phone</th>
+              <th class="px-4 py-3 font-semibold">Address</th>
+              <th class="px-4 py-3 font-semibold">Status</th>
+              <th class="px-4 py-3 font-semibold">Primary</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-slate-200">
+            @for (payer of payers(); track payer.payerId) {
+              <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3 font-medium text-slate-900">
+                  {{ payer.payerName || '—' }}
+                </td>
+
+                <td class="px-4 py-3 text-slate-600">
+                  {{ payer.email || '—' }}
+                </td>
+
+                <td class="px-4 py-3 text-slate-600 whitespace-nowrap">
+                  {{ payer.phone || '—' }}
+                </td>
+
+                <td class="px-4 py-3 text-slate-600">
+                  <div class="relative group max-w-[180px]">
+                    <button
+                      type="button"
+                      class="block w-full truncate text-left cursor-pointer hover:text-blue-600"
+                      [attr.aria-label]="'View full address for ' + payer.payerName"
+                    >
+                      {{ payer.addressLine1 || '' }}
+                      @if (payer.addressLine2) {
+                        , {{ payer.addressLine2 }}
+                      }
+                      @if (payer.city) {
+                        , {{ payer.city }}
+                      }
+                      @if (payer.state) {
+                        , {{ payer.state }}
+                      }
+                      @if (payer.postalCode) {
+                        {{ payer.postalCode }}
+                      }
+                      @if (payer.country) {
+                        , {{ payer.country }}
+                      }
+                    </button>
+
+                                         
+                     <div
+                       class="invisible opacity-0 group-hover:visible group-hover:opacity-100
+                              absolute left-0 bottom-full mb-2 w-64 max-w-[80vw]
+                              rounded-lg border border-slate-200 bg-white p-3
+                              text-sm font-normal text-slate-700 shadow-lg
+                              transition-opacity duration-200 break-words
+                              whitespace-normal z-50 pointer-events-none"
+                       role="tooltip"
+                     >
+                       <p class="mb-1 font-semibold text-slate-900">
+                         Full Address
+                       </p>
+                     
+                       @if (payer.addressLine1) {
+                         {{ payer.addressLine1 }}<br />
+                       }
+                     
+                       @if (payer.addressLine2) {
+                         {{ payer.addressLine2 }}<br />
+                       }
+                     
+                       {{ payer.city || '' }}
+                       @if (payer.city && payer.state) {
+                         ,
+                       }
+                       {{ payer.state || '' }}
+                       {{ payer.postalCode || '' }}
+                     
+                       @if (payer.country) {
+                         <br />{{ payer.country }}
+                       }
+                     </div>
+                     
+                  </div>
+                </td>
+
+                <td class="px-4 py-3">
+                  <span
+                    class="inline-block rounded-full px-2.5 py-1 text-xs font-medium"
+                    [class.bg-green-100]="payer.status === 'Active'"
+                    [class.text-green-700]="payer.status === 'Active'"
+                    [class.bg-slate-100]="payer.status !== 'Active'"
+                    [class.text-slate-600]="payer.status !== 'Active'"
+                  >
+                    {{ payer.status || '—' }}
+                  </span>
+                </td>
+
+                <td class="px-4 py-3">
+                  @if (payer.isPrimary) {
+                    <span class="font-medium text-green-700">Yes</span>
+                  } @else {
+                    <span class="text-slate-500">No</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="mt-5 rounded-xl border border-dashed border-slate-300 p-8 text-center">
+        <h3 class="font-semibold text-slate-700">No payers loaded</h3>
+        <p class="mt-1 text-sm text-slate-500">
+          No payers are currently assigned to this client.
+        </p>
+      </div>
+    }
+  </div>
+}
+
         <!-- SCHEDULE -->
         @if (section() === 'schedule') {
           <div class="space-y-4">
