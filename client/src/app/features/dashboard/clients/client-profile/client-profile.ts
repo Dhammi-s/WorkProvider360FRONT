@@ -21,11 +21,20 @@ import { ScheduleEditor } from '../../../../shared/ui/schedule-editor/schedule-e
 import { CareLog } from '../../../../shared/ui/care-log/care-log';
 import { ClientPayer } from '../../../../core/models/payer.model';
 import { ClientPayerService } from '../../../../core/services/ClientPayerService';
+import { FormsModule } from '@angular/forms';
 type Section = 'main' | 'schedule' | 'carelog' | 'payers';
 /** Full-page client profile: Main details, a Schedule calendar with inline shift creation, and Care Logs. */
 @Component({
   selector: 'app-client-profile',
-  imports: [DatePipe, RouterLink, Alert, VisitCalendar, ScheduleEditor, CareLog],
+  imports: [
+    DatePipe,
+    RouterLink,
+    FormsModule,
+    Alert,
+    VisitCalendar,
+    ScheduleEditor,
+    CareLog
+  ],
   templateUrl: './client-profile.html',
 })
 export class ClientProfile {
@@ -34,7 +43,11 @@ export class ClientProfile {
   private readonly scheduler = inject(SchedulerService);
   private readonly auth = inject(AuthService);
   private readonly clientPayerService = inject(ClientPayerService);
-
+  readonly editingPayerId = signal<number | null>(null);
+  readonly payerDraft = signal<Partial<ClientPayer>>({});
+  readonly payerSaving = signal(false);
+  readonly payerSuccess = signal('');
+  readonly payerEditError = signal('');
   readonly clientId = Number(this.route.snapshot.paramMap.get('id'));
   readonly canManage = computed(() => !!this.access()?.canManage);
   readonly payers = signal<ClientPayer[]>([]);
@@ -90,7 +103,71 @@ loadClientPayers(): void {
     }
   });
 }
+startPayerEdit(payer: ClientPayer): void {
+  if (!this.canManage()) return;
 
+  // Copy the payer so Cancel does not modify the original row.
+  this.payerDraft.set({ ...payer });
+  this.editingPayerId.set(payer.payerId);
+  this.payerEditError.set('');
+  this.payerSuccess.set('');
+}
+cancelPayerEdit(): void {
+  this.editingPayerId.set(null);
+  this.payerDraft.set({});
+  this.payerEditError.set('');
+}
+
+updatePayerField(
+  field: keyof ClientPayer,
+  value: string | boolean
+): void {
+  this.payerDraft.update(draft => ({
+    ...draft,
+    [field]: value
+  }));
+}
+
+savePayer(): void {
+  const payerId = this.editingPayerId();
+  const draft = this.payerDraft();
+
+  if (!this.canManage() || payerId === null || this.payerSaving()) {
+    return;
+  }
+
+  if (!draft.payerName?.trim()) {
+    this.payerEditError.set('Payer name is required.');
+    return;
+  }
+
+  this.payerSaving.set(true);
+  this.payerEditError.set('');
+  this.payerSuccess.set('');
+
+  this.clientPayerService.updatePayer(payerId, draft).subscribe({
+    next: updatedPayer => {
+      this.payers.update(current =>
+        current.map(payer =>
+          payer.payerId === payerId ? updatedPayer : payer
+        )
+      );
+
+      this.editingPayerId.set(null);
+      this.payerDraft.set({});
+      this.payerSaving.set(false);
+      this.payerSuccess.set('Payer updated successfully.');
+    },
+    error: (error: unknown) => {
+      this.payerEditError.set(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update payer. Please try again.'
+      );
+      this.payerSaving.set(false);
+    }
+  });
+}
 
 openPayers(): void {
   this.setSection('payers');
