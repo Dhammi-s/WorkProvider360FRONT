@@ -17,7 +17,9 @@
  *
  *   APP_API_BASE_URL   -> apiBaseUrl   (full deployed API base, e.g. https://api.example.com/api)
  *   APP_HUB_BASE_URL   -> hubBaseUrl   (SignalR origin, e.g. https://api.example.com)
- *   APP_TENANT_DOMAIN  -> tenantDomain (must match an active Agencies.DomainUrl)
+ *   APP_TENANT_DOMAIN  -> tenantDomain (optional: pins ONE agency for every visitor;
+ *                         leave unset so each agency is resolved from the domain
+ *                         the app is opened on — required for multi-tenant hosting)
  */
 
 import { writeFileSync } from 'node:fs';
@@ -30,7 +32,7 @@ const target = resolve(here, '../src/environments/environment.prod.ts');
 const env = process.env;
 const apiBaseUrl = env.APP_API_BASE_URL || 'https://workprovider360.runasp.net/api';
 const hubBaseUrl = env.APP_HUB_BASE_URL || 'https://workprovider360.runasp.net';
-const tenantDomain = env.APP_TENANT_DOMAIN || 'work-provider360-front-seven.vercel.app';
+const tenantDomain = env.APP_TENANT_DOMAIN || '';
 
 const esc = (v) => String(v).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
@@ -51,4 +53,4 @@ export const environment = {
 `;
 
 writeFileSync(target, contents, 'utf8');
-console.log(`[set-env] wrote environment.prod.ts  (apiBaseUrl=${apiBaseUrl}, tenantDomain=${tenantDomain})`);
+console.log(`[set-env] wrote environment.prod.ts  (apiBaseUrl=${apiBaseUrl}, tenantDomain=${tenantDomain || '(from browser domain)'})`);

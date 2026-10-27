@@ -24,8 +24,9 @@ export const environment = {
   // SignalR hub for live location. Relative in dev so the Angular proxy
   // (proxy.conf.json → /hubs, ws:true) forwards it to the backend.
   hubBaseUrl: '',
-  // Must match an active Agencies.DomainUrl. The seeded test agency (AgencyId 2)
-  // uses 'localhost'. The dev proxy rewrites the Host to runasp.net, so this
-  // explicit header is what selects the right tenant.
+  // Pins the tenant for local dev: must match an active Agencies.DomainUrl. The
+  // seeded test agency (AgencyId 2) uses 'localhost'. The dev proxy rewrites the
+  // Host to runasp.net, so this explicit header is what selects the right tenant.
+  // In production it is empty and the browser's own domain is used instead.
   tenantDomain: 'localhost',
 };

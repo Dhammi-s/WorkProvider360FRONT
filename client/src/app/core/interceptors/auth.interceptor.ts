@@ -14,6 +14,8 @@ import { TokenStorageService } from '../services/token-storage.service';
 /**
  * Attaches the Bearer access token (when present) and the `X-Tenant-Domain`
  * header so the backend can resolve the tenant on anonymous requests.
+ * The tenant is the domain the app is opened on (each agency has its own),
+ * unless `environment.tenantDomain` pins one (local dev behind the proxy).
  * Only touches requests aimed at our own API.
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
@@ -30,8 +32,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  if (environment.tenantDomain) {
-    headers['X-Tenant-Domain'] = environment.tenantDomain;
+  const tenantDomain = environment.tenantDomain || window.location.hostname;
+  if (tenantDomain) {
+    headers['X-Tenant-Domain'] = tenantDomain;
   }
 
   return next(Object.keys(headers).length ? req.clone({ setHeaders: headers }) : req);
