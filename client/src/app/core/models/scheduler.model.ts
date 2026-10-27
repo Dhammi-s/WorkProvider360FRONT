@@ -29,6 +29,10 @@ export interface SchedulingAccess {
   canManage: boolean;
   canManageAccess: boolean;
   isSelfScoped: boolean;
+  /** Can approve / un-approve schedules (SuperAdmin always; Admin / Manager per settings). */
+  canApprove: boolean;
+  /** May create invoices that include unapproved schedules (per-role setting). */
+  canInvoiceUnapproved: boolean;
 }
 
 export interface SchedulingSettings {
@@ -40,8 +44,25 @@ export interface SchedulingSettings {
   notifyAdminOnCreate: boolean;
   notifyManagerOnCreate: boolean;
   autoClockEnabled: boolean;
+  adminCanApproveSchedules: boolean;
+  managerCanApproveSchedules: boolean;
+  superAdminCanInvoiceUnapproved: boolean;
+  adminCanInvoiceUnapproved: boolean;
+  managerCanInvoiceUnapproved: boolean;
   updatedOn: string;
 }
+
+/** Who approves schedules, and which roles may invoice unapproved ones (SuperAdmin only). */
+export interface UpdateSchedulingApproval {
+  adminCanApproveSchedules: boolean;
+  managerCanApproveSchedules: boolean;
+  superAdminCanInvoiceUnapproved: boolean;
+  adminCanInvoiceUnapproved: boolean;
+  managerCanInvoiceUnapproved: boolean;
+}
+
+/** Status picked when creating a schedule; Approved needs approve permission. */
+export type InitialScheduleStatus = 'Scheduled' | 'Approved' | 'Cancelled';
 
 export interface UpdateSchedulingAccess {
   adminAccess: AccessLevel;
@@ -76,6 +97,11 @@ export interface Schedule {
   status: ScheduleStatus;
   rejectionReason?: string | null;
   colorTag?: string | null;
+  /** Approval is separate from status; only approved schedules are invoiced by default. */
+  isApproved: boolean;
+  approvedByUserId?: number | null;
+  approvedByName?: string | null;
+  approvedOn?: string | null;
   createdByUserId: number;
   createdOn: string;
   updatedOn: string;
@@ -128,6 +154,7 @@ export interface CreateScheduleRequest {
   billRatePerHour: number;
   overtimeMultiplier: number;
   colorTag?: string | null;
+  status?: InitialScheduleStatus;
   notifyAdmin: boolean;
   notifyManager: boolean;
 }
@@ -173,6 +200,13 @@ export interface ScheduleReportRow {
   regularPay: number;
   overtimePay: number;
   totalPay: number;
+  /** The same figures for approved schedules only. */
+  approvedScheduleCount: number;
+  unapprovedScheduleCount: number;
+  approvedRegularHours: number;
+  approvedOvertimeHours: number;
+  approvedTotalHours: number;
+  approvedTotalPay: number;
 }
 
 export interface ScheduleReport {

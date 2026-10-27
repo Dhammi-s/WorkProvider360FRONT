@@ -15,7 +15,7 @@ import { ClientService } from '../../../core/services/client.service';
 import { ServiceTypeService } from '../../../core/services/service-type.service';
 import { ClientPayerService } from '../../../core/services/ClientPayerService';
 import { ResolvedRates } from '../../../core/models/payer.model';
-import { ScheduleConflict } from '../../../core/models/scheduler.model';
+import { InitialScheduleStatus, ScheduleConflict } from '../../../core/models/scheduler.model';
 import { ServiceType } from '../../../core/models/service-type.model';
 import { Client, EligibleCaregiver } from '../../../core/models/client.model';
 import { Alert } from '../alert/alert';
@@ -68,6 +68,8 @@ export class ScheduleEditor {
   readonly fStart = signal('09:00');
   readonly fEnd = signal('10:00');
   readonly rate = signal(0);
+  readonly status = signal<InitialScheduleStatus>('Scheduled');
+  readonly canApprove = signal(false);
   readonly billRate = signal(0);
   readonly resolvedRates = signal<ResolvedRates | null>(null);
 
@@ -92,6 +94,7 @@ export class ScheduleEditor {
 
   constructor() {
     this.serviceTypeSvc.active().subscribe({ next: (t) => this.serviceTypes.set(t), error: () => {} });
+    this.scheduler.getAccess().subscribe({ next: (a) => this.canApprove.set(a.canApprove), error: () => {} });
     // Agency defaults until a client is picked (the client's resolved rates replace them).
     this.scheduler.getSettings().subscribe({
       next: (s) => {
@@ -211,7 +214,7 @@ export class ScheduleEditor {
     if (!times || times.endUtc <= times.startUtc) return this.error.set('End time must be after start time.');
 
     // Rate conflict: nothing in the client / payers / defaults chain had a rate.
-    if (!this.ratesAcknowledged && this.missingRates().length) {
+    if (!this.ratesAcknowledged && this.status() !== 'Cancelled' && this.missingRates().length) {
       this.rateConflict.set(this.missingRates());
       return;
     }
@@ -267,6 +270,7 @@ export class ScheduleEditor {
         billRatePerHour: Number(this.billRate()) || 0,
         overtimeMultiplier: 1.5,
         colorTag: null,
+        status: this.status(),
         notifyAdmin: false,
         notifyManager: false,
       })

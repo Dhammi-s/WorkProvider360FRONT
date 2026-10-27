@@ -352,6 +352,9 @@
                 }
               </ol>
             </div>
+
+            <!-- Invoices billed to this client -->
+            <app-client-invoices [clientId]="clientId" [canManage]="canManage()" />
           </div>
         }
 
