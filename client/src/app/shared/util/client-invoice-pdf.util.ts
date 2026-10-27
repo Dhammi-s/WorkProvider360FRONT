@@ -27,8 +27,14 @@ function fmtTime(iso: string): string {
   return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
+export interface ClientInvoicePdfOptions {
+  /** Mark lines that were not approved (staff copy). Off for the client portal. */
+  showApproval?: boolean;
+}
+
 /** Builds the off-screen client invoice (same look as the payroll invoice). */
-function buildElement({ invoice: i, lines }: ClientInvoiceDetail): HTMLElement {
+function buildElement({ invoice: i, lines }: ClientInvoiceDetail, opts: ClientInvoicePdfOptions): HTMLElement {
+  const showApproval = opts.showApproval ?? true;
   const stamp =
     i.status === 'Paid'
       ? { text: 'PAID', color: '#059669' }
@@ -42,7 +48,7 @@ function buildElement({ invoice: i, lines }: ClientInvoiceDetail): HTMLElement {
       <tr style="border-bottom:1px solid #f1f5f9">
         <td style="padding:8px 0">
           <div style="font-weight:600">${esc(l.description)}</div>
-          <div style="color:#64748b;font-size:11px">${esc(fmtDate(l.serviceStartUtc))} · ${esc(fmtTime(l.serviceStartUtc))}–${esc(fmtTime(l.serviceEndUtc))}${l.caregiverName ? ' · ' + esc(l.caregiverName) : ''}${l.isApproved ? '' : ' · <span style="color:#b45309">not approved</span>'}</div>
+          <div style="color:#64748b;font-size:11px">${esc(fmtDate(l.serviceStartUtc))} · ${esc(fmtTime(l.serviceStartUtc))}–${esc(fmtTime(l.serviceEndUtc))}${l.caregiverName ? ' · ' + esc(l.caregiverName) : ''}${showApproval && !l.isApproved ? ' · <span style="color:#b45309">not approved</span>' : ''}</div>
         </td>
         <td style="padding:8px 0;text-align:right">${l.hours.toFixed(2)}</td>
         <td style="padding:8px 0;text-align:right">${money(l.billRatePerHour)}</td>
@@ -122,9 +128,9 @@ const PDF_OPTS = {
 };
 
 /** Renders the client invoice to PDF in the browser and downloads it. */
-export async function downloadClientInvoicePdf(detail: ClientInvoiceDetail): Promise<void> {
+export async function downloadClientInvoicePdf(detail: ClientInvoiceDetail, opts: ClientInvoicePdfOptions = {}): Promise<void> {
   const html2pdf = (await import('html2pdf.js')).default;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const worker: any = html2pdf().set({ ...PDF_OPTS, filename: `invoice-${detail.invoice.invoiceNumber}.pdf` } as any).from(buildElement(detail));
+  const worker: any = html2pdf().set({ ...PDF_OPTS, filename: `invoice-${detail.invoice.invoiceNumber}.pdf` } as any).from(buildElement(detail, opts));
   await worker.save();
 }

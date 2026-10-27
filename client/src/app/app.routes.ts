@@ -262,6 +262,12 @@ export const routes: Routes = [
         title: 'My visits · WorkProvider360',
       },
       {
+        path: 'invoices',
+        loadComponent: () =>
+          import('./features/portal/portal-invoices/portal-invoices').then((m) => m.PortalInvoices),
+        title: 'Invoices · WorkProvider360',
+      },
+      {
         path: 'services',
         loadComponent: () =>
           import('./features/portal/portal-services/portal-services').then((m) => m.PortalServices),

@@ -1,0 +1,57 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     ============================================================================= -->
+<section class="space-y-4 wp-anim-up">
+  <div>
+    <h1 class="text-2xl font-extrabold tracking-tight text-portal-900">Your invoices</h1>
+    <p class="mt-1 text-sm text-slate-500">Invoices for your care visits. Download any of them as a PDF.</p>
+  </div>
+  <app-alert type="error" [message]="error()" />
+
+  @if (loading()) {
+    <div class="wp-card flex items-center justify-center py-16 text-slate-400"><span class="text-sm">Loading…</span></div>
+  } @else if (items().length === 0) {
+    <div class="wp-card py-12 text-center"><p class="text-sm text-slate-500">You have no invoices yet.</p></div>
+  } @else {
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div class="wp-card !p-4">
+        <div class="text-xs text-slate-400">Amount due</div>
+        <div class="mt-1 text-xl font-extrabold" [class]="amountDue() > 0 ? 'text-indigo-700' : 'text-slate-800'">{{ amountDue() | currency: 'USD' }}</div>
+      </div>
+      <div class="wp-card !p-4">
+        <div class="text-xs text-slate-400">Paid</div>
+        <div class="mt-1 text-xl font-extrabold text-emerald-700">{{ amountPaid() | currency: 'USD' }}</div>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      @for (inv of items(); track inv.clientInvoiceId) {
+        <div class="wp-card !p-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-mono text-xs text-slate-500">{{ inv.invoiceNumber }}</span>
+              <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                [class]="inv.status === 'Paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-indigo-50 text-indigo-700'">
+                {{ inv.status === 'Paid' ? 'Paid' : 'Due' }}
+              </span>
+            </div>
+            <div class="mt-1 text-sm text-slate-700">
+              Visits {{ inv.periodFromUtc | date: 'MMM d' }} – {{ inv.periodToUtc | date: 'MMM d, y' }}
+              · {{ inv.totalHours | number: '1.0-2' }} h
+            </div>
+            <div class="text-xs text-slate-400">
+              Issued {{ inv.createdOn | date: 'MMM d, y' }}{{ inv.paidOn ? ' · paid ' + (inv.paidOn | date: 'MMM d, y') : '' }} · billed to {{ inv.billToName }}
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-lg font-bold text-slate-900">{{ inv.amount | currency: 'USD' }}</span>
+            <button type="button" (click)="downloadPdf(inv)" [disabled]="busyId() !== null" class="wp-btn-portal !py-1.5 !px-3 text-xs">
+              @if (busyId() === inv.clientInvoiceId) { Preparing… } @else { Download PDF }
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</section>
