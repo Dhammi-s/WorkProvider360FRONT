@@ -63,6 +63,56 @@
               </div>
             }
           </div>
+
+          <!-- Portal access -->
+          <div class="wp-card mt-4">
+            <h2 class="text-lg font-bold text-slate-900">Portal access</h2>
+            <app-alert type="success" [message]="portalNotice()" />
+            <app-alert type="error" [message]="portalError()" />
+            @if (c.portalEnabled) {
+              <p class="mt-2 text-sm text-slate-600">Enabled for <span class="font-semibold">{{ c.portalEmail || c.email }}</span>.</p>
+              @if (c.portalIsLockedOut) {
+                <p class="mt-1 text-xs font-semibold text-red-600">Account locked.</p>
+              }
+              @if (canManage()) {
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <button type="button" (click)="portalConfirm.set('resend')" class="wp-btn-ghost !py-1.5 !px-3 text-xs" [disabled]="portalBusy()">
+                    @if (portalBusy()) { Working… } @else { Resend credentials }
+                  </button>
+                  <button type="button" (click)="portalConfirm.set('disable')" class="!py-1.5 !px-3 text-xs font-semibold text-red-600" [disabled]="portalBusy()">Disable</button>
+                </div>
+              }
+            } @else {
+              <p class="mt-2 text-sm text-slate-500">The portal is off for this client.</p>
+              @if (canManage()) {
+                <button type="button" (click)="togglePortal(true)" class="wp-btn-portal mt-3 !py-1.5 !px-3 text-xs" [disabled]="portalBusy() || !c.email">
+                  @if (portalBusy()) { Working… } @else { Enable portal &amp; email login }
+                </button>
+                @if (!c.email) {
+                  <p class="mt-1 text-xs text-amber-600">Add an email to this client first.</p>
+                }
+              }
+            }
+            <p class="mt-3 text-xs text-slate-400">Login credentials are emailed to the client and to their active payers that have an email address.</p>
+          </div>
+
+          @if (portalConfirm() === 'resend') {
+            <app-confirm-dialog
+              title="Resend portal credentials?"
+              [message]="'A new temporary password will be emailed to ' + (c.portalEmail || c.email) + ' and the client\'s active payers. The current password will stop working.'"
+              confirmLabel="Resend credentials"
+              (confirmed)="resendCredentials()"
+              (cancelled)="portalConfirm.set(null)" />
+          }
+          @if (portalConfirm() === 'disable') {
+            <app-confirm-dialog
+              tone="danger"
+              title="Disable portal access?"
+              message="The client will no longer be able to sign in to the portal. You can enable it again later."
+              confirmLabel="Disable portal"
+              (confirmed)="togglePortal(false)"
+              (cancelled)="portalConfirm.set(null)" />
+          }
         }
 
         <!-- PAYERS -->

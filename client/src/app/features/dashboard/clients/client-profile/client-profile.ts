@@ -21,6 +21,7 @@ import { VisitCalendar } from '../../../../shared/ui/visit-calendar/visit-calend
 import { ScheduleEditor } from '../../../../shared/ui/schedule-editor/schedule-editor';
 import { CareLog } from '../../../../shared/ui/care-log/care-log';
 import { ClientInvoices } from '../../../../shared/ui/client-invoices/client-invoices';
+import { ConfirmDialog } from '../../../../shared/ui/confirm-dialog/confirm-dialog';
 import {
   ClientPayer,
   PayerRank,
@@ -83,7 +84,7 @@ function rateText(value: number | null | undefined): string {
 /** Full-page client profile: Main details, Schedule, Care Logs, Payers and Billing & Invoice. */
 @Component({
   selector: 'app-client-profile',
-  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, Alert, VisitCalendar, ScheduleEditor, CareLog, ClientInvoices],
+  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, Alert, VisitCalendar, ScheduleEditor, CareLog, ClientInvoices, ConfirmDialog],
   templateUrl: './client-profile.html',
 })
 export class ClientProfile {
@@ -119,6 +120,12 @@ export class ClientProfile {
   readonly careLogVisit = signal<ClientVisit | null>(null);
   readonly careLogEntries = signal<CareLogEntry[]>([]);
   readonly careLogBusy = signal(false);
+
+  // Portal access (Main tab).
+  readonly portalBusy = signal(false);
+  readonly portalNotice = signal('');
+  readonly portalError = signal('');
+  readonly portalConfirm = signal<'resend' | 'disable' | null>(null);
 
   // Payer add / edit (inline card).
   readonly payerFormOpen = signal(false);
@@ -228,6 +235,45 @@ export class ClientProfile {
     if (s === 'billing') {
       this.loadBilling();
     }
+  }
+
+  // ------------------------------------------------------- Portal access
+
+  /** Enable (creates the login and emails it to the client and payers) or disable the portal. */
+  togglePortal(enabled: boolean): void {
+    this.portalConfirm.set(null);
+    this.portalBusy.set(true);
+    this.portalNotice.set('');
+    this.portalError.set('');
+    this.service.setPortalAccess(this.clientId, { enabled }).subscribe({
+      next: (updated) => {
+        this.portalBusy.set(false);
+        this.client.set(updated);
+        this.portalNotice.set(enabled ? 'Portal enabled and login credentials emailed.' : 'Portal disabled.');
+      },
+      error: (err: Error) => {
+        this.portalBusy.set(false);
+        this.portalError.set(err.message || 'Could not change portal access.');
+      },
+    });
+  }
+
+  /** New temporary password, emailed to the client and their active payers. */
+  resendCredentials(): void {
+    this.portalConfirm.set(null);
+    this.portalBusy.set(true);
+    this.portalNotice.set('');
+    this.portalError.set('');
+    this.service.resendCredentials(this.clientId).subscribe({
+      next: (msg) => {
+        this.portalBusy.set(false);
+        this.portalNotice.set(msg);
+      },
+      error: (err: Error) => {
+        this.portalBusy.set(false);
+        this.portalError.set(err.message || 'Could not resend credentials.');
+      },
+    });
   }
 
   // ------------------------------------------------------------ Payers
