@@ -259,8 +259,22 @@
             </div>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
+                <label class="wp-label">Bill rate / hour</label>
+                <input type="number" min="0" step="0.5" class="wp-input" [ngModel]="fBillRate()" (ngModelChange)="fBillRate.set($event)" />
+                @if (fResolvedRates(); as r) {
+                  <p class="mt-1 text-[11px]" [class]="r.isBillRateMissing ? 'text-amber-700' : 'text-slate-400'">
+                    {{ r.isBillRateMissing ? 'Missing — not set on client, payers or defaults' : 'From ' + r.billRateSource }}
+                  </p>
+                }
+              </div>
+              <div>
                 <label class="wp-label">Pay rate / hour</label>
                 <input type="number" min="0" step="0.5" class="wp-input" [ngModel]="fRate()" (ngModelChange)="fRate.set($event)" />
+                @if (fResolvedRates(); as r) {
+                  <p class="mt-1 text-[11px]" [class]="r.isPayRateMissing ? 'text-amber-700' : 'text-slate-400'">
+                    {{ r.isPayRateMissing ? 'Missing — not set on client, payers or defaults' : 'From ' + r.payRateSource }}
+                  </p>
+                }
               </div>
               <div>
                 <label class="wp-label">Overtime multiplier</label>
@@ -286,6 +300,20 @@
             }
           </div>
         </div>
+
+        @if (rateConflict(); as missing) {
+          <div class="mx-6 rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <p class="text-sm font-bold text-amber-800">Rate conflict</p>
+            <p class="text-xs text-amber-700">
+              {{ missing.join(' and ') }} {{ missing.length > 1 ? 'are' : 'is' }} missing. Nothing was found on the client, its primary,
+              secondary or other payers, or the agency defaults in Settings.
+            </p>
+            <div class="mt-3 flex gap-2">
+              <button type="button" (click)="ignoreRateConflictSave()" [disabled]="formBusy()" class="wp-btn-primary !py-1.5 !px-3 text-xs">Ignore &amp; save</button>
+              <button type="button" (click)="cancelRateConflict()" class="wp-btn-ghost !py-1.5 !px-3 text-xs">Cancel</button>
+            </div>
+          </div>
+        }
 
         @if (schedConflicts(); as list) {
           <div class="mx-6 rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -350,6 +378,7 @@
               <div><dt class="text-xs text-slate-400">Start</dt><dd class="font-semibold text-slate-700">{{ d.schedule.startUtc | date:'EEE d MMM, HH:mm' }}</dd></div>
               <div><dt class="text-xs text-slate-400">End</dt><dd class="font-semibold text-slate-700">{{ d.schedule.endUtc | date:'EEE d MMM, HH:mm' }}</dd></div>
               <div><dt class="text-xs text-slate-400">Location</dt><dd class="font-semibold text-slate-700">{{ d.schedule.location || '—' }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Bill</dt><dd class="font-semibold text-slate-700">{{ d.schedule.billRatePerHour | number:'1.2-2' }}/hr</dd></div>
               <div><dt class="text-xs text-slate-400">Pay</dt><dd class="font-semibold text-slate-700">{{ d.schedule.payRatePerHour | number:'1.2-2' }}/hr · OT Ã{{ d.schedule.overtimeMultiplier }}</dd></div>
             </dl>
 

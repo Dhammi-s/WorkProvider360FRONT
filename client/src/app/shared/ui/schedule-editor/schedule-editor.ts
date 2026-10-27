@@ -13,6 +13,8 @@ import { Subject, debounceTime } from 'rxjs';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { ClientService } from '../../../core/services/client.service';
 import { ServiceTypeService } from '../../../core/services/service-type.service';
+import { ClientPayerService } from '../../../core/services/ClientPayerService';
+import { ResolvedRates } from '../../../core/models/payer.model';
 import { ScheduleConflict } from '../../../core/models/scheduler.model';
 import { ServiceType } from '../../../core/models/service-type.model';
 import { Client, EligibleCaregiver } from '../../../core/models/client.model';
@@ -26,7 +28,9 @@ function pad(n: number): string {
  * Inline (never-modal) Add Shift editor. Renders on the same screen as a card.
  * Reused on the client profile (client locked), the user profile (caregiver
  * locked) and anywhere a shift is created. Checks caregiver double-booking on
- * save and lets the scheduler ignore-and-save.
+ * save and lets the scheduler ignore-and-save. Bill / pay rates are pre-filled
+ * from the client, its payers (primary, secondary, others), then the agency
+ * defaults; a missing rate shows a rate conflict that can also be ignored.
  */
 @Component({
   selector: 'app-schedule-editor',
@@ -38,6 +42,7 @@ export class ScheduleEditor {
   private readonly scheduler = inject(SchedulerService);
   private readonly clients = inject(ClientService);
   private readonly serviceTypeSvc = inject(ServiceTypeService);
+  private readonly payerSvc = inject(ClientPayerService);
 
   // A shift is created for this client (client profile) or this caregiver (user profile).
   readonly fixedClientId = input<number | null>(null);
@@ -63,10 +68,22 @@ export class ScheduleEditor {
   readonly fStart = signal('09:00');
   readonly fEnd = signal('10:00');
   readonly rate = signal(0);
+  readonly billRate = signal(0);
+  readonly resolvedRates = signal<ResolvedRates | null>(null);
 
   readonly busy = signal(false);
   readonly error = signal('');
   readonly conflicts = signal<ScheduleConflict[] | null>(null);
+  /** Names of the missing rates while the rate-conflict box is open. */
+  readonly rateConflict = signal<string[] | null>(null);
+  private ratesAcknowledged = false;
+
+  readonly missingRates = computed(() => {
+    const missing: string[] = [];
+    if (!(Number(this.billRate()) > 0)) missing.push('Bill rate');
+    if (!(Number(this.rate()) > 0)) missing.push('Pay rate');
+    return missing;
+  });
 
   private readonly clientSearch$ = new Subject<string>();
 
@@ -75,6 +92,15 @@ export class ScheduleEditor {
 
   constructor() {
     this.serviceTypeSvc.active().subscribe({ next: (t) => this.serviceTypes.set(t), error: () => {} });
+    // Agency defaults until a client is picked (the client's resolved rates replace them).
+    this.scheduler.getSettings().subscribe({
+      next: (s) => {
+        if (this.resolvedRates()) return;
+        this.rate.set(s.defaultPayRatePerHour || 0);
+        this.billRate.set(s.defaultBillRatePerHour || 0);
+      },
+      error: () => {},
+    });
 
     this.clientSearch$.pipe(debounceTime(300)).subscribe((q) => {
       if (!q.trim()) {
@@ -94,6 +120,7 @@ export class ScheduleEditor {
         this.clientId.set(fc);
         this.clientName.set(this.fixedClientName());
         this.loadEligible();
+        this.loadRates();
       }
       const fu = this.fixedUserId();
       if (fu != null && this.assigneeId() == null) this.assigneeId.set(fu);
@@ -124,6 +151,7 @@ export class ScheduleEditor {
     this.clientOptions.set([]);
     this.assigneeId.set(this.fixedUserId());
     this.loadEligible();
+    this.loadRates();
     if (!this.title().trim()) this.title.set(c.fullName);
   }
 
@@ -131,6 +159,24 @@ export class ScheduleEditor {
     this.clientId.set(null);
     this.clientName.set('');
     this.eligible.set([]);
+    this.resolvedRates.set(null);
+    this.ratesAcknowledged = false;
+  }
+
+  /** Client -> primary payer -> secondary payer -> other payers -> agency defaults. */
+  private loadRates(): void {
+    const cid = this.clientId();
+    if (cid == null) return;
+    this.ratesAcknowledged = false;
+    this.rateConflict.set(null);
+    this.payerSvc.resolvedRates(cid).subscribe({
+      next: (r) => {
+        this.resolvedRates.set(r);
+        this.billRate.set(r.billRatePerHour ?? 0);
+        this.rate.set(r.payRatePerHour ?? 0);
+      },
+      error: () => this.resolvedRates.set(null),
+    });
   }
 
   setServiceType(id: number | null): void {
@@ -164,6 +210,12 @@ export class ScheduleEditor {
     const times = this.buildTimes();
     if (!times || times.endUtc <= times.startUtc) return this.error.set('End time must be after start time.');
 
+    // Rate conflict: nothing in the client / payers / defaults chain had a rate.
+    if (!this.ratesAcknowledged && this.missingRates().length) {
+      this.rateConflict.set(this.missingRates());
+      return;
+    }
+
     this.busy.set(true);
     // Double-booking check first.
     this.scheduler.conflicts(this.assigneeId()!, times.startUtc, times.endUtc).subscribe({
@@ -177,6 +229,16 @@ export class ScheduleEditor {
       },
       error: () => this.doSave(times), // never block scheduling on the check itself
     });
+  }
+
+  ignoreRateConflictAndSave(): void {
+    this.ratesAcknowledged = true;
+    this.rateConflict.set(null);
+    this.save();
+  }
+
+  cancelRateConflict(): void {
+    this.rateConflict.set(null);
   }
 
   ignoreConflictsAndSave(): void {
@@ -202,6 +264,7 @@ export class ScheduleEditor {
         startUtc: times.startUtc,
         endUtc: times.endUtc,
         payRatePerHour: Number(this.rate()) || 0,
+        billRatePerHour: Number(this.billRate()) || 0,
         overtimeMultiplier: 1.5,
         colorTag: null,
         notifyAdmin: false,

@@ -154,13 +154,17 @@
         @if (activeTab() === 'scheduling') {
           <div class="wp-card">
             <h2 class="text-base font-bold text-slate-900">Schedule defaults</h2>
-            <p class="mt-1 text-sm text-slate-500">Pre-filled when creating a new schedule, and used for notifications.</p>
+            <p class="mt-1 text-sm text-slate-500">Pre-filled when creating a new schedule, and used for notifications. The default bill and pay rates are the last fallback when neither the client nor any of its payers has a rate; if they are empty too, new shifts show a rate conflict.</p>
             <app-alert type="error" [message]="schedError()" />
             <app-alert type="success" [message]="defaultsNotice()" />
             <div class="mt-4 space-y-4">
-              <div class="grid grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
-                  <label class="wp-label">Default pay / hour</label>
+                  <label class="wp-label">Default bill rate / hour</label>
+                  <input type="number" min="0" step="0.5" class="wp-input" [ngModel]="defBillRate()" (ngModelChange)="defBillRate.set($event)" [disabled]="!canManageSched()" />
+                </div>
+                <div>
+                  <label class="wp-label">Default pay rate / hour</label>
                   <input type="number" min="0" step="0.5" class="wp-input" [ngModel]="defRate()" (ngModelChange)="defRate.set($event)" [disabled]="!canManageSched()" />
                 </div>
                 <div>

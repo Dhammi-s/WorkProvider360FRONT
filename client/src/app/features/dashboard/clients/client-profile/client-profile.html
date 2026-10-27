@@ -24,23 +24,16 @@
           </div>
         </div>
         <nav class="space-y-1">
-  @for (item of [
-    ['main', 'Main'],
-    ['schedule', 'Schedule'],
-    ['carelog', 'Care Logs'],
-    ['payers', 'Payers']
-  ]; track item[0]) {
-    <button
-      type="button"
-      (click)="setSection($any(item[0]))"
-      class="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition"
-      [class]="section() === item[0]
-        ? 'bg-brand-50 text-brand-700'
-        : 'text-slate-600 hover:bg-slate-50'">
-      {{ item[1] }}
-    </button>
-  }
-</nav>
+          @for (item of sections; track item[0]) {
+            <button
+              type="button"
+              (click)="setSection(item[0])"
+              class="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition"
+              [class]="section() === item[0] ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50'">
+              {{ item[1] }}
+            </button>
+          }
+        </nav>
       </aside>
 
       <!-- Content -->
@@ -71,150 +64,296 @@
             }
           </div>
         }
+
         <!-- PAYERS -->
+        @if (section() === 'payers') {
+          <div class="space-y-4">
+            <div class="wp-card">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <h2 class="text-lg font-bold text-slate-900">Client Payers</h2>
+                  <p class="mt-1 text-sm text-slate-500">
+                    Insurance providers and other payers for this client. Rates are checked primary first, then secondary, then the other payers.
+                  </p>
+                </div>
+                @if (canManage() && !payerFormOpen()) {
+                  <button type="button" (click)="openAddPayer()" class="wp-btn-primary !py-2 !px-3 shrink-0 text-sm">+ Add payer</button>
+                }
+              </div>
 
-         
-        
-@if (section() === 'payers') {
-  <div class="wp-card">
-    <div class="flex items-center justify-between gap-3">
-      <div>
-        <h2 class="text-lg font-bold text-slate-900">Client Payers</h2>
-        <p class="mt-1 text-sm text-slate-500">
-          Manage insurance providers and other payers for this client.
-        </p>
-      </div>
+              <app-alert type="error" [message]="payersError()" />
+              <app-alert type="success" [message]="payerNotice()" />
 
-      @if (canManage()) {
-        <!-- Add payer button can go here -->
-      }
-    </div>
+              @if (payersLoading()) {
+                <p class="mt-5 text-sm text-slate-400">Loading payers…</p>
+              } @else if (payers().length > 0) {
+                <div class="mt-5 overflow-x-auto rounded-xl border border-slate-200">
+                  <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-50 text-slate-600">
+                      <tr>
+                        <th class="px-4 py-3 font-semibold">Payer Name</th>
+                        <th class="px-4 py-3 font-semibold">Rank</th>
+                        <th class="px-4 py-3 font-semibold">Email</th>
+                        <th class="px-4 py-3 font-semibold">Phone</th>
+                        <th class="px-4 py-3 font-semibold">Address</th>
+                        <th class="px-4 py-3 font-semibold whitespace-nowrap">Bill rate / hr</th>
+                        <th class="px-4 py-3 font-semibold whitespace-nowrap">Pay rate / hr</th>
+                        <th class="px-4 py-3 font-semibold">Status</th>
+                        @if (canManage()) {
+                          <th class="px-4 py-3"></th>
+                        }
+                      </tr>
+                    </thead>
 
-    @if (payers().length > 0) {
-      <div class="mt-5 overflow-x-auto rounded-xl border border-slate-200">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-slate-50 text-slate-600">
-            <tr>
-              <th class="px-4 py-3 font-semibold">Payer Name</th>
-              <th class="px-4 py-3 font-semibold">Email</th>
-              <th class="px-4 py-3 font-semibold">Phone</th>
-              <th class="px-4 py-3 font-semibold">Address</th>
-              <th class="px-4 py-3 font-semibold">Status</th>
-              <th class="px-4 py-3 font-semibold">Primary</th>
-            </tr>
-          </thead>
-
-          <tbody class="divide-y divide-slate-200">
-            @for (payer of payers(); track payer.payerId) {
-              <tr class="hover:bg-slate-50">
-                <td class="px-4 py-3 font-medium text-slate-900">
-                  {{ payer.payerName || '—' }}
-                </td>
-
-                <td class="px-4 py-3 text-slate-600">
-                  {{ payer.email || '—' }}
-                </td>
-
-                <td class="px-4 py-3 text-slate-600 whitespace-nowrap">
-                  {{ payer.phone || '—' }}
-                </td>
-
-                <td class="px-4 py-3 text-slate-600">
-                  <div class="relative group max-w-[180px]">
-                    <button
-                      type="button"
-                      class="block w-full truncate text-left cursor-pointer hover:text-blue-600"
-                      [attr.aria-label]="'View full address for ' + payer.payerName"
-                    >
-                      {{ payer.addressLine1 || '' }}
-                      @if (payer.addressLine2) {
-                        , {{ payer.addressLine2 }}
+                    <tbody class="divide-y divide-slate-200">
+                      @for (payer of payers(); track payer.payerId) {
+                        <tr class="hover:bg-slate-50">
+                          <td class="px-4 py-3 font-medium text-slate-900">{{ payer.payerName || '—' }}</td>
+                          <td class="px-4 py-3">
+                            <span class="rounded-full px-2 py-0.5 text-xs font-semibold" [class]="rankBadge(payerRank(payer))">{{ payerRank(payer) }}</span>
+                          </td>
+                          <td class="px-4 py-3 text-slate-600">{{ payer.email || '—' }}</td>
+                          <td class="px-4 py-3 text-slate-600 whitespace-nowrap">{{ payer.phone || '—' }}</td>
+                          <td class="px-4 py-3 text-slate-600">
+                            <div class="relative group max-w-[180px]">
+                              <button
+                                type="button"
+                                class="block w-full truncate text-left cursor-pointer hover:text-blue-600"
+                                [attr.aria-label]="'View full address for ' + payer.payerName">
+                                {{ payer.addressLine1 || '—' }}{{ payer.city ? ', ' + payer.city : '' }}{{ payer.state ? ', ' + payer.state : '' }}
+                              </button>
+                              <div
+                                class="invisible opacity-0 group-hover:visible group-hover:opacity-100
+                                       absolute left-0 bottom-full mb-2 w-64 max-w-[80vw]
+                                       rounded-lg border border-slate-200 bg-white p-3
+                                       text-sm font-normal text-slate-700 shadow-lg
+                                       transition-opacity duration-200 break-words
+                                       whitespace-normal z-50 pointer-events-none"
+                                role="tooltip">
+                                <p class="mb-1 font-semibold text-slate-900">Full Address</p>
+                                @if (payer.addressLine1) {
+                                  {{ payer.addressLine1 }}<br />
+                                }
+                                @if (payer.addressLine2) {
+                                  {{ payer.addressLine2 }}<br />
+                                }
+                                {{ payer.city || '' }}{{ payer.city && payer.state ? ',' : '' }} {{ payer.state || '' }} {{ payer.postalCode || '' }}
+                                @if (payer.country) {
+                                  <br />{{ payer.country }}
+                                }
+                              </div>
+                            </div>
+                          </td>
+                          <td class="px-4 py-3 text-slate-700">
+                            @if (payer.billRatePerHour != null) { {{ payer.billRatePerHour | number: '1.2-2' }} } @else { <span class="text-slate-400">Not set</span> }
+                          </td>
+                          <td class="px-4 py-3 text-slate-700">
+                            @if (payer.payRatePerHour != null) { {{ payer.payRatePerHour | number: '1.2-2' }} } @else { <span class="text-slate-400">Not set</span> }
+                          </td>
+                          <td class="px-4 py-3">
+                            <span
+                              class="inline-block rounded-full px-2.5 py-1 text-xs font-medium"
+                              [class]="payer.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'">
+                              {{ payer.status || '—' }}
+                            </span>
+                          </td>
+                          @if (canManage()) {
+                            <td class="px-4 py-3 text-right">
+                              <button type="button" (click)="openEditPayer(payer)" class="text-xs font-semibold text-brand-700 hover:underline">Edit</button>
+                            </td>
+                          }
+                        </tr>
                       }
-                      @if (payer.city) {
-                        , {{ payer.city }}
-                      }
-                      @if (payer.state) {
-                        , {{ payer.state }}
-                      }
-                      @if (payer.postalCode) {
-                        {{ payer.postalCode }}
-                      }
-                      @if (payer.country) {
-                        , {{ payer.country }}
-                      }
-                    </button>
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <div class="mt-5 rounded-xl border border-dashed border-slate-300 p-8 text-center">
+                  <h3 class="font-semibold text-slate-700">No payers yet</h3>
+                  <p class="mt-1 text-sm text-slate-500">No payers are currently assigned to this client.</p>
+                </div>
+              }
+            </div>
 
-                                         
-                     <div
-                       class="invisible opacity-0 group-hover:visible group-hover:opacity-100
-                              absolute left-0 bottom-full mb-2 w-64 max-w-[80vw]
-                              rounded-lg border border-slate-200 bg-white p-3
-                              text-sm font-normal text-slate-700 shadow-lg
-                              transition-opacity duration-200 break-words
-                              whitespace-normal z-50 pointer-events-none"
-                       role="tooltip"
-                     >
-                       <p class="mb-1 font-semibold text-slate-900">
-                         Full Address
-                       </p>
-                     
-                       @if (payer.addressLine1) {
-                         {{ payer.addressLine1 }}<br />
-                       }
-                     
-                       @if (payer.addressLine2) {
-                         {{ payer.addressLine2 }}<br />
-                       }
-                     
-                       {{ payer.city || '' }}
-                       @if (payer.city && payer.state) {
-                         ,
-                       }
-                       {{ payer.state || '' }}
-                       {{ payer.postalCode || '' }}
-                     
-                       @if (payer.country) {
-                         <br />{{ payer.country }}
-                       }
-                     </div>
-                     
+            <!-- Add / edit payer (inline) -->
+            @if (canManage() && payerFormOpen()) {
+              <div class="wp-card !p-5">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-base font-bold text-slate-900">{{ payerForm().payerId ? 'Edit payer' : 'Add payer' }}</h3>
+                  <button type="button" (click)="closePayerForm()" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close">
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+                  </button>
+                </div>
+
+                <app-alert type="error" [message]="payerFormError()" />
+
+                <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div class="sm:col-span-2">
+                    <label class="wp-label">Payer name</label>
+                    <input class="wp-input" [ngModel]="payerForm().payerName" (ngModelChange)="patchPayerForm({ payerName: $event })" />
                   </div>
-                </td>
+                  <div>
+                    <label class="wp-label">Email <span class="font-normal text-slate-400">· portal credentials are sent here too</span></label>
+                    <input type="email" class="wp-input" [ngModel]="payerForm().email" (ngModelChange)="patchPayerForm({ email: $event })" />
+                  </div>
+                  <div>
+                    <label class="wp-label">Phone</label>
+                    <input class="wp-input" [ngModel]="payerForm().phone" (ngModelChange)="patchPayerForm({ phone: $event })" />
+                  </div>
+                  <div>
+                    <label class="wp-label">Address line 1</label>
+                    <input class="wp-input" [ngModel]="payerForm().addressLine1" (ngModelChange)="patchPayerForm({ addressLine1: $event })" />
+                  </div>
+                  <div>
+                    <label class="wp-label">Address line 2</label>
+                    <input class="wp-input" [ngModel]="payerForm().addressLine2" (ngModelChange)="patchPayerForm({ addressLine2: $event })" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="wp-label">City</label>
+                      <input class="wp-input" [ngModel]="payerForm().city" (ngModelChange)="patchPayerForm({ city: $event })" />
+                    </div>
+                    <div>
+                      <label class="wp-label">State</label>
+                      <input class="wp-input" [ngModel]="payerForm().state" (ngModelChange)="patchPayerForm({ state: $event })" />
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="wp-label">Postal code</label>
+                      <input class="wp-input" [ngModel]="payerForm().postalCode" (ngModelChange)="patchPayerForm({ postalCode: $event })" />
+                    </div>
+                    <div>
+                      <label class="wp-label">Country</label>
+                      <input class="wp-input" [ngModel]="payerForm().country" (ngModelChange)="patchPayerForm({ country: $event })" />
+                    </div>
+                  </div>
+                  <div>
+                    <label class="wp-label">Rank</label>
+                    <select class="wp-input" [ngModel]="payerForm().rank" (ngModelChange)="patchPayerForm({ rank: $event })">
+                      <option value="Primary">Primary</option>
+                      <option value="Secondary">Secondary</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="wp-label">Status</label>
+                    <select class="wp-input" [ngModel]="payerForm().status" (ngModelChange)="patchPayerForm({ status: $event })">
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="wp-label">Bill rate / hr</label>
+                    <input type="number" min="0" step="0.01" class="wp-input" placeholder="Not set"
+                      [ngModel]="payerForm().billRate" (ngModelChange)="patchPayerForm({ billRate: $event ?? '' })" />
+                  </div>
+                  <div>
+                    <label class="wp-label">Pay rate / hr</label>
+                    <input type="number" min="0" step="0.01" class="wp-input" placeholder="Not set"
+                      [ngModel]="payerForm().payRate" (ngModelChange)="patchPayerForm({ payRate: $event ?? '' })" />
+                  </div>
+                </div>
+                <p class="mt-2 text-xs text-slate-400">Leave a rate empty to fall through to the next payer, then the agency default.</p>
 
-                <td class="px-4 py-3">
-                  <span
-                    class="inline-block rounded-full px-2.5 py-1 text-xs font-medium"
-                    [class.bg-green-100]="payer.status === 'Active'"
-                    [class.text-green-700]="payer.status === 'Active'"
-                    [class.bg-slate-100]="payer.status !== 'Active'"
-                    [class.text-slate-600]="payer.status !== 'Active'"
-                  >
-                    {{ payer.status || '—' }}
-                  </span>
-                </td>
-
-                <td class="px-4 py-3">
-                  @if (payer.isPrimary) {
-                    <span class="font-medium text-green-700">Yes</span>
-                  } @else {
-                    <span class="text-slate-500">No</span>
-                  }
-                </td>
-              </tr>
+                <div class="mt-4 flex justify-end gap-2">
+                  <button type="button" (click)="closePayerForm()" class="wp-btn-ghost">Cancel</button>
+                  <button type="button" (click)="savePayer()" [disabled]="payerSaving()" class="wp-btn-primary">
+                    @if (payerSaving()) { Saving… } @else { {{ payerForm().payerId ? 'Save payer' : 'Add payer' }} }
+                  </button>
+                </div>
+              </div>
             }
-          </tbody>
-        </table>
-      </div>
-    } @else {
-      <div class="mt-5 rounded-xl border border-dashed border-slate-300 p-8 text-center">
-        <h3 class="font-semibold text-slate-700">No payers loaded</h3>
-        <p class="mt-1 text-sm text-slate-500">
-          No payers are currently assigned to this client.
-        </p>
-      </div>
-    }
-  </div>
-}
+          </div>
+        }
+
+        <!-- BILLING & INVOICE -->
+        @if (section() === 'billing') {
+          <div class="space-y-4">
+            <div class="wp-card">
+              <h2 class="text-lg font-bold text-slate-900">Billing &amp; Invoice</h2>
+              <p class="mt-1 text-sm text-slate-500">
+                Bill rate is what the client / payer is invoiced per hour; pay rate is what the caregiver earns per hour.
+                Rates set here override the payers' rates and the agency defaults.
+              </p>
+
+              <app-alert type="error" [message]="ratesError()" />
+              <app-alert type="success" [message]="ratesNotice()" />
+
+              <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label class="wp-label">Client bill rate / hr</label>
+                  <input type="number" min="0" step="0.01" class="wp-input" placeholder="Not set"
+                    [ngModel]="clientBillRate()" (ngModelChange)="clientBillRate.set($event ?? '')"
+                    [disabled]="!canManage() || ratesLoading()" />
+                </div>
+                <div>
+                  <label class="wp-label">Client pay rate / hr</label>
+                  <input type="number" min="0" step="0.01" class="wp-input" placeholder="Not set"
+                    [ngModel]="clientPayRate()" (ngModelChange)="clientPayRate.set($event ?? '')"
+                    [disabled]="!canManage() || ratesLoading()" />
+                </div>
+              </div>
+              @if (canManage()) {
+                <div class="mt-4 flex justify-end">
+                  <button type="button" (click)="saveRates()" [disabled]="ratesSaving() || ratesLoading()" class="wp-btn-primary">
+                    @if (ratesSaving()) { Saving… } @else { Save rates }
+                  </button>
+                </div>
+              }
+            </div>
+
+            <!-- What a new shift will use -->
+            <div class="wp-card">
+              <h3 class="text-base font-bold text-slate-900">Rates used for new shifts</h3>
+              @if (resolved(); as r) {
+                <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div class="rounded-xl bg-slate-50 p-3">
+                    <p class="text-xs text-slate-400">Bill rate / hr</p>
+                    @if (r.billRatePerHour != null) {
+                      <p class="text-lg font-bold text-slate-900">{{ r.billRatePerHour | number: '1.2-2' }}</p>
+                      <p class="text-xs text-slate-500">from {{ r.billRateSource }}</p>
+                    } @else {
+                      <p class="text-sm font-semibold text-amber-700">Missing</p>
+                    }
+                  </div>
+                  <div class="rounded-xl bg-slate-50 p-3">
+                    <p class="text-xs text-slate-400">Pay rate / hr</p>
+                    @if (r.payRatePerHour != null) {
+                      <p class="text-lg font-bold text-slate-900">{{ r.payRatePerHour | number: '1.2-2' }}</p>
+                      <p class="text-xs text-slate-500">from {{ r.payRateSource }}</p>
+                    } @else {
+                      <p class="text-sm font-semibold text-amber-700">Missing</p>
+                    }
+                  </div>
+                </div>
+                @if (r.hasConflict) {
+                  <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <p class="text-sm font-bold text-amber-800">Rate conflict</p>
+                    <p class="text-xs text-amber-700">
+                      {{ r.isBillRateMissing && r.isPayRateMissing ? 'Bill rate and pay rate are' : r.isBillRateMissing ? 'Bill rate is' : 'Pay rate is' }}
+                      missing on the client, all of its payers and the agency defaults. New shifts will show a conflict until one is set.
+                    </p>
+                  </div>
+                }
+              } @else {
+                <p class="mt-3 text-sm text-slate-400">Loading…</p>
+              }
+
+              <h4 class="mt-5 text-xs font-bold uppercase tracking-wide text-slate-400">Order they are checked</h4>
+              <ol class="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-100">
+                @for (row of rateChain(); track $index) {
+                  <li class="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                    <span class="text-slate-600"><span class="mr-2 text-xs text-slate-400">{{ $index + 1 }}.</span>{{ row.label }}</span>
+                    <span class="whitespace-nowrap text-xs text-slate-500">
+                      Bill {{ row.bill != null ? (row.bill | number: '1.2-2') : '—' }} · Pay {{ row.pay != null ? (row.pay | number: '1.2-2') : '—' }}
+                    </span>
+                  </li>
+                }
+              </ol>
+            </div>
+          </div>
+        }
 
         <!-- SCHEDULE -->
         @if (section() === 'schedule') {
