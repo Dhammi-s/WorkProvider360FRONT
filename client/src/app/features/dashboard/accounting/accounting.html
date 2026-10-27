@@ -9,12 +9,12 @@
 <section>
   <div>
     <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Accounting</h1>
-    <p class="mt-1 text-sm text-slate-500">Pay salaries and shift wages, and review paid invoices.</p>
+    <p class="mt-1 text-sm text-slate-500">Pay salaries and shift wages, invoice clients, and review paid invoices.</p>
   </div>
 
   <!-- Tabs -->
   <div class="mt-6 flex flex-wrap gap-2">
-    @for (t of [{ id: 'salaries', label: 'Salaries' }, { id: 'shift', label: 'Shift Pay' }, { id: 'invoices', label: 'Paid Invoices' }]; track t.id) {
+    @for (t of [{ id: 'salaries', label: 'Salaries' }, { id: 'shift', label: 'Shift Pay' }, { id: 'clientInvoices', label: 'Client Invoices' }, { id: 'invoices', label: 'Paid Invoices' }]; track t.id) {
       <button type="button" (click)="setTab($any(t.id))"
         class="rounded-full px-4 py-1.5 text-sm font-semibold transition"
         [class]="tab() === t.id ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50'">
@@ -97,6 +97,7 @@
             <tr>
               <th class="px-6 py-3">Worker</th>
               <th class="px-6 py-3">Shifts</th>
+              <th class="px-6 py-3">Approval</th>
               <th class="px-6 py-3">Regular h</th>
               <th class="px-6 py-3">OT h</th>
               <th class="px-6 py-3">Pay</th>
@@ -108,6 +109,14 @@
               <tr class="hover:bg-slate-50/60">
                 <td class="px-6 py-3 font-semibold text-slate-800">{{ r.userName }}</td>
                 <td class="px-6 py-3 text-slate-600">{{ r.scheduleCount }}</td>
+                <td class="px-6 py-3">
+                  @if (r.unapprovedScheduleCount) {
+                    <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700"
+                      [title]="'Approved shifts pay ' + (r.approvedTotalPay | currency:'USD')">{{ r.unapprovedScheduleCount }} not approved</span>
+                  } @else {
+                    <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">All approved</span>
+                  }
+                </td>
                 <td class="px-6 py-3 text-slate-600">{{ r.regularHours }}</td>
                 <td class="px-6 py-3 text-slate-600">{{ r.overtimeHours }}</td>
                 <td class="px-6 py-3 font-semibold text-slate-900">{{ r.totalPay | currency:'USD' }}</td>
@@ -125,12 +134,29 @@
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="6" class="px-6 py-10 text-center text-sm text-slate-400">Pick a date range and Calculate to see shift pay.</td></tr>
+              <tr><td colspan="7" class="px-6 py-10 text-center text-sm text-slate-400">Pick a date range and Calculate to see shift pay.</td></tr>
             }
           </tbody>
         </table>
       </div>
     </div>
+  }
+
+  @if (shiftPrompt(); as sp) {
+    <app-confirm-dialog
+      [title]="sp.prompt.title"
+      [message]="sp.prompt.message"
+      [details]="sp.prompt.details"
+      [confirmLabel]="sp.prompt.confirmLabel"
+      [altLabel]="sp.prompt.altLabel"
+      (confirmed)="shiftPromptAll()"
+      (alt)="shiftPromptApprovedOnly()"
+      (cancelled)="shiftPrompt.set(null)" />
+  }
+
+  <!-- ===================== Client Invoices ===================== -->
+  @if (tab() === 'clientInvoices') {
+    <app-client-invoices [canManage]="true" />
   }
 
   <!-- ===================== Paid Invoices ===================== -->

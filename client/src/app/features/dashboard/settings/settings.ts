@@ -239,6 +239,14 @@ export class Settings {
   readonly notifyAdmin = signal(false);
   readonly notifyManager = signal(false);
   readonly autoClock = signal(false);
+  // Schedule approval + invoicing policy (SuperAdmin edits).
+  readonly adminCanApprove = signal(true);
+  readonly managerCanApprove = signal(false);
+  readonly superAdminInvoiceUnapproved = signal(false);
+  readonly adminInvoiceUnapproved = signal(false);
+  readonly managerInvoiceUnapproved = signal(false);
+  readonly approvalSaving = signal(false);
+  readonly approvalNotice = signal('');
   readonly schedError = signal('');
   readonly accessSaving = signal(false);
   readonly accessNotice = signal('');
@@ -495,6 +503,11 @@ export class Settings {
         this.notifyAdmin.set(s.notifyAdminOnCreate);
         this.notifyManager.set(s.notifyManagerOnCreate);
         this.autoClock.set(s.autoClockEnabled);
+        this.adminCanApprove.set(s.adminCanApproveSchedules ?? true);
+        this.managerCanApprove.set(s.managerCanApproveSchedules ?? false);
+        this.superAdminInvoiceUnapproved.set(s.superAdminCanInvoiceUnapproved ?? false);
+        this.adminInvoiceUnapproved.set(s.adminCanInvoiceUnapproved ?? false);
+        this.managerInvoiceUnapproved.set(s.managerCanInvoiceUnapproved ?? false);
       },
       error: (err: Error) => this.schedError.set(err.message || 'Could not load scheduling settings.'),
     });
@@ -514,6 +527,30 @@ export class Settings {
         this.accessSaving.set(false);
       },
     });
+  }
+
+  saveApproval(): void {
+    this.approvalSaving.set(true);
+    this.approvalNotice.set('');
+    this.schedError.set('');
+    this.scheduler
+      .updateApproval({
+        adminCanApproveSchedules: this.adminCanApprove(),
+        managerCanApproveSchedules: this.managerCanApprove(),
+        superAdminCanInvoiceUnapproved: this.superAdminInvoiceUnapproved(),
+        adminCanInvoiceUnapproved: this.adminInvoiceUnapproved(),
+        managerCanInvoiceUnapproved: this.managerInvoiceUnapproved(),
+      })
+      .subscribe({
+        next: () => {
+          this.approvalSaving.set(false);
+          this.approvalNotice.set('Approval settings saved.');
+        },
+        error: (err: Error) => {
+          this.schedError.set(err.message || 'Could not save approval settings.');
+          this.approvalSaving.set(false);
+        },
+      });
   }
 
   saveDefaults(): void {

@@ -19,6 +19,7 @@ import {
   TimeEntrySignature,
   CareLogEntry,
   ScheduleConflict,
+  InitialScheduleStatus,
 } from '../../../core/models/scheduler.model';
 import { Client, ClientSettings, EligibleCaregiver } from '../../../core/models/client.model';
 import { ServiceType } from '../../../core/models/service-type.model';
@@ -139,6 +140,7 @@ export class Scheduler {
   readonly fStart = signal('09:00');
   readonly fEnd = signal('17:00');
   readonly fRate = signal(0);
+  readonly fStatus = signal<InitialScheduleStatus>('Scheduled');
   readonly fBillRate = signal(0);
   /** Client -> primary -> secondary -> other payers -> agency defaults, for the picked client. */
   readonly fResolvedRates = signal<ResolvedRates | null>(null);
@@ -451,6 +453,7 @@ export class Scheduler {
     this.fStart.set('09:00');
     this.fEnd.set('17:00');
     this.fRate.set(0);
+    this.fStatus.set('Scheduled');
     this.fBillRate.set(0);
     this.fResolvedRates.set(null);
     this.rateConflict.set(null);
@@ -530,7 +533,7 @@ export class Scheduler {
     }
     // Rate conflict: nothing in the client / payers / defaults chain had a rate.
     const missing = this.missingRates();
-    if (!this.ratesAcknowledged && missing.length) {
+    if (!this.ratesAcknowledged && this.fStatus() !== 'Cancelled' && missing.length) {
       this.rateConflict.set(missing);
       return;
     }
@@ -598,7 +601,12 @@ export class Scheduler {
     const id = this.editingId();
     const req$ = id
       ? this.service.update(id, base)
-      : this.service.create({ ...base, notifyAdmin: this.fNotifyAdmin(), notifyManager: this.fNotifyManager() });
+      : this.service.create({
+          ...base,
+          status: this.fStatus(),
+          notifyAdmin: this.fNotifyAdmin(),
+          notifyManager: this.fNotifyManager(),
+        });
     req$.subscribe({
       next: () => {
         this.formBusy.set(false);
@@ -639,6 +647,22 @@ export class Scheduler {
 
   closeDetail(): void {
     this.detail.set(null);
+  }
+
+  /** Approve / remove approval (only approved schedules are invoiced by default). */
+  toggleApproval(s: Schedule): void {
+    this.actionBusy.set(true);
+    this.detailError.set('');
+    this.service.setApproval(s.scheduleId, !s.isApproved).subscribe({
+      next: () => {
+        this.actionBusy.set(false);
+        this.reloadDetail();
+      },
+      error: (err: Error) => {
+        this.actionBusy.set(false);
+        this.detailError.set(err.message || 'Could not change the approval.');
+      },
+    });
   }
 
   private reloadDetail(): void {

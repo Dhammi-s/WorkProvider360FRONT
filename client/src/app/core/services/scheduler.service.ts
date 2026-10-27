@@ -33,6 +33,7 @@ import {
   TimeEntry,
   UpdateSchedulingAccess,
   UpdateSchedulingDefaults,
+  UpdateSchedulingApproval,
   UpdateScheduleRequest,
 } from '../models/scheduler.model';
 
@@ -63,6 +64,19 @@ export class SchedulerService {
   updateDefaults(request: UpdateSchedulingDefaults): Observable<SchedulingSettings> {
     return this.http
       .put<ApiResponse<SchedulingSettings>>(`${this.baseUrl}/settings/defaults`, request)
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  updateApproval(request: UpdateSchedulingApproval): Observable<SchedulingSettings> {
+    return this.http
+      .put<ApiResponse<SchedulingSettings>>(`${this.baseUrl}/settings/approval`, request)
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  /** Approve / un-approve a schedule. */
+  setApproval(id: number, approved: boolean): Observable<Schedule> {
+    return this.http
+      .post<ApiResponse<Schedule>>(`${this.baseUrl}/${id}/approval`, { approved })
       .pipe(map((r) => this.unwrap(r)));
   }
 

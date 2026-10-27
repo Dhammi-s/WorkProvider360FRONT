@@ -17,17 +17,22 @@ import { AccountingService } from '../../../core/services/accounting.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { UserService } from '../../../core/services/user.service';
 import { Alert } from '../../../shared/ui/alert/alert';
+import { ClientInvoices } from '../../../shared/ui/client-invoices/client-invoices';
+import { ConfirmDialog } from '../../../shared/ui/confirm-dialog/confirm-dialog';
+import { ApprovalPrompt, buildApprovalPrompt } from '../../../shared/util/approval-prompt.util';
 import {
   InvoicePdfModel,
   downloadPdfDataUri,
   generateInvoicePdfBase64,
 } from '../../../shared/util/invoice-pdf.util';
 
-type Tab = 'salaries' | 'shift' | 'invoices';
+type Tab = 'salaries' | 'shift' | 'clientInvoices' | 'invoices';
+
+const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
 @Component({
   selector: 'app-accounting',
-  imports: [CurrencyPipe, DatePipe, FormsModule, Alert],
+  imports: [CurrencyPipe, DatePipe, FormsModule, Alert, ClientInvoices, ConfirmDialog],
   templateUrl: './accounting.html',
 })
 export class Accounting {
@@ -56,6 +61,10 @@ export class Accounting {
   readonly to = signal(this.today());
   readonly shiftRows = signal<ScheduleReportRow[]>([]);
   readonly shiftLoading = signal(false);
+  /** Role may invoice unapproved schedules (Settings → Scheduling). */
+  readonly canInvoiceUnapproved = signal(false);
+  /** Unapproved-shifts popup for a shift pay row. */
+  readonly shiftPrompt = signal<{ prompt: ApprovalPrompt; row: ScheduleReportRow; online: boolean } | null>(null);
 
   // Invoices
   readonly invoices = signal<Invoice[]>([]);
@@ -64,6 +73,10 @@ export class Accounting {
   constructor() {
     this.loadUsers();
     this.loadInvoices();
+    this.scheduler.getAccess().subscribe({
+      next: (a) => this.canInvoiceUnapproved.set(a.canInvoiceUnapproved),
+      error: () => this.canInvoiceUnapproved.set(false),
+    });
     this.handleStripeReturn();
   }
 
@@ -156,12 +169,46 @@ export class Accounting {
     return this.startOnline(`salary-${user.userId}`, this.salaryPayload(user, 'Online'));
   }
 
-  payShift(row: ScheduleReportRow): Promise<void> {
-    return this.runCash(`shift-${row.userId}`, this.shiftPayload(row, 'Cash'));
+  payShift(row: ScheduleReportRow): void {
+    this.payShiftChecked(row, false);
   }
 
-  payShiftOnline(row: ScheduleReportRow): Promise<void> {
-    return this.startOnline(`shift-${row.userId}`, this.shiftPayload(row, 'Online'));
+  payShiftOnline(row: ScheduleReportRow): void {
+    this.payShiftChecked(row, true);
+  }
+
+  /** Unapproved shifts in the row open the approval popup before anything is paid. */
+  private payShiftChecked(row: ScheduleReportRow, online: boolean): void {
+    const prompt = buildApprovalPrompt({
+      approved: row.approvedScheduleCount,
+      unapproved: row.unapprovedScheduleCount,
+      canInvoiceUnapproved: this.canInvoiceUnapproved(),
+      approvedAmount: usd.format(row.approvedTotalPay),
+      totalAmount: usd.format(row.totalPay),
+    });
+    if (prompt) {
+      this.shiftPrompt.set({ prompt, row, online });
+      return;
+    }
+    this.payShiftNow(row, online, false);
+  }
+
+  shiftPromptAll(): void {
+    const p = this.shiftPrompt();
+    this.shiftPrompt.set(null);
+    if (p) this.payShiftNow(p.row, p.online, true);
+  }
+
+  shiftPromptApprovedOnly(): void {
+    const p = this.shiftPrompt();
+    this.shiftPrompt.set(null);
+    if (p) this.payShiftNow(p.row, p.online, false);
+  }
+
+  private payShiftNow(row: ScheduleReportRow, online: boolean, includeUnapproved: boolean): void {
+    const key = `shift-${row.userId}`;
+    const payload = this.shiftPayload(row, online ? 'Online' : 'Cash', includeUnapproved);
+    void (online ? this.startOnline(key, payload) : this.runCash(key, payload));
   }
 
   private salaryPayload(user: UserDto, method: 'Cash' | 'Online'): { model: InvoicePdfModel; request: PayInvoiceRequest } | null {
@@ -195,7 +242,26 @@ export class Accounting {
     };
   }
 
-  private shiftPayload(row: ScheduleReportRow, method: 'Cash' | 'Online'): { model: InvoicePdfModel; request: PayInvoiceRequest } | null {
+  private shiftPayload(
+    row: ScheduleReportRow,
+    method: 'Cash' | 'Online',
+    includeUnapproved: boolean,
+  ): { model: InvoicePdfModel; request: PayInvoiceRequest } | null {
+    // Approved-only figures unless the payer chose to include unapproved shifts.
+    const all = includeUnapproved || row.unapprovedScheduleCount === 0;
+    const fig = all
+      ? { regular: row.regularHours, overtime: row.overtimeHours, total: row.totalHours, pay: row.totalPay, count: row.scheduleCount }
+      : {
+          regular: row.approvedRegularHours,
+          overtime: row.approvedOvertimeHours,
+          total: row.approvedTotalHours,
+          pay: row.approvedTotalPay,
+          count: row.approvedScheduleCount,
+        };
+    if (fig.pay <= 0) {
+      this.error.set(`Nothing to pay ${row.userName} for approved shifts in this period.`);
+      return null;
+    }
     const user = this.allUsers().find((u) => u.userId === row.userId);
     if (!user?.email) {
       this.error.set(`No email on file for ${row.userName}; cannot send the invoice.`);
@@ -212,10 +278,10 @@ export class Accounting {
         recipientEmail: user.email,
         recipientRoleName: user.roleName,
         invoiceType: 'ShiftPay',
-        amount: row.totalPay,
-        regularHours: row.regularHours,
-        overtimeHours: row.overtimeHours,
-        totalHours: row.totalHours,
+        amount: fig.pay,
+        regularHours: fig.regular,
+        overtimeHours: fig.overtime,
+        totalHours: fig.total,
         periodFrom,
         periodTo,
         paymentMethod: method,
@@ -227,14 +293,15 @@ export class Accounting {
         recipientEmail: user.email,
         recipientRoleName: user.roleName,
         invoiceType: 'ShiftPay',
-        amount: row.totalPay,
-        regularHours: row.regularHours,
-        overtimeHours: row.overtimeHours,
-        totalHours: row.totalHours,
+        amount: fig.pay,
+        regularHours: fig.regular,
+        overtimeHours: fig.overtime,
+        totalHours: fig.total,
         periodFrom,
         periodTo,
-        details: `Regular ${row.regularHours}h + Overtime ${row.overtimeHours}h over ${row.scheduleCount} shift(s)`,
+        details: `Regular ${fig.regular}h + Overtime ${fig.overtime}h over ${fig.count} ${all ? '' : 'approved '}shift(s)`,
         paymentMethod: method,
+        includesUnapproved: all && row.unapprovedScheduleCount > 0,
         pdfBase64: '',
       },
     };

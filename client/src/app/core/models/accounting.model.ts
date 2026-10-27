@@ -45,6 +45,8 @@ export interface PayInvoiceRequest {
   periodTo?: string | null;
   details?: string | null;
   paymentMethod: PaymentMethod;
+  /** Shift pay: the amount includes unapproved schedules (refused unless allowed in Settings). */
+  includesUnapproved?: boolean;
   pdfBase64: string;
   stripeSessionId?: string | null;
 }
