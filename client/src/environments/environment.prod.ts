@@ -10,5 +10,5 @@ export const environment = {
   production: true,
   apiBaseUrl: 'https://workprovider360.runasp.net/api',
   hubBaseUrl: 'https://workprovider360.runasp.net',
-  tenantDomain: 'work-provider360-front-seven.vercel.app',
+  tenantDomain: '',
 };
