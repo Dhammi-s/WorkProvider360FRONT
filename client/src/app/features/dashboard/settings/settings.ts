@@ -234,6 +234,7 @@ export class Settings {
   readonly adminAccess = signal<AccessLevel>('Write');
   readonly managerAccess = signal<AccessLevel>('Read');
   readonly defRate = signal(0);
+  readonly defBillRate = signal(0);
   readonly defOt = signal(1.5);
   readonly notifyAdmin = signal(false);
   readonly notifyManager = signal(false);
@@ -489,6 +490,7 @@ export class Settings {
         this.adminAccess.set(s.adminAccess === 'Self' ? 'Write' : s.adminAccess);
         this.managerAccess.set(s.managerAccess === 'Self' ? 'Read' : s.managerAccess);
         this.defRate.set(s.defaultPayRatePerHour);
+        this.defBillRate.set(s.defaultBillRatePerHour ?? 0);
         this.defOt.set(s.defaultOvertimeMultiplier);
         this.notifyAdmin.set(s.notifyAdminOnCreate);
         this.notifyManager.set(s.notifyManagerOnCreate);
@@ -521,6 +523,7 @@ export class Settings {
     this.scheduler
       .updateDefaults({
         defaultPayRatePerHour: Number(this.defRate()) || 0,
+        defaultBillRatePerHour: Number(this.defBillRate()) || 0,
         defaultOvertimeMultiplier: Number(this.defOt()) || 1.5,
         notifyAdminOnCreate: this.notifyAdmin(),
         notifyManagerOnCreate: this.notifyManager(),

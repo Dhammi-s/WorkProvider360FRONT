@@ -24,6 +24,8 @@ import { Client, ClientSettings, EligibleCaregiver } from '../../../core/models/
 import { ServiceType } from '../../../core/models/service-type.model';
 import { ClientService } from '../../../core/services/client.service';
 import { ServiceTypeService } from '../../../core/services/service-type.service';
+import { ClientPayerService } from '../../../core/services/ClientPayerService';
+import { ResolvedRates } from '../../../core/models/payer.model';
 import { SignaturePad } from '../../../shared/ui/signature-pad/signature-pad';
 import { AuthService } from '../../../core/services/auth.service';
 import { LocationTrackingService } from '../../../core/services/location-tracking.service';
@@ -100,6 +102,7 @@ export class Scheduler {
   private readonly auth = inject(AuthService);
   private readonly clients = inject(ClientService);
   private readonly serviceTypeService = inject(ServiceTypeService);
+  private readonly payerService = inject(ClientPayerService);
   readonly locationTracking = inject(LocationTrackingService);
 
   readonly myUserId = this.auth.user()?.userId ?? 0;
@@ -136,6 +139,12 @@ export class Scheduler {
   readonly fStart = signal('09:00');
   readonly fEnd = signal('17:00');
   readonly fRate = signal(0);
+  readonly fBillRate = signal(0);
+  /** Client -> primary -> secondary -> other payers -> agency defaults, for the picked client. */
+  readonly fResolvedRates = signal<ResolvedRates | null>(null);
+  /** Names of the missing rates while the rate-conflict box is open. */
+  readonly rateConflict = signal<string[] | null>(null);
+  private ratesAcknowledged = false;
   readonly fOt = signal(1.5);
   readonly fNotifyAdmin = signal(false);
   readonly fNotifyManager = signal(false);
@@ -442,6 +451,10 @@ export class Scheduler {
     this.fStart.set('09:00');
     this.fEnd.set('17:00');
     this.fRate.set(0);
+    this.fBillRate.set(0);
+    this.fResolvedRates.set(null);
+    this.rateConflict.set(null);
+    this.ratesAcknowledged = false;
     this.fOt.set(1.5);
     this.fNotifyAdmin.set(false);
     this.fClientId.set(null);
@@ -453,7 +466,11 @@ export class Scheduler {
     this.service.getSettings().subscribe({
       next: (s) => {
         if (this.editingId() === null && !this.formBusy()) {
-          this.fRate.set(s.defaultPayRatePerHour);
+          // A client picked meanwhile already has its resolved rates.
+          if (!this.fResolvedRates()) {
+            this.fRate.set(s.defaultPayRatePerHour);
+            this.fBillRate.set(s.defaultBillRatePerHour ?? 0);
+          }
           this.fOt.set(s.defaultOvertimeMultiplier);
           this.fNotifyAdmin.set(s.notifyAdminOnCreate);
           this.fNotifyManager.set(s.notifyManagerOnCreate);
@@ -478,6 +495,10 @@ export class Scheduler {
     this.fStart.set(`${pad(start.getHours())}:${pad(start.getMinutes())}`);
     this.fEnd.set(`${pad(end.getHours())}:${pad(end.getMinutes())}`);
     this.fRate.set(s.payRatePerHour);
+    this.fBillRate.set(s.billRatePerHour ?? 0);
+    this.fResolvedRates.set(null);
+    this.rateConflict.set(null);
+    this.ratesAcknowledged = true;
     this.fOt.set(s.overtimeMultiplier);
     this.fClientId.set(s.clientId ?? null);
     this.fServiceTypeId.set(s.serviceTypeId ?? null);
@@ -507,6 +528,12 @@ export class Scheduler {
       this.formError.set('End time must be after start time.');
       return;
     }
+    // Rate conflict: nothing in the client / payers / defaults chain had a rate.
+    const missing = this.missingRates();
+    if (!this.ratesAcknowledged && missing.length) {
+      this.rateConflict.set(missing);
+      return;
+    }
     this.formBusy.set(true);
     this.formError.set('');
     // Double-booking check before saving; the warning box lets the scheduler save anyway.
@@ -521,6 +548,23 @@ export class Scheduler {
       },
       error: () => this.doSaveForm(startUtc, endUtc),
     });
+  }
+
+  missingRates(): string[] {
+    const missing: string[] = [];
+    if (!(Number(this.fBillRate()) > 0)) missing.push('Bill rate');
+    if (!(Number(this.fRate()) > 0)) missing.push('Pay rate');
+    return missing;
+  }
+
+  ignoreRateConflictSave(): void {
+    this.ratesAcknowledged = true;
+    this.rateConflict.set(null);
+    this.saveForm();
+  }
+
+  cancelRateConflict(): void {
+    this.rateConflict.set(null);
   }
 
   ignoreConflictsSave(): void {
@@ -545,6 +589,7 @@ export class Scheduler {
       startUtc,
       endUtc,
       payRatePerHour: Number(this.fRate()) || 0,
+      billRatePerHour: Number(this.fBillRate()) || 0,
       overtimeMultiplier: Number(this.fOt()) || 1.5,
       clientId: this.fClientId(),
       serviceTypeId: this.fServiceTypeId(),
@@ -691,6 +736,7 @@ export class Scheduler {
       if (st) this.fTitle.set(`${st.name} — ${c.fullName}`);
     }
     this.loadEligible();
+    this.loadRates(c.clientId);
   }
 
   clearClient(): void {
@@ -698,6 +744,22 @@ export class Scheduler {
     this.clientQuery.set('');
     this.clientOptions.set([]);
     this.eligible.set(null);
+    this.fResolvedRates.set(null);
+  }
+
+  /** Pre-fill bill / pay rate from the client, its payers, then the agency defaults. */
+  private loadRates(clientId: number): void {
+    this.ratesAcknowledged = false;
+    this.rateConflict.set(null);
+    this.payerService.resolvedRates(clientId).subscribe({
+      next: (r) => {
+        if (this.fClientId() !== clientId) return;
+        this.fResolvedRates.set(r);
+        this.fBillRate.set(r.billRatePerHour ?? 0);
+        this.fRate.set(r.payRatePerHour ?? 0);
+      },
+      error: () => this.fResolvedRates.set(null),
+    });
   }
 
   setServiceType(id: number | null): void {

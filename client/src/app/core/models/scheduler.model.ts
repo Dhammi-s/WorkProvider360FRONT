@@ -35,6 +35,7 @@ export interface SchedulingSettings {
   adminAccess: AccessLevel;
   managerAccess: AccessLevel;
   defaultPayRatePerHour: number;
+  defaultBillRatePerHour: number;
   defaultOvertimeMultiplier: number;
   notifyAdminOnCreate: boolean;
   notifyManagerOnCreate: boolean;
@@ -49,6 +50,7 @@ export interface UpdateSchedulingAccess {
 
 export interface UpdateSchedulingDefaults {
   defaultPayRatePerHour: number;
+  defaultBillRatePerHour: number;
   defaultOvertimeMultiplier: number;
   notifyAdminOnCreate: boolean;
   notifyManagerOnCreate: boolean;
@@ -69,6 +71,7 @@ export interface Schedule {
   startUtc: string;
   endUtc: string;
   payRatePerHour: number;
+  billRatePerHour: number;
   overtimeMultiplier: number;
   status: ScheduleStatus;
   rejectionReason?: string | null;
@@ -122,6 +125,7 @@ export interface CreateScheduleRequest {
   startUtc: string;
   endUtc: string;
   payRatePerHour: number;
+  billRatePerHour: number;
   overtimeMultiplier: number;
   colorTag?: string | null;
   notifyAdmin: boolean;
@@ -138,6 +142,7 @@ export interface UpdateScheduleRequest {
   startUtc: string;
   endUtc: string;
   payRatePerHour: number;
+  billRatePerHour: number;
   overtimeMultiplier: number;
   colorTag?: string | null;
 }
