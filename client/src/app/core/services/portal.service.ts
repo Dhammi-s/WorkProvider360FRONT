@@ -12,6 +12,7 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
 import { ServiceType } from '../models/service-type.model';
+import { ClientInvoice, ClientInvoiceDetail } from '../models/client-invoice.model';
 import {
   ClientVisit,
   ClientVisitDetail,
@@ -57,6 +58,24 @@ export class PortalService {
     return this.http
       .get<ApiResponse<ClientVisitDetail>>(`${this.baseUrl}/visits/${id}`)
       .pipe(map((r) => this.unwrap(r)));
+  }
+
+  /** The signed-in client's invoices (void ones are hidden by the API). */
+  invoices(): Observable<ClientInvoice[]> {
+    return this.http
+      .get<ApiResponse<ClientInvoice[]>>(`${this.baseUrl}/invoices`)
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  invoice(id: number): Observable<ClientInvoiceDetail> {
+    return this.http
+      .get<ApiResponse<ClientInvoiceDetail>>(`${this.baseUrl}/invoices/${id}`)
+      .pipe(
+        map((r) => {
+          if (!r.success || r.data == null) throw new Error(r.message ?? 'Could not load the invoice.');
+          return r.data;
+        }),
+      );
   }
 
   serviceTypes(): Observable<ServiceType[]> {
