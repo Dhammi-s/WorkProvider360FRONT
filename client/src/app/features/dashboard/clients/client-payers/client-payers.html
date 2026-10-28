@@ -1,0 +1,306 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     ============================================================================= -->
+<div class="space-y-4">
+  <div class="wp-card">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-bold text-slate-900">Client Payers</h2>
+        <p class="mt-1 text-sm text-slate-500">
+          Ranked payers (1 = primary). Each pays its part of the bill by its payment distribution; one payer pays the remainder.
+        </p>
+      </div>
+      @if (canManage() && mode() === 'list') {
+        <div class="flex shrink-0 gap-2">
+          <button type="button" (click)="confirmSync.set(true)" [disabled]="busy() || active().length === 0" class="wp-btn-ghost !py-2 !px-3 text-sm">Sync to visits</button>
+          <button type="button" (click)="startLink()" [disabled]="busy()" class="wp-btn-primary !py-2 !px-3 text-sm">+ Link payer</button>
+        </div>
+      }
+    </div>
+
+    <app-alert type="success" [message]="notice()" />
+    <app-alert type="error" [message]="error()" />
+
+    @if (loading()) {
+      <p class="mt-5 text-sm text-slate-400">Loading payers…</p>
+    } @else if (payers().length === 0) {
+      <div class="mt-5 rounded-xl border border-dashed border-slate-300 p-8 text-center">
+        <h3 class="font-semibold text-slate-700">No payers yet</h3>
+        <p class="mt-1 text-sm text-slate-500">Link a payer to say who pays for this client's care.</p>
+      </div>
+    } @else {
+      <div class="mt-5 overflow-x-auto rounded-xl border border-slate-200">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
+            <tr>
+              <th class="px-4 py-3">Rank</th>
+              <th class="px-4 py-3">Payer</th>
+              <th class="px-4 py-3">Payment</th>
+              <th class="px-4 py-3">Dates</th>
+              <th class="px-4 py-3">Policy / member</th>
+              <th class="px-4 py-3">Status</th>
+              @if (canManage()) { <th class="px-4 py-3"></th> }
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (p of active(); track p.clientPayerId; let first = $first; let last = $last) {
+              <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <div class="flex items-center gap-1">
+                    @if (canManage()) {
+                      <div class="flex flex-col">
+                        <button type="button" (click)="move(p, -1)" [disabled]="first || busy()" class="px-1 text-xs leading-none text-slate-400 hover:text-brand-700 disabled:opacity-30" aria-label="Move up">▲</button>
+                        <button type="button" (click)="move(p, 1)" [disabled]="last || busy()" class="px-1 text-xs leading-none text-slate-400 hover:text-brand-700 disabled:opacity-30" aria-label="Move down">▼</button>
+                      </div>
+                    }
+                    <span class="rounded-full px-2 py-0.5 text-xs font-semibold" [class]="rankBadge(p.rank)">{{ rankLabel(p.rank) }}</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <a [routerLink]="['/dashboard/payers', p.payerId]" class="font-semibold text-slate-800 hover:text-brand-700">{{ p.payerName }}</a>
+                  <div class="text-xs text-slate-400">{{ typeLabel(p.payerType) }}{{ p.status !== 'Active' ? ' · payer inactive' : '' }}</div>
+                </td>
+                <td class="px-4 py-3 text-slate-700">
+                  <span [class.font-semibold]="p.paymentDistribution === 'Remainder'">{{ distributionLabel(p) }}</span>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-slate-600">
+                  {{ p.effectiveFrom ? (p.effectiveFrom | date: 'MMM d, y') : 'Any' }} – {{ p.effectiveTo ? (p.effectiveTo | date: 'MMM d, y') : 'open' }}
+                </td>
+                <td class="px-4 py-3 text-slate-600">{{ p.policyNumber || '—' }}{{ p.memberId ? ' / ' + p.memberId : '' }}</td>
+                <td class="px-4 py-3"><span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Active</span></td>
+                @if (canManage()) {
+                  <td class="px-4 py-3 text-right whitespace-nowrap">
+                    <button type="button" (click)="startEdit(p)" [disabled]="busy()" class="text-xs font-semibold text-brand-700 hover:underline">Edit</button>
+                    <button type="button" (click)="confirmDeactivate.set(p)" [disabled]="busy() || p.paymentDistribution === 'Remainder'"
+                      [title]="p.paymentDistribution === 'Remainder' ? 'Set another payer to Remainder first' : ''"
+                      class="ml-3 text-xs font-semibold text-red-600 hover:underline disabled:cursor-not-allowed disabled:opacity-40">Deactivate</button>
+                  </td>
+                }
+              </tr>
+            }
+            @for (p of inactive(); track p.clientPayerId) {
+              <tr class="bg-slate-50/50 opacity-70">
+                <td class="px-4 py-3"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">Inactive</span></td>
+                <td class="px-4 py-3">
+                  <a [routerLink]="['/dashboard/payers', p.payerId]" class="font-semibold text-slate-700 hover:text-brand-700">{{ p.payerName }}</a>
+                  <div class="text-xs text-slate-400">{{ typeLabel(p.payerType) }}</div>
+                </td>
+                <td class="px-4 py-3 text-slate-500">{{ distributionLabel(p) }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-slate-500">
+                  {{ p.effectiveFrom ? (p.effectiveFrom | date: 'MMM d, y') : 'Any' }} – {{ p.effectiveTo ? (p.effectiveTo | date: 'MMM d, y') : 'open' }}
+                </td>
+                <td class="px-4 py-3 text-slate-500">{{ p.policyNumber || '—' }}</td>
+                <td class="px-4 py-3"><span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">Inactive</span></td>
+                @if (canManage()) {
+                  <td class="px-4 py-3 text-right">
+                    <button type="button" (click)="setActive(p, true)" [disabled]="busy()" class="text-xs font-semibold text-emerald-700 hover:underline">Activate</button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-2 text-xs text-slate-400">
+        New visits copy the payers in effect on the visit date. After changing payers, use "Sync to visits" to update visits that are not invoiced yet; invoiced visits keep the payers they were billed with.
+      </p>
+    }
+  </div>
+
+  <!-- Step 1: pick an agency payer or create one -->
+  @if (mode() === 'pick') {
+    <div class="wp-card !p-5">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900">Link a payer</h3>
+        <button type="button" (click)="cancel()" class="text-sm text-slate-500 hover:text-slate-700">Cancel</button>
+      </div>
+      <div class="mt-3 flex flex-wrap items-end gap-2">
+        <div class="min-w-[240px] flex-1">
+          <label class="wp-label">Search agency payers</label>
+          <input class="wp-input" placeholder="Name, email, phone, city…" [ngModel]="query()" (ngModelChange)="onQuery($event)" />
+        </div>
+        <button type="button" (click)="mode.set('create')" class="wp-btn-ghost">+ New payer</button>
+      </div>
+      <div class="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">
+        @if (searching()) {
+          <p class="px-3 py-3 text-sm text-slate-400">Searching…</p>
+        } @else {
+          @for (r of results(); track r.payerId) {
+            <div class="flex items-center justify-between gap-3 px-3 py-2">
+              <div class="min-w-0">
+                <div class="truncate font-semibold text-slate-800">{{ r.payerName }}</div>
+                <div class="text-xs text-slate-400">{{ typeLabel(r.payerType) }} · {{ r.payerSourceType }}{{ r.city ? ' · ' + r.city : '' }} · {{ r.linkedClientCount }} client(s)</div>
+              </div>
+              <button type="button" (click)="pick(r)" class="wp-btn-primary !py-1 !px-3 text-xs">Select</button>
+            </div>
+          } @empty {
+            <p class="px-3 py-3 text-sm text-slate-400">No matching active payers that aren't already linked. Create a new payer instead.</p>
+          }
+        }
+      </div>
+    </div>
+  }
+
+  @if (mode() === 'create') {
+    <div class="wp-card !p-5">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900">New payer</h3>
+        <button type="button" (click)="mode.set('pick')" class="text-sm text-slate-500 hover:text-slate-700">‹ Back to search</button>
+      </div>
+      <p class="mt-1 text-xs text-slate-400">The payer is added to the agency's payer list, then you set how it pays for this client.</p>
+      <div class="mt-3">
+        <app-payer-form [compact]="true" [busy]="busy()" submitLabel="Create and continue" [showCancel]="true"
+          (submitted)="createPayer($event)" (cancelled)="cancel()" />
+      </div>
+    </div>
+  }
+
+  <!-- Step 2 (or edit): the link settings -->
+  @if (mode() === 'link' || mode() === 'edit') {
+    @let f = form();
+    <div class="wp-card !p-5">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900">
+          {{ mode() === 'edit' ? 'Edit ' + editing()?.payerName : 'Link ' + picked()?.payerName }}
+        </h3>
+        <button type="button" (click)="cancel()" class="text-sm text-slate-500 hover:text-slate-700">Cancel</button>
+      </div>
+
+      <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        @if (mode() === 'link') {
+          <div>
+            <label class="wp-label">Rank</label>
+            <select class="wp-input" [ngModel]="f.rank" (ngModelChange)="patch({ rank: $event })">
+              <option [ngValue]="null">Add last ({{ rankLabel(active().length + 1) }})</option>
+              @for (p of active(); track p.clientPayerId) {
+                <option [ngValue]="p.rank">{{ rankLabel(p.rank) }} — before {{ p.payerName }}</option>
+              }
+            </select>
+          </div>
+        }
+        <div class="grid grid-cols-2 gap-2" [class.sm:col-span-2]="mode() === 'edit'">
+          <div>
+            <label class="wp-label">Start date</label>
+            <input type="date" class="wp-input" [ngModel]="f.effectiveFrom" (ngModelChange)="patch({ effectiveFrom: $event ?? '' })" />
+          </div>
+          <div>
+            <label class="wp-label">End date</label>
+            <input type="date" class="wp-input" [ngModel]="f.effectiveTo" (ngModelChange)="patch({ effectiveTo: $event ?? '' })" />
+          </div>
+        </div>
+
+        <div class="sm:col-span-2 mt-2 border-t border-slate-100 pt-3 text-xs font-bold uppercase tracking-wide text-slate-400">Payment distribution</div>
+        <div>
+          <label class="wp-label">How this payer pays *</label>
+          <select class="wp-input" [ngModel]="f.paymentDistribution" (ngModelChange)="patch({ paymentDistribution: $event })"
+            [disabled]="mode() === 'edit' && editing()?.paymentDistribution === 'Remainder'">
+            @for (d of distributions; track d.value) { <option [value]="d.value">{{ d.label }}</option> }
+          </select>
+          <p class="mt-1 text-[11px] text-slate-400">
+            @if (mode() === 'edit' && editing()?.paymentDistribution === 'Remainder') {
+              This payer pays the remainder. To change it, set another payer to Remainder first.
+            } @else {
+              {{ distributionHint() }}
+              @if (f.paymentDistribution === 'Remainder' && active().length > 0) { The current Remainder payer becomes Split 0%. }
+            }
+          </p>
+        </div>
+        @if (f.paymentDistribution === 'Split') {
+          <div>
+            <label class="wp-label">Payment percentage (%) *</label>
+            <input type="number" min="0" max="100" step="0.01" class="wp-input" [ngModel]="f.paymentPercentage" (ngModelChange)="patch({ paymentPercentage: $event ?? '' })" />
+            <p class="mt-1 text-[11px] text-slate-400">Other Split payers already cover {{ splitTotal() }}%.</p>
+          </div>
+        }
+        @if (f.paymentDistribution === 'PerDiem' || f.paymentDistribution === 'Visit' || f.paymentDistribution === 'Weekly' || f.paymentDistribution === 'Monthly') {
+          <div>
+            <label class="wp-label">Payment amount ($) *</label>
+            <input type="number" min="0" step="0.01" class="wp-input" [ngModel]="f.paymentAmount" (ngModelChange)="patch({ paymentAmount: $event ?? '' })" />
+          </div>
+        }
+        @if (f.paymentDistribution === 'Weekly') {
+          <div>
+            <label class="wp-label">Week starts on *</label>
+            <select class="wp-input" [ngModel]="f.weekStartDay" (ngModelChange)="patch({ weekStartDay: $event })">
+              <option [ngValue]="null">Choose…</option>
+              @for (d of weekDays; track $index) { <option [ngValue]="$index">{{ d }}</option> }
+            </select>
+          </div>
+        }
+        @if (f.paymentDistribution === 'Monthly') {
+          <div>
+            <label class="wp-label">Month starts on day *</label>
+            <select class="wp-input" [ngModel]="f.monthStartDay" (ngModelChange)="patch({ monthStartDay: $event })">
+              <option [ngValue]="null">Choose…</option>
+              @for (d of monthDays; track d) { <option [ngValue]="d">{{ d }}</option> }
+            </select>
+          </div>
+        }
+
+        <div class="sm:col-span-2 mt-2 border-t border-slate-100 pt-3 text-xs font-bold uppercase tracking-wide text-slate-400">Policy</div>
+        <div><label class="wp-label">Policy number</label><input class="wp-input" maxlength="50" [ngModel]="f.policyNumber" (ngModelChange)="patch({ policyNumber: $event })" /></div>
+        <div><label class="wp-label">Member ID</label><input class="wp-input" maxlength="50" [ngModel]="f.memberId" (ngModelChange)="patch({ memberId: $event })" /></div>
+        <div><label class="wp-label">Group name</label><input class="wp-input" maxlength="100" [ngModel]="f.groupName" (ngModelChange)="patch({ groupName: $event })" /></div>
+        <div><label class="wp-label">Group number</label><input class="wp-input" maxlength="50" [ngModel]="f.groupNumber" (ngModelChange)="patch({ groupNumber: $event })" /></div>
+
+        <div class="sm:col-span-2 mt-2 border-t border-slate-100 pt-3">
+          <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600" [ngModel]="f.isClientSubscriber" (ngModelChange)="patch({ isClientSubscriber: $event })" />
+            The client is the policy holder (subscriber)
+          </label>
+        </div>
+        @if (!f.isClientSubscriber) {
+          <div><label class="wp-label">Subscriber first name *</label><input class="wp-input" maxlength="100" [ngModel]="f.subscriberFirstName" (ngModelChange)="patch({ subscriberFirstName: $event })" /></div>
+          <div><label class="wp-label">Subscriber last name *</label><input class="wp-input" maxlength="100" [ngModel]="f.subscriberLastName" (ngModelChange)="patch({ subscriberLastName: $event })" /></div>
+          <div>
+            <label class="wp-label">Relation to client *</label>
+            <select class="wp-input" [ngModel]="f.subscriberRelation" (ngModelChange)="patch({ subscriberRelation: $event })">
+              <option value="">Choose…</option>
+              @for (r of relations; track r.value) { <option [value]="r.value">{{ r.label }}</option> }
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><label class="wp-label">Date of birth</label><input type="date" class="wp-input" [ngModel]="f.subscriberDateOfBirth" (ngModelChange)="patch({ subscriberDateOfBirth: $event ?? '' })" /></div>
+            <div>
+              <label class="wp-label">Gender</label>
+              <select class="wp-input" [ngModel]="f.subscriberGender" (ngModelChange)="patch({ subscriberGender: $event })">
+                <option value="">—</option><option value="Female">Female</option><option value="Male">Male</option><option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+        }
+
+        <div class="sm:col-span-2">
+          <label class="wp-label">Notes</label>
+          <input class="wp-input" maxlength="1000" [ngModel]="f.notes" (ngModelChange)="patch({ notes: $event })" />
+        </div>
+      </div>
+
+      <div class="mt-4 flex justify-end gap-2">
+        <button type="button" (click)="cancel()" class="wp-btn-ghost">Cancel</button>
+        <button type="button" (click)="save()" [disabled]="busy()" class="wp-btn-primary">
+          @if (busy()) { Saving… } @else { {{ mode() === 'edit' ? 'Save' : 'Link payer' }} }
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (confirmSync()) {
+    <app-confirm-dialog
+      title="Sync payers to visits?"
+      message="The client's current payers (and their dates) will be applied to all of this client's visits that are not invoiced yet. Invoiced visits keep the payers they were billed with."
+      confirmLabel="Sync to visits"
+      (confirmed)="sync()"
+      (cancelled)="confirmSync.set(false)" />
+  }
+  @if (confirmDeactivate(); as d) {
+    <app-confirm-dialog
+      tone="danger"
+      [title]="'Deactivate ' + d.payerName + '?'"
+      message="The payer stays on record but stops paying for this client; the other payers move up. Visits already scheduled change only after Sync to visits."
+      confirmLabel="Deactivate"
+      (confirmed)="setActive(d, false)"
+      (cancelled)="confirmDeactivate.set(null)" />
+  }
+</div>

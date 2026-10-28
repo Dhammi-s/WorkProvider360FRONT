@@ -12,10 +12,12 @@ import { ApiResponse } from '../models/api-response.model';
 import {
   ClientBillingRates,
   ClientPayer,
+  ClientPayerLinkRequest,
+  LinkClientPayerRequest,
   ResolvedRates,
-  UpsertClientPayerRequest,
 } from '../models/payer.model';
 
+/** A client's links to agency payers, plus the client's billing rates. */
 @Injectable({ providedIn: 'root' })
 export class ClientPayerService {
   private readonly http = inject(HttpClient);
@@ -38,18 +40,43 @@ export class ClientPayerService {
       );
   }
 
-  /** Create a new payer for the client; returns the client's payers. */
-  addPayer(clientId: number, request: UpsertClientPayerRequest): Observable<ClientPayer[]> {
+  /** Link an agency payer to the client; returns the client's payers. */
+  linkPayer(clientId: number, request: LinkClientPayerRequest): Observable<ClientPayer[]> {
     return this.http
-      .post<ApiResponse<ClientPayer[]>>(`${this.baseUrl}/Clients/add-payer/${clientId}`, request)
-      .pipe(map((r) => this.unwrap(r, 'Could not add the payer.')));
+      .post<ApiResponse<ClientPayer[]>>(`${this.baseUrl}/Clients/${clientId}/payers`, request)
+      .pipe(map((r) => this.unwrap(r, 'Could not link the payer.')));
   }
 
-  /** Update a payer's details, rank and rates; returns the client's payers. */
-  updatePayer(clientId: number, request: UpsertClientPayerRequest): Observable<ClientPayer[]> {
+  /** Edit a link (dates, policy, subscriber, payment distribution); returns the client's payers. */
+  updateLink(clientId: number, clientPayerId: number, request: ClientPayerLinkRequest): Observable<ClientPayer[]> {
     return this.http
-      .put<ApiResponse<ClientPayer[]>>(`${this.baseUrl}/Clients/update-payer/${clientId}`, request)
+      .put<ApiResponse<ClientPayer[]>>(`${this.baseUrl}/Clients/${clientId}/payers/${clientPayerId}`, request)
       .pipe(map((r) => this.unwrap(r, 'Could not save the payer.')));
+  }
+
+  /** Every active ClientPayerId in the new order (first = primary). */
+  reorder(clientId: number, clientPayerIds: number[]): Observable<ClientPayer[]> {
+    return this.http
+      .put<ApiResponse<ClientPayer[]>>(`${this.baseUrl}/Clients/${clientId}/payers/order`, { clientPayerIds })
+      .pipe(map((r) => this.unwrap(r, 'Could not reorder the payers.')));
+  }
+
+  setActive(clientId: number, clientPayerId: number, isActive: boolean): Observable<ClientPayer[]> {
+    return this.http
+      .patch<ApiResponse<ClientPayer[]>>(`${this.baseUrl}/Clients/${clientId}/payers/${clientPayerId}/active`, { isActive })
+      .pipe(map((r) => this.unwrap(r, 'Could not change the payer.')));
+  }
+
+  /** Re-applies the client's payers to visits not yet invoiced; returns the success message. */
+  syncToVisits(clientId: number): Observable<string> {
+    return this.http
+      .post<ApiResponse<number>>(`${this.baseUrl}/Clients/${clientId}/payers/sync`, {})
+      .pipe(
+        map((r) => {
+          if (!r.success) throw new Error(r.message ?? 'Could not sync payers.');
+          return r.message ?? 'Payers applied to visits not yet invoiced.';
+        }),
+      );
   }
 
   getBillingRates(clientId: number): Observable<ClientBillingRates> {
@@ -67,7 +94,7 @@ export class ClientPayerService {
       .pipe(map((r) => this.unwrap(r, 'Could not save billing rates.')));
   }
 
-  /** Rates for a new shift: client, primary, secondary, other payers, then agency defaults. */
+  /** Rates for a new shift: client, payers in rank order, then agency defaults. */
   resolvedRates(clientId: number): Observable<ResolvedRates> {
     return this.http
       .get<ApiResponse<ResolvedRates>>(`${this.baseUrl}/Clients/${clientId}/resolved-rates`)
