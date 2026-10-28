@@ -7,45 +7,203 @@
      ============================================================================= -->
 
 <section>
-  <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Help Center</h1>
-  <p class="mt-1 text-sm text-slate-500">Guides and answers to common questions about using the platform.</p>
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Help Center</h1>
+      <p class="mt-1 text-sm text-slate-500">Everything WorkProvider360 does, explained step by step{{ signedIn() ? ', with how-to videos' : '' }}.</p>
+    </div>
+    @if (canManage() && !form()) {
+      <button type="button" (click)="startUpload()" class="wp-btn-primary self-start sm:self-auto">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
+        Upload video
+      </button>
+    }
+  </div>
 
-  <!-- Search -->
+  <app-alert type="success" [message]="notice()" />
+  <app-alert type="error" [message]="error()" />
+
+  <!-- Upload / edit a video -->
+  @if (form(); as f) {
+    <div class="wp-card mt-4 !p-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-bold text-slate-900">{{ f.helpVideoId ? 'Edit video' : 'Upload a how-to video' }}</h2>
+        <button type="button" (click)="form.set(null)" [disabled]="uploading()" class="text-sm text-slate-500 hover:text-slate-700">Cancel</button>
+      </div>
+      <fieldset [disabled]="uploading()" class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        @if (!f.helpVideoId) {
+          <div class="sm:col-span-2">
+            <label class="wp-label">Video file * <span class="font-normal text-slate-400">· MP4, MOV, WEBM or M4V, up to 100 MB</span></label>
+            <input type="file" accept="video/mp4,video/quicktime,video/webm,video/x-m4v,.mp4,.mov,.webm,.m4v" class="wp-input" (change)="onFile($event)" />
+          </div>
+        }
+        <div>
+          <label class="wp-label">Title *</label>
+          <input class="wp-input" maxlength="200" [ngModel]="f.title" (ngModelChange)="patch({ title: $event })" />
+        </div>
+        <div>
+          <label class="wp-label">Help topic *</label>
+          <select class="wp-input" [ngModel]="f.topic" (ngModelChange)="patch({ topic: $event })">
+            @for (t of topics; track t) { <option [value]="t">{{ t }}</option> }
+          </select>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="wp-label">Description</label>
+          <textarea class="wp-input min-h-[70px]" maxlength="1000" [ngModel]="f.description" (ngModelChange)="patch({ description: $event })"></textarea>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="wp-label">Who can watch it</label>
+          <div class="mt-1 flex flex-wrap gap-4 text-sm text-slate-700">
+            <label class="flex items-center gap-2 opacity-60"><input type="checkbox" checked disabled class="h-4 w-4" /> Super Admins (always)</label>
+            <label class="flex items-center gap-2"><input type="checkbox" class="h-4 w-4" [ngModel]="f.showToAdmin" (ngModelChange)="patch({ showToAdmin: $event })" /> Admins</label>
+            <label class="flex items-center gap-2"><input type="checkbox" class="h-4 w-4" [ngModel]="f.showToManager" (ngModelChange)="patch({ showToManager: $event })" /> Managers</label>
+            <label class="flex items-center gap-2"><input type="checkbox" class="h-4 w-4" [ngModel]="f.showToUser" (ngModelChange)="patch({ showToUser: $event })" /> Team members (Users)</label>
+          </div>
+        </div>
+        <div>
+          <label class="wp-label">Order within the topic</label>
+          <input type="number" min="0" class="wp-input" [ngModel]="f.sortOrder" (ngModelChange)="patch({ sortOrder: $event })" />
+        </div>
+      </fieldset>
+
+      @if (uploading() && !f.helpVideoId) {
+        <div class="mt-4">
+          <div class="flex justify-between text-xs text-slate-500"><span>Uploading to Cloudinary…</span><span>{{ progress() }}%</span></div>
+          <div class="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+            <div class="h-full rounded-full bg-brand-600 transition-all" [style.width.%]="progress()"></div>
+          </div>
+        </div>
+      }
+
+      <div class="mt-4 flex justify-end gap-2">
+        <button type="button" (click)="form.set(null)" [disabled]="uploading()" class="wp-btn-ghost">Cancel</button>
+        <button type="button" (click)="save()" [disabled]="uploading()" class="wp-btn-primary">
+          @if (uploading()) { {{ f.helpVideoId ? 'Saving…' : 'Uploading…' }} } @else { {{ f.helpVideoId ? 'Save' : 'Upload video' }} }
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Search + topics -->
   <div class="mt-6 max-w-xl">
     <div class="relative">
       <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 21l-4.3-4.3M11 19a8 8 0 100-16 8 8 0 000 16z" /></svg>
       </span>
-      <input type="search" class="wp-input pl-11" placeholder="Search help…" [value]="query()" (input)="query.set($any($event.target).value)" />
+      <input type="search" class="wp-input pl-11" placeholder="Search help and videos…" [value]="query()" (input)="query.set($any($event.target).value)" />
     </div>
   </div>
+  <div class="mt-3 flex flex-wrap gap-2">
+    <button type="button" (click)="topic.set('')"
+      class="rounded-full px-3 py-1 text-xs font-semibold transition"
+      [class]="topic() === '' ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50'">All topics</button>
+    @for (t of topics; track t) {
+      <button type="button" (click)="topic.set(t)"
+        class="rounded-full px-3 py-1 text-xs font-semibold transition"
+        [class]="topic() === t ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50'">
+        {{ t }}@if (videoCountByTopic().get(t)) { <span class="ml-1 opacity-70">▶ {{ videoCountByTopic().get(t) }}</span> }
+      </button>
+    }
+  </div>
 
-  <!-- FAQ list -->
-  <div class="mt-6 space-y-3">
-    @for (f of filtered(); track f.q; let i = $index) {
-      <div class="wp-card !p-0 overflow-hidden">
-        <button type="button" (click)="toggle(i)" class="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50/60">
-          <span>
-            <span class="mr-2 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">{{ f.category }}</span>
-            <span class="text-sm font-semibold text-slate-800">{{ f.q }}</span>
-          </span>
-          <svg class="h-4 w-4 shrink-0 text-slate-400 transition-transform" [class.rotate-180]="openId() === i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
-        </button>
-        @if (openId() === i) {
-          <p class="border-t border-slate-100 px-5 py-4 text-sm leading-relaxed text-slate-600">{{ f.a }}</p>
+  <!-- Topics -->
+  <div class="mt-6 space-y-8">
+    @for (s of sections(); track s.topic) {
+      <div>
+        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-400">{{ s.topic }}</h2>
+
+        @if (s.videos.length) {
+          <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            @for (v of s.videos; track v.helpVideoId) {
+              <div class="wp-card !p-0 overflow-hidden">
+                @if (playing() === v.helpVideoId) {
+                  <video [src]="v.videoUrl" controls autoplay playsinline class="aspect-video w-full bg-black"></video>
+                } @else {
+                  <button type="button" (click)="playing.set(v.helpVideoId)" class="group relative block aspect-video w-full bg-slate-900" [attr.aria-label]="'Play ' + v.title">
+                    @if (v.thumbnailUrl) { <img [src]="v.thumbnailUrl" alt="" loading="lazy" class="h-full w-full object-cover opacity-80 transition group-hover:opacity-100" /> }
+                    <span class="absolute inset-0 flex items-center justify-center">
+                      <span class="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-brand-700 shadow-lg">
+                        <svg class="ml-0.5 h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M6 4l10 6-10 6V4z" /></svg>
+                      </span>
+                    </span>
+                    @if (duration(v)) { <span class="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold text-white">{{ duration(v) }}</span> }
+                  </button>
+                }
+                <div class="p-3">
+                  <div class="text-sm font-semibold text-slate-800">{{ v.title }}</div>
+                  @if (v.description) { <p class="mt-0.5 text-xs text-slate-500">{{ v.description }}</p> }
+                  @if (canManage()) {
+                    <div class="mt-2 flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <span>For {{ audience(v) }} · {{ v.createdOn | date: 'MMM d, y' }}</span>
+                      <span class="whitespace-nowrap">
+                        <button type="button" (click)="startEdit(v)" class="font-semibold text-brand-700 hover:underline">Edit</button>
+                        <button type="button" (click)="confirmDelete.set(v)" class="ml-2 font-semibold text-red-600 hover:underline">Delete</button>
+                      </span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        @if (s.faqs.length) {
+          <div class="mt-3 space-y-2">
+            @for (f of s.faqs; track f.q) {
+              @let key = s.topic + '|' + f.q;
+              <div class="wp-card !p-0 overflow-hidden">
+                <button type="button" (click)="toggle(key)" class="flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left hover:bg-slate-50/60">
+                  <span class="text-sm font-semibold text-slate-800">{{ f.q }}</span>
+                  <svg class="h-4 w-4 shrink-0 text-slate-400 transition-transform" [class.rotate-180]="openKey() === key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" /></svg>
+                </button>
+                @if (openKey() === key || query().trim()) {
+                  <p class="border-t border-slate-100 px-5 py-4 text-sm leading-relaxed text-slate-600">{{ f.a }}</p>
+                }
+              </div>
+            }
+          </div>
         }
       </div>
     } @empty {
-      <p class="wp-card py-10 text-center text-sm text-slate-400">No results. Try a different search.</p>
+      <p class="wp-card py-10 text-center text-sm text-slate-400">No results. Try a different search or topic.</p>
     }
   </div>
+
+  <!-- Who may upload videos (Super Admin) -->
+  @if (isSuperAdmin() && settings(); as st) {
+    <div class="wp-card mt-8">
+      <h2 class="text-base font-bold text-slate-900">Help video permissions</h2>
+      <p class="mt-1 text-sm text-slate-500">Super Admins can always upload and manage Help Center videos. Choose who else can.</p>
+      <div class="mt-3 space-y-2">
+        <label class="flex items-center justify-between"><span class="text-sm text-slate-700">Admins can upload and manage videos</span>
+          <input type="checkbox" class="h-4 w-4" [ngModel]="st.adminCanManage" (ngModelChange)="patchSettings({ adminCanManage: $event })" /></label>
+        <label class="flex items-center justify-between"><span class="text-sm text-slate-700">Managers can upload and manage videos</span>
+          <input type="checkbox" class="h-4 w-4" [ngModel]="st.managerCanManage" (ngModelChange)="patchSettings({ managerCanManage: $event })" /></label>
+      </div>
+      <div class="mt-4 flex justify-end">
+        <button type="button" (click)="saveSettings()" [disabled]="settingsSaving()" class="wp-btn-primary">
+          @if (settingsSaving()) { Saving… } @else { Save permissions }
+        </button>
+      </div>
+    </div>
+  }
 
   <!-- Still need help -->
   <div class="mt-6 flex flex-col items-start justify-between gap-3 rounded-2xl border border-brand-100 bg-brand-50 px-6 py-5 sm:flex-row sm:items-center">
     <div>
       <p class="text-sm font-bold text-brand-800">Still need help?</p>
-      <p class="text-sm text-brand-700/80">Our support team is happy to assist you.</p>
+      <p class="text-sm text-brand-700/80">Ask the assistant (bottom corner) or contact our support team.</p>
     </div>
-    <a routerLink="/dashboard/support" class="wp-btn-primary">Contact support</a>
+    <a [routerLink]="signedIn() ? '/dashboard/support' : '/login'" class="wp-btn-primary">Contact support</a>
   </div>
+
+  @if (confirmDelete(); as d) {
+    <app-confirm-dialog
+      tone="danger"
+      [title]="'Delete “' + d.title + '”?'"
+      message="The video is removed from the Help Center and deleted from Cloudinary. This cannot be undone."
+      confirmLabel="Delete video"
+      (confirmed)="remove(d)"
+      (cancelled)="confirmDelete.set(null)" />
+  }
 </section>
