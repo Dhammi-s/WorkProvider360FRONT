@@ -43,7 +43,10 @@ import { Alert } from '../../../shared/ui/alert/alert';
           </div>
           <div class="flex items-center justify-between border-t border-slate-100 pt-4">
             <span class="text-xs text-slate-400">Last reminder run: {{ v.lastReminderRunDate ? (v.lastReminderRunDate | date: 'MMM d, y') : 'not yet' }}</span>
-            <button type="button" class="wp-btn-portal" [disabled]="saving()" (click)="save()">{{ saving() ? 'Saving…' : 'Save settings' }}</button>
+            <div class="flex gap-2">
+              <button type="button" class="wp-btn-ghost" [disabled]="running()" (click)="runNow()">{{ running() ? 'Sending…' : 'Send today’s reminders now' }}</button>
+              <button type="button" class="wp-btn-portal" [disabled]="saving()" (click)="save()">{{ saving() ? 'Saving…' : 'Save settings' }}</button>
+            </div>
           </div>
         </div>
       }
@@ -54,11 +57,27 @@ export class TrainingSettingsPage {
   private readonly training = inject(TrainingService);
   readonly s = signal<TrainingSettings | null>(null);
   readonly saving = signal(false);
+  readonly running = signal(false);
   readonly error = signal('');
   readonly success = signal('');
 
   constructor() {
     this.training.settings().subscribe({ next: (v) => this.s.set(v), error: (e: Error) => this.error.set(e.message) });
+  }
+
+  runNow(): void {
+    this.running.set(true);
+    this.error.set('');
+    this.training.runReminders().subscribe({
+      next: (msg) => {
+        this.running.set(false);
+        this.success.set(msg);
+      },
+      error: (e: Error) => {
+        this.running.set(false);
+        this.error.set(e.message);
+      },
+    });
   }
 
   save(): void {

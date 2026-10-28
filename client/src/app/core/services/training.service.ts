@@ -201,6 +201,13 @@ export class TrainingService {
     return this.http.get<ApiResponse<TrainingSettings>>(`${this.baseUrl}/settings`).pipe(map((r) => this.unwrap(r)));
   }
 
+  /** Super Admin: send today's due / not-completed reminders now. */
+  runReminders(): Observable<string> {
+    return this.http
+      .post<ApiResponse<number | null>>(`${this.baseUrl}/settings/run-reminders`, {})
+      .pipe(map((r) => r.message ?? 'Reminders checked.'));
+  }
+
   saveSettings(s: Omit<TrainingSettings, 'lastReminderRunDate'>): Observable<TrainingSettings> {
     return this.http.put<ApiResponse<TrainingSettings>>(`${this.baseUrl}/settings`, s).pipe(map((r) => this.unwrap(r)));
   }
