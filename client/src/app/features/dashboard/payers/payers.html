@@ -1,0 +1,103 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     ============================================================================= -->
+<section>
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Payers</h1>
+      <p class="mt-1 text-sm text-slate-500">Insurance companies, Medicaid, family members and others who pay for care. Link them to clients from the client's Payers tab.</p>
+    </div>
+    @if (canManage()) {
+      <a routerLink="/dashboard/payers/new" class="wp-btn-primary self-start sm:self-auto">
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
+        Add payer
+      </a>
+    }
+  </div>
+
+  <app-alert type="error" [message]="error()" />
+
+  <div class="wp-card mt-4 flex flex-wrap items-end gap-3">
+    <div>
+      <label class="wp-label">Search</label>
+      <input type="text" class="wp-input !py-2" placeholder="Name, email, phone, city…"
+        [ngModel]="search()" (ngModelChange)="search.set($event)" (keyup.enter)="applyFilters()" />
+    </div>
+    @if (isSuperAdmin() && offices().length) {
+      <div>
+        <label class="wp-label">Office</label>
+        <select class="wp-input !py-2 !w-auto" [ngModel]="officeFilter()" (ngModelChange)="officeFilter.set($event); applyFilters()">
+          <option value="">All offices</option>
+          @for (o of offices(); track o.officeId) { <option [value]="o.officeId">{{ o.officeName }}</option> }
+        </select>
+      </div>
+    }
+    <div>
+      <label class="wp-label">Status</label>
+      <select class="wp-input !py-2 !w-auto" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event); applyFilters()">
+        <option value="">All</option>
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+    </div>
+    <div>
+      <label class="wp-label">Type</label>
+      <select class="wp-input !py-2 !w-auto" [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event); applyFilters()">
+        <option value="">All types</option>
+        @for (t of payerTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
+      </select>
+    </div>
+    <button type="button" (click)="applyFilters()" class="wp-btn-ghost !py-2">Apply</button>
+    <button type="button" (click)="resetFilters()" class="wp-link text-sm">Reset</button>
+  </div>
+
+  @if (loading()) {
+    <div class="wp-card mt-4 flex items-center justify-center py-16 text-slate-400"><span class="text-sm">Loading payers…</span></div>
+  } @else if (items().length === 0) {
+    <div class="wp-card mt-4 py-16 text-center"><p class="text-sm text-slate-500">No payers match the filters.</p></div>
+  } @else {
+    <div class="wp-card mt-4 overflow-hidden !p-0">
+      <div class="max-h-[60vh] overflow-auto">
+        <table class="min-w-full divide-y divide-slate-100 text-sm">
+          <thead class="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <tr>
+              <th class="px-6 py-3">Payer</th>
+              <th class="px-6 py-3">Type</th>
+              <th class="px-6 py-3">Contact</th>
+              <th class="px-6 py-3">Office</th>
+              <th class="px-6 py-3 text-right">Clients</th>
+              <th class="px-6 py-3">Status</th>
+              <th class="px-6 py-3 text-right"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (p of items(); track p.payerId) {
+              <tr class="hover:bg-slate-50/60">
+                <td class="px-6 py-3">
+                  <a [routerLink]="['/dashboard/payers', p.payerId]" class="font-semibold text-slate-800 hover:text-brand-700">{{ p.payerName }}</a>
+                  <div class="text-xs text-slate-400">{{ p.payerSourceType === 'Company' ? 'Company' : 'Individual' }}{{ p.city ? ' · ' + p.city : '' }}</div>
+                </td>
+                <td class="px-6 py-3 text-slate-600">{{ typeLabel(p.payerType) }}</td>
+                <td class="px-6 py-3">
+                  <div class="text-slate-600">{{ p.phone || '—' }}</div>
+                  <div class="text-xs text-slate-400">{{ p.email || '' }}</div>
+                </td>
+                <td class="px-6 py-3 text-slate-500">{{ p.officeName || 'All offices' }}</td>
+                <td class="px-6 py-3 text-right text-slate-700">{{ p.linkedClientCount }}</td>
+                <td class="px-6 py-3">
+                  <span class="rounded-full px-2.5 py-1 text-xs font-semibold"
+                    [class]="p.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'">{{ p.status }}</span>
+                </td>
+                <td class="px-6 py-3 text-right">
+                  <a [routerLink]="['/dashboard/payers', p.payerId]" class="wp-link text-sm">{{ canManage() ? 'Edit' : 'View' }}</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <app-paginator [total]="total()" [page]="page()" [pageSize]="pageSize()" (pageChange)="onPage($event)" (pageSizeChange)="onPageSize($event)" />
+  }
+</section>

@@ -22,53 +22,11 @@ import { ScheduleEditor } from '../../../../shared/ui/schedule-editor/schedule-e
 import { CareLog } from '../../../../shared/ui/care-log/care-log';
 import { ClientInvoices } from '../../../../shared/ui/client-invoices/client-invoices';
 import { ConfirmDialog } from '../../../../shared/ui/confirm-dialog/confirm-dialog';
-import {
-  ClientPayer,
-  PayerRank,
-  ResolvedRates,
-  UpsertClientPayerRequest,
-  payerRank,
-} from '../../../../core/models/payer.model';
+import { ClientPayer, ResolvedRates, isPayerInEffect, rankLabel } from '../../../../core/models/payer.model';
 import { ClientPayerService } from '../../../../core/services/ClientPayerService';
+import { ClientPayers } from '../client-payers/client-payers';
 
 type Section = 'main' | 'schedule' | 'carelog' | 'payers' | 'billing';
-
-/** Payer form state; rates are strings so an empty box means "not set". */
-interface PayerForm {
-  payerId: number;
-  payerName: string;
-  email: string;
-  phone: string;
-  addressLine1: string;
-  addressLine2: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-  status: string;
-  rank: PayerRank;
-  billRate: string;
-  payRate: string;
-}
-
-function emptyPayerForm(): PayerForm {
-  return {
-    payerId: 0,
-    payerName: '',
-    email: '',
-    phone: '',
-    addressLine1: '',
-    addressLine2: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    country: '',
-    status: 'Active',
-    rank: 'Other',
-    billRate: '',
-    payRate: '',
-  };
-}
 
 /** '' / 0 / invalid = not set (null) so rate resolution falls through to the next level. */
 function toRate(value: string | number | null | undefined): number | null {
@@ -84,7 +42,7 @@ function rateText(value: number | null | undefined): string {
 /** Full-page client profile: Main details, Schedule, Care Logs, Payers and Billing & Invoice. */
 @Component({
   selector: 'app-client-profile',
-  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, Alert, VisitCalendar, ScheduleEditor, CareLog, ClientInvoices, ConfirmDialog],
+  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, Alert, VisitCalendar, ScheduleEditor, CareLog, ClientInvoices, ConfirmDialog, ClientPayers],
   templateUrl: './client-profile.html',
 })
 export class ClientProfile {
@@ -127,14 +85,6 @@ export class ClientProfile {
   readonly portalError = signal('');
   readonly portalConfirm = signal<'resend' | 'disable' | null>(null);
 
-  // Payer add / edit (inline card).
-  readonly payerFormOpen = signal(false);
-  readonly payerForm = signal<PayerForm>(emptyPayerForm());
-  readonly payerSaving = signal(false);
-  readonly payerFormError = signal('');
-  readonly payerNotice = signal('');
-  readonly payerRank = payerRank;
-
   // Billing & Invoice.
   readonly clientBillRate = signal('');
   readonly clientPayRate = signal('');
@@ -150,11 +100,12 @@ export class ClientProfile {
     const rows: { label: string; bill: number | null; pay: number | null }[] = [
       { label: 'Client', bill: toRate(this.clientBillRate()), pay: toRate(this.clientPayRate()) },
     ];
-    for (const p of this.payers()) {
-      if (p.status && p.status !== 'Active') continue;
-      const rank = payerRank(p);
+    // Payers in effect today, in rank order (same as the server's rate resolution).
+    const today = new Date().toISOString().slice(0, 10);
+    for (const p of this.payers().filter((x) => isPayerInEffect(x, today)).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))) {
+      const rank = rankLabel(p.rank);
       rows.push({
-        label: `${rank === 'Other' ? 'Other payer' : rank + ' payer'}: ${p.payerName}`,
+        label: `${rank.startsWith('#') ? 'Payer ' + rank : rank + ' payer'}: ${p.payerName}`,
         bill: p.billRatePerHour,
         pay: p.payRatePerHour,
       });
@@ -229,9 +180,6 @@ export class ClientProfile {
 
   setSection(s: Section): void {
     this.section.set(s);
-    if (s === 'payers') {
-      this.loadClientPayers();
-    }
     if (s === 'billing') {
       this.loadBilling();
     }
@@ -276,107 +224,11 @@ export class ClientProfile {
     });
   }
 
-  // ------------------------------------------------------------ Payers
-
-  openAddPayer(): void {
-    const form = emptyPayerForm();
-    // The first payer of a client is always its primary.
-    if (!this.payers().some((p) => p.isPrimary)) form.rank = 'Primary';
-    else if (!this.payers().some((p) => p.isSecondary)) form.rank = 'Secondary';
-    this.payerForm.set(form);
-    this.payerFormError.set('');
-    this.payerNotice.set('');
-    this.payerFormOpen.set(true);
-  }
-
-  openEditPayer(p: ClientPayer): void {
-    this.payerForm.set({
-      payerId: p.payerId,
-      payerName: p.payerName ?? '',
-      email: p.email ?? '',
-      phone: p.phone ?? '',
-      addressLine1: p.addressLine1 ?? '',
-      addressLine2: p.addressLine2 ?? '',
-      city: p.city ?? '',
-      state: p.state ?? '',
-      postalCode: p.postalCode ?? '',
-      country: p.country ?? '',
-      status: p.status || 'Active',
-      rank: payerRank(p),
-      billRate: rateText(p.billRatePerHour),
-      payRate: rateText(p.payRatePerHour),
-    });
-    this.payerFormError.set('');
-    this.payerNotice.set('');
-    this.payerFormOpen.set(true);
-  }
-
-  patchPayerForm(patch: Partial<PayerForm>): void {
-    this.payerForm.update((f) => ({ ...f, ...patch }));
-  }
-
-  closePayerForm(): void {
-    this.payerFormOpen.set(false);
-  }
-
-  savePayer(): void {
-    const f = this.payerForm();
-    if (!f.payerName.trim()) {
-      this.payerFormError.set('Payer name is required.');
-      return;
-    }
-    if ((f.billRate !== '' && Number(f.billRate) < 0) || (f.payRate !== '' && Number(f.payRate) < 0)) {
-      this.payerFormError.set('Rates cannot be negative.');
-      return;
-    }
-
-    const request: UpsertClientPayerRequest = {
-      payerId: f.payerId,
-      payerName: f.payerName.trim(),
-      email: f.email.trim() || null,
-      phone: f.phone.trim() || null,
-      addressLine1: f.addressLine1.trim() || null,
-      addressLine2: f.addressLine2.trim() || null,
-      city: f.city.trim() || null,
-      state: f.state.trim() || null,
-      postalCode: f.postalCode.trim() || null,
-      country: f.country.trim() || null,
-      status: f.status,
-      isPrimary: f.rank === 'Primary',
-      isSecondary: f.rank === 'Secondary',
-      billRatePerHour: toRate(f.billRate),
-      payRatePerHour: toRate(f.payRate),
-    };
-
-    this.payerSaving.set(true);
-    this.payerFormError.set('');
-    const req$ = f.payerId
-      ? this.clientPayerService.updatePayer(this.clientId, request)
-      : this.clientPayerService.addPayer(this.clientId, request);
-    req$.subscribe({
-      next: (payers) => {
-        this.payers.set(payers);
-        this.payerSaving.set(false);
-        this.payerFormOpen.set(false);
-        this.payerNotice.set(f.payerId ? 'Payer saved.' : 'Payer added.');
-        this.resolved.set(null);
-      },
-      error: (err: Error) => {
-        this.payerFormError.set(err.message || 'Could not save the payer.');
-        this.payerSaving.set(false);
-      },
-    });
-  }
-
-  rankBadge(rank: PayerRank): string {
-    switch (rank) {
-      case 'Primary':
-        return 'bg-brand-50 text-brand-700';
-      case 'Secondary':
-        return 'bg-sky-50 text-sky-700';
-      default:
-        return 'bg-slate-100 text-slate-600';
-    }
+  /** The Payers tab changed the client's payers: rates resolve differently now. */
+  onPayersChanged(list: ClientPayer[]): void {
+    this.payers.set(list);
+    this.loadedPayersForClient = this.clientId;
+    this.resolved.set(null);
   }
 
   // ------------------------------------------------------- Billing & Invoice

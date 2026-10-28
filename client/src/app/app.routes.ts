@@ -120,6 +120,21 @@ export const routes: Routes = [
         title: 'Clients · WorkProvider360',
       },
       {
+        path: 'payers',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () => import('./features/dashboard/payers/payers').then((m) => m.Payers),
+        title: 'Payers · WorkProvider360',
+      },
+      {
+        path: 'payers/:id',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () =>
+          import('./features/dashboard/payers/payer-detail/payer-detail').then((m) => m.PayerDetailPage),
+        title: 'Payer · WorkProvider360',
+      },
+      {
         path: 'clients/:id',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },

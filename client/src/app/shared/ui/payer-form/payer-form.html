@@ -1,0 +1,128 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     ============================================================================= -->
+@let f = form();
+<fieldset [disabled]="readOnly() || busy()">
+  <app-alert type="error" [message]="error()" />
+
+  <!-- Individual / Company -->
+  <div class="mt-1 inline-flex rounded-xl bg-slate-100 p-1">
+    @for (s of ['Individual', 'Company']; track s) {
+      <button type="button" (click)="patch({ payerSourceType: $any(s) })"
+        class="rounded-lg px-4 py-1.5 text-sm font-semibold transition"
+        [class]="f.payerSourceType === s ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
+        {{ s === 'Individual' ? 'Individual payer' : 'Company / facility' }}
+      </button>
+    }
+  </div>
+
+  <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+    @if (f.payerSourceType === 'Company') {
+      <div class="sm:col-span-2">
+        <label class="wp-label">Company / facility name *</label>
+        <input class="wp-input" maxlength="200" [ngModel]="f.companyName" (ngModelChange)="patch({ companyName: $event })" />
+      </div>
+    }
+    <div>
+      <label class="wp-label">{{ f.payerSourceType === 'Company' ? 'Contact first name' : 'First name *' }}</label>
+      <input class="wp-input" maxlength="100" [ngModel]="f.firstName" (ngModelChange)="patch({ firstName: $event })" />
+    </div>
+    <div>
+      <label class="wp-label">{{ f.payerSourceType === 'Company' ? 'Contact last name' : 'Last name *' }}</label>
+      <input class="wp-input" maxlength="100" [ngModel]="f.lastName" (ngModelChange)="patch({ lastName: $event })" />
+    </div>
+    <div>
+      <label class="wp-label">Payer type *</label>
+      <select class="wp-input" [ngModel]="f.payerType" (ngModelChange)="patch({ payerType: $event })">
+        @for (t of payerTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
+      </select>
+    </div>
+    @if (offices().length) {
+      <div>
+        <label class="wp-label">Office</label>
+        <select class="wp-input" [ngModel]="f.officeId" (ngModelChange)="patch({ officeId: $event })">
+          <option [ngValue]="null">All offices</option>
+          @for (o of offices(); track o.officeId) { <option [ngValue]="o.officeId">{{ o.officeName }}</option> }
+        </select>
+      </div>
+    }
+    @if (f.payerSourceType === 'Company' && !compact()) {
+      <div>
+        <label class="wp-label">Contact job title</label>
+        <input class="wp-input" maxlength="100" [ngModel]="f.jobTitle" (ngModelChange)="patch({ jobTitle: $event })" />
+      </div>
+      <div>
+        <label class="wp-label">Website</label>
+        <input class="wp-input" maxlength="200" [ngModel]="f.website" (ngModelChange)="patch({ website: $event })" />
+      </div>
+    }
+    <div>
+      <label class="wp-label">Email <span class="font-normal text-slate-400">· receives the client's portal credentials</span></label>
+      <input type="email" class="wp-input" maxlength="256" [ngModel]="f.email" (ngModelChange)="patch({ email: $event })" />
+    </div>
+    <div>
+      <label class="wp-label">Phone</label>
+      <input class="wp-input" maxlength="30" [ngModel]="f.phone" (ngModelChange)="patch({ phone: $event })" />
+    </div>
+
+    @if (!compact()) {
+      <div class="sm:col-span-2 mt-2 border-t border-slate-100 pt-3 text-xs font-bold uppercase tracking-wide text-slate-400">Address</div>
+      <div>
+        <label class="wp-label">Address line 1</label>
+        <input class="wp-input" maxlength="200" [ngModel]="f.addressLine1" (ngModelChange)="patch({ addressLine1: $event })" />
+      </div>
+      <div>
+        <label class="wp-label">Address line 2</label>
+        <input class="wp-input" maxlength="200" [ngModel]="f.addressLine2" (ngModelChange)="patch({ addressLine2: $event })" />
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="wp-label">City</label>
+          <input class="wp-input" maxlength="100" [ngModel]="f.city" (ngModelChange)="patch({ city: $event })" />
+        </div>
+        <div>
+          <label class="wp-label">State</label>
+          <input class="wp-input" maxlength="100" [ngModel]="f.state" (ngModelChange)="patch({ state: $event })" />
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="wp-label">Postal code</label>
+          <input class="wp-input" maxlength="20" [ngModel]="f.postalCode" (ngModelChange)="patch({ postalCode: $event })" />
+        </div>
+        <div>
+          <label class="wp-label">Country</label>
+          <input class="wp-input" maxlength="100" [ngModel]="f.country" (ngModelChange)="patch({ country: $event })" />
+        </div>
+      </div>
+
+      <div class="sm:col-span-2 mt-2 border-t border-slate-100 pt-3 text-xs font-bold uppercase tracking-wide text-slate-400">Default rates</div>
+      <div>
+        <label class="wp-label">Bill rate / hr</label>
+        <input type="number" min="0" step="0.01" class="wp-input" placeholder="Not set" [ngModel]="f.billRate" (ngModelChange)="patch({ billRate: $event ?? '' })" />
+      </div>
+      <div>
+        <label class="wp-label">Pay rate / hr</label>
+        <input type="number" min="0" step="0.01" class="wp-input" placeholder="Not set" [ngModel]="f.payRate" (ngModelChange)="patch({ payRate: $event ?? '' })" />
+      </div>
+      <p class="sm:col-span-2 -mt-1 text-xs text-slate-400">Used for clients linked to this payer when the client has no rate of its own (checked in payer rank order).</p>
+
+      <div class="sm:col-span-2">
+        <label class="wp-label">Notes</label>
+        <textarea class="wp-input min-h-[80px]" maxlength="4000" [ngModel]="f.notes" (ngModelChange)="patch({ notes: $event })"></textarea>
+      </div>
+    }
+  </div>
+
+  @if (!readOnly()) {
+    <div class="mt-4 flex justify-end gap-2">
+      @if (showCancel()) {
+        <button type="button" (click)="cancelled.emit()" class="wp-btn-ghost">Cancel</button>
+      }
+      <button type="button" (click)="submit()" class="wp-btn-primary">
+        @if (busy()) { Saving… } @else { {{ submitLabel() }} }
+      </button>
+    </div>
+  }
+</fieldset>
