@@ -37,6 +37,8 @@ interface NavItem {
   hint?: string;
   /** Hidden for Admin/Manager unless the SuperAdmin granted AI Analysis access. */
   analysis?: boolean;
+  /** Shown only when the training portal is enabled for the signed-in user. */
+  training?: boolean;
 }
 
 /** Authenticated app shell: role-filtered sidebar + topbar + routed content. */
@@ -56,6 +58,9 @@ export class DashboardLayout {
 
   /** AI Analysis tab visibility (SuperAdmin always; Admin/Manager per Settings). */
   readonly analysisAllowed = signal(false);
+
+  /** Training tab visibility: the user's own "Enable training portal" flag. */
+  readonly trainingAllowed = signal(false);
 
   readonly user = this.auth.user;
   readonly logo = this.branding.logo;
@@ -93,7 +98,10 @@ export class DashboardLayout {
       });
     }
     this.users.getMe().subscribe({
-      next: (me) => this.avatarUrl.set(me.avatarUrl ?? null),
+      next: (me) => {
+        this.avatarUrl.set(me.avatarUrl ?? null);
+        this.trainingAllowed.set(!!me.trainingPortalEnabled);
+      },
       error: () => {},
     });
 
@@ -127,6 +135,7 @@ export class DashboardLayout {
     { label: 'Scheduler', hint: 'Plan and manage visits', path: '/dashboard/scheduler', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
     { label: 'Meetings', hint: 'Schedule and join team meetings', path: '/dashboard/meetings', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
     { label: 'AI Analysis', hint: 'AI-powered insights on your data', path: '/dashboard/analysis', icon: 'M9.5 2a2.5 2.5 0 00-2.45 2A3 3 0 004 7a3 3 0 00.5 5.5A3 3 0 007 17a2.5 2.5 0 005 0V4.5A2.5 2.5 0 009.5 2zM14.5 2a2.5 2.5 0 012.45 2A3 3 0 0120 7a3 3 0 01-.5 5.5A3 3 0 0117 17a2.5 2.5 0 01-5 0', roles: ['SuperAdmin', 'Admin', 'Manager'], analysis: true },
+    { label: 'Training', hint: 'Open your training portal', path: '/training-sso', icon: 'M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.42A12.08 12.08 0 0119 12.9c0 2.5-3.13 4.6-7 4.6s-7-2.1-7-4.6c0-.8.17-1.58.84-2.32L12 14zm-7-3.5V17', training: true },
     { label: 'Reports', hint: 'Operational and financial reports', path: '/dashboard/reports', icon: 'M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z' },
     { label: 'Live Map', hint: 'Track caregivers in real time', path: '/dashboard/live-map', icon: 'M9 20l-5.4 1.8a1 1 0 01-1.3-1V5.5a1 1 0 01.7-1L9 3m0 17l6-2m-6 2V3m6 15l5.4 1.8a1 1 0 001.3-1V4.5a1 1 0 00-.7-1L15 1.7m0 16.3V3.7m0 0L9 3M12 11a2 2 0 100-4 2 2 0 000 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
     { label: 'Announcements', hint: 'Broadcast news to your team', path: '/dashboard/announcements', icon: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 11-5.8-1.6' },
@@ -149,8 +158,12 @@ export class DashboardLayout {
   readonly nav = computed<NavItem[]>(() => {
     const role = this.auth.roleName();
     const analysisOk = this.analysisAllowed();
+    const trainingOk = this.trainingAllowed();
     return this.allNav.filter(
-      (item) => (!item.roles || (role && item.roles.includes(role))) && (!item.analysis || analysisOk),
+      (item) =>
+        (!item.roles || (role && item.roles.includes(role))) &&
+        (!item.analysis || analysisOk) &&
+        (!item.training || trainingOk),
     );
   });
 

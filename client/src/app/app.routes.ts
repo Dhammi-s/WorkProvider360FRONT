@@ -10,6 +10,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { portalAuthGuard } from './core/guards/portal-auth.guard';
 import { roleGuard } from './core/guards/role.guard';
+import { trainingAuthGuard, trainingRoleGuard } from './core/guards/training-auth.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -25,6 +26,19 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/portal/portal-login/portal-login').then((m) => m.PortalLogin),
     title: 'Client sign in · WorkProvider360',
+  },
+  {
+    path: 'training-login',
+    loadComponent: () =>
+      import('./features/training/training-login/training-login').then((m) => m.TrainingLogin),
+    title: 'Training sign in · WorkProvider360',
+  },
+  {
+    // Dashboard "Training" tab: swaps the main session for a training session.
+    path: 'training-sso',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/training/training-sso/training-sso').then((m) => m.TrainingSso),
+    title: 'Opening training portal · WorkProvider360',
   },
   {
     path: 'register',
@@ -293,6 +307,76 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/portal/portal-profile/portal-profile').then((m) => m.PortalProfile),
         title: 'My profile · WorkProvider360',
+      },
+    ],
+  },
+
+  {
+    // Training portal: its own session (training token), never the main one.
+    path: 'training',
+    canActivate: [trainingAuthGuard],
+    loadComponent: () =>
+      import('./features/training/training-layout/training-layout').then((m) => m.TrainingLayout),
+    children: [
+      {
+        path: '',
+        pathMatch: 'full',
+        loadComponent: () => import('./features/training/training-home/training-home').then((m) => m.TrainingHome),
+        title: 'Training · WorkProvider360',
+      },
+      {
+        path: 'my',
+        loadComponent: () => import('./features/training/training-my/training-my').then((m) => m.TrainingMy),
+        title: 'My trainings · WorkProvider360',
+      },
+      {
+        path: 'my/:id',
+        loadComponent: () => import('./features/training/training-take/training-take').then((m) => m.TrainingTake),
+        title: 'Training · WorkProvider360',
+      },
+      {
+        path: 'assignments',
+        canActivate: [trainingRoleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'], mode: 'team' },
+        loadComponent: () =>
+          import('./features/training/training-assignments/training-assignments').then((m) => m.TrainingAssignments),
+        title: 'Team trainings · WorkProvider360',
+      },
+      {
+        path: 'approvals',
+        canActivate: [trainingRoleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'], mode: 'approvals' },
+        loadComponent: () =>
+          import('./features/training/training-assignments/training-assignments').then((m) => m.TrainingAssignments),
+        title: 'Training approvals · WorkProvider360',
+      },
+      {
+        path: 'catalog',
+        canActivate: [trainingRoleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () => import('./features/training/training-catalog/training-catalog').then((m) => m.TrainingCatalog),
+        title: 'Training catalog · WorkProvider360',
+      },
+      {
+        path: 'reports',
+        canActivate: [trainingRoleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () => import('./features/training/training-reports/training-reports').then((m) => m.TrainingReports),
+        title: 'Training reports · WorkProvider360',
+      },
+      {
+        path: 'access',
+        canActivate: [trainingRoleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () => import('./features/training/training-access/training-access').then((m) => m.TrainingAccessPage),
+        title: 'Training access · WorkProvider360',
+      },
+      {
+        path: 'settings',
+        canActivate: [trainingRoleGuard],
+        data: { roles: ['SuperAdmin'] },
+        loadComponent: () => import('./features/training/training-settings/training-settings').then((m) => m.TrainingSettingsPage),
+        title: 'Training settings · WorkProvider360',
       },
     ],
   },

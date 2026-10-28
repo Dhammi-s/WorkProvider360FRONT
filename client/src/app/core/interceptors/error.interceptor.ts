@@ -12,9 +12,10 @@ import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { TokenStorageService } from '../services/token-storage.service';
+import { TrainingSessionService } from '../services/training-session.service';
 
 /** Endpoints that must never trigger the silent-refresh retry. */
-const AUTH_BYPASS = ['/auth/login', '/auth/refresh-token', '/auth/forgot-password', '/auth/reset-password', '/users/bootstrap-admin'];
+const AUTH_BYPASS = ['/auth/login', '/auth/refresh-token', '/auth/forgot-password', '/auth/reset-password', '/users/bootstrap-admin', '/training-auth/login'];
 
 /**
  * Normalises API errors into a readable message and handles expired tokens:
@@ -27,6 +28,21 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
 
   const isBypassed = AUTH_BYPASS.some((path) => req.url.includes(path));
+  const trainingSession = inject(TrainingSessionService);
+
+  // Training portal calls: a 401 ends only the training session (the main-app
+  // session, if any, is left alone) and goes back to the training sign-in.
+  if (req.url.includes('/training-portal/')) {
+    return next(req).pipe(
+      catchError((error: HttpErrorResponse) => {
+        if (error.status === 401) {
+          trainingSession.clear();
+          router.navigate(['/training-login']);
+        }
+        return throwError(() => normalise(error));
+      }),
+    );
+  }
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {

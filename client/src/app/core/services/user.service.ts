@@ -14,6 +14,7 @@ import { HttpParams } from '@angular/common/http';
 import { ApiResponse } from '../models/api-response.model';
 import { PagedResult } from '../models/paged-result.model';
 import { RoleDto } from '../models/role.model';
+import { SetTrainingAccessRequest, TrainingAccess, TrainingAccessResult } from '../models/training.model';
 import { CreateUserRequest, SendSmsRequest, UserDto } from '../models/user.model';
 
 /** Reads/writes tenant users and roles (dashboard admin features). */
@@ -27,6 +28,22 @@ export class UserService {
     return this.http
       .get<ApiResponse<UserDto[]>>(this.usersUrl)
       .pipe(map((res) => res.data ?? []));
+  }
+
+  // ---- Training portal access (main-app side; the portal itself uses TrainingService)
+
+  getTrainingAccess(userId: number): Observable<TrainingAccess> {
+    return this.http
+      .get<ApiResponse<TrainingAccess>>(`${this.usersUrl}/${userId}/training-access`)
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  setTrainingAccess(userId: number, request: SetTrainingAccessRequest): Observable<ApiResponse<TrainingAccessResult>> {
+    return this.http.put<ApiResponse<TrainingAccessResult>>(`${this.usersUrl}/${userId}/training-access`, request);
+  }
+
+  resetTrainingPassword(userId: number): Observable<ApiResponse<TrainingAccessResult>> {
+    return this.http.post<ApiResponse<TrainingAccessResult>>(`${this.usersUrl}/${userId}/training-access/reset-password`, {});
   }
 
   getUsersPaged(

@@ -1,0 +1,164 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-10-28
+     NOTE TO DEVELOPERS: Do NOT change functionality without full knowledge of the
+     SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
+     ============================================================================= -->
+<section class="space-y-6">
+  <div class="flex flex-wrap items-end justify-between gap-4 wp-anim-up">
+    <div>
+      <h1 class="text-3xl font-black tracking-tight text-portal-900">Training catalog</h1>
+      <p class="mt-1 text-sm text-slate-500">
+        @if (canManage()) { Create videos, PDF guides and quizzes for your agency. } @else { Trainings you can assign to your team. }
+      </p>
+    </div>
+    <div class="flex gap-2">
+      @if (canManage()) {
+        <button type="button" class="wp-btn-ghost" (click)="toggleArchived()">{{ showArchived() ? 'Hide archived' : 'Show archived' }}</button>
+        <button type="button" class="wp-btn-portal" (click)="newTraining()">+ New training</button>
+      }
+    </div>
+  </div>
+
+  <app-alert type="error" [message]="draft() ? '' : error()" />
+  <app-alert type="success" [message]="success()" />
+
+  @if (loading()) {
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="wp-skeleton h-44 rounded-2xl"></div><div class="wp-skeleton h-44 rounded-2xl"></div><div class="wp-skeleton h-44 rounded-2xl"></div>
+    </div>
+  } @else {
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      @for (t of items(); track t.trainingId; let i = $index) {
+        <div class="wp-pcard wp-anim-up flex flex-col" [class.opacity-60]="!t.isActive" [class]="'wp-d' + ((i % 6) + 1)">
+          <div class="flex items-start justify-between gap-3">
+            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-portal-50 text-xl">{{ icon(t.contentType) }}</span>
+            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">{{ t.isActive ? t.contentType : 'Archived' }}</span>
+          </div>
+          <div class="mt-3 text-base font-bold text-slate-900">{{ t.title }}</div>
+          @if (t.description) { <p class="mt-1 line-clamp-2 text-xs text-slate-500">{{ t.description }}</p> }
+          <div class="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+            @if (t.durationMinutes) { <span>⏱ {{ t.durationMinutes }} min</span> }
+            @if (t.contentType === 'Quiz') { <span>❓ {{ t.questionCount }} questions · pass {{ t.passMarkPercent }}%</span> }
+            <span>📌 {{ t.openAssignments }} open</span>
+            <span>✅ {{ t.completedAssignments }} completed</span>
+          </div>
+          @if (canManage()) {
+            <div class="mt-auto flex justify-end gap-2 pt-4">
+              @if (t.isActive) {
+                <button type="button" class="rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100" (click)="setActive(t, false)">Archive</button>
+              } @else {
+                <button type="button" class="rounded-lg px-2.5 py-1.5 text-xs font-bold text-portal-700 hover:bg-portal-50" (click)="setActive(t, true)">Restore</button>
+              }
+              <button type="button" class="rounded-lg bg-portal-50 px-2.5 py-1.5 text-xs font-bold text-portal-700 hover:bg-portal-100" (click)="edit(t)">Edit</button>
+            </div>
+          }
+        </div>
+      } @empty {
+        <div class="wp-pcard col-span-full py-10 text-center text-sm text-slate-500">No trainings yet.</div>
+      }
+    </div>
+  }
+</section>
+
+<!-- Editor drawer -->
+@if (draft(); as d) {
+  <div class="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm wp-anim-in" (click)="draft.set(null)">
+    <div class="flex h-full w-full max-w-2xl flex-col bg-white shadow-2xl" (click)="$event.stopPropagation()">
+      <div class="wp-portal-hero px-6 py-5 text-white">
+        <div class="text-lg font-black">{{ d.trainingId ? 'Edit training' : 'New training' }}</div>
+        <div class="text-xs text-white/75">Video, PDF document or quiz.</div>
+      </div>
+      <div class="wp-scroll-light flex-1 space-y-5 overflow-y-auto p-6">
+        <app-alert type="error" [message]="error()" />
+
+        <div class="grid grid-cols-3 gap-2">
+          @for (type of ['Video', 'Document', 'Quiz']; track type) {
+            <button type="button" (click)="setType($any(type))" class="rounded-xl px-3 py-3 text-sm font-bold ring-1 transition"
+              [class]="d.contentType === type ? 'bg-portal-600 text-white ring-portal-600' : 'bg-white text-slate-600 ring-slate-200 hover:bg-portal-50'">
+              {{ icon(type) }} {{ type === 'Document' ? 'PDF' : type }}
+            </button>
+          }
+        </div>
+
+        <div>
+          <label class="wp-label">Title</label>
+          <input class="wp-input wp-input-portal" maxlength="200" [ngModel]="d.title" (ngModelChange)="patch({ title: $event })" placeholder="e.g. Safe moving and handling" />
+        </div>
+        <div>
+          <label class="wp-label">Description</label>
+          <textarea class="wp-input wp-input-portal" rows="3" maxlength="2000" [ngModel]="d.description" (ngModelChange)="patch({ description: $event })"></textarea>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="wp-label">Estimated time (minutes)</label>
+            <input type="number" min="1" max="1440" class="wp-input wp-input-portal" [ngModel]="d.durationMinutes" (ngModelChange)="patch({ durationMinutes: $event })" />
+          </div>
+          @if (d.contentType === 'Quiz') {
+            <div>
+              <label class="wp-label">Pass mark (%)</label>
+              <input type="number" min="0" max="100" class="wp-input wp-input-portal" [ngModel]="d.passMarkPercent" (ngModelChange)="patch({ passMarkPercent: $event })" />
+            </div>
+          }
+        </div>
+
+        @if (d.contentType !== 'Quiz') {
+          <div class="rounded-2xl bg-portal-50/60 p-4 ring-1 ring-portal-100">
+            <label class="wp-label">{{ d.contentType === 'Video' ? 'Video' : 'PDF document' }}</label>
+            <div class="flex flex-wrap items-center gap-3">
+              <label class="wp-btn-portal cursor-pointer">
+                Upload {{ d.contentType === 'Video' ? 'video' : 'PDF' }}
+                <input type="file" class="hidden" [accept]="d.contentType === 'Video' ? 'video/mp4,video/quicktime,video/webm,.m4v' : 'application/pdf'" (change)="upload($event)" />
+              </label>
+              @if (uploadProgress() != null) {
+                <div class="flex flex-1 items-center gap-2">
+                  <div class="h-2 flex-1 overflow-hidden rounded-full bg-white"><div class="h-full bg-portal-500 transition-all" [style.width.%]="uploadProgress()"></div></div>
+                  <span class="text-xs font-semibold text-portal-700">{{ uploadProgress() }}%</span>
+                </div>
+              } @else if (d.fileName) {
+                <span class="text-sm text-slate-600">📎 {{ d.fileName }}</span>
+              }
+            </div>
+            <div class="mt-3 text-xs text-slate-500">…or paste a link (https://)</div>
+            <input class="wp-input wp-input-portal mt-1" [ngModel]="d.contentUrl" (ngModelChange)="patch({ contentUrl: $event, publicId: null, fileName: null })" placeholder="https://…" />
+          </div>
+        } @else {
+          <div class="space-y-4">
+            @for (q of d.questions; track $index; let qi = $index) {
+              <div class="rounded-2xl p-4 ring-1 ring-slate-200">
+                <div class="mb-2 flex items-center justify-between">
+                  <span class="text-xs font-bold uppercase tracking-wider text-portal-700">Question {{ qi + 1 }}</span>
+                  @if (d.questions.length > 1) {
+                    <button type="button" class="text-xs font-semibold text-red-600" (click)="removeQuestion(qi)">Remove</button>
+                  }
+                </div>
+                <input class="wp-input wp-input-portal" maxlength="1000" [ngModel]="q.questionText" (ngModelChange)="updateQuestion(qi, { questionText: $event })" placeholder="Question" />
+                <div class="mt-3 space-y-2">
+                  @for (o of q.options; track $index; let oi = $index) {
+                    <div class="flex items-center gap-2">
+                      <input type="radio" [name]="'correct' + qi" class="h-4 w-4 text-portal-600" [checked]="q.correctOptionIndex === oi" (change)="updateQuestion(qi, { correctOptionIndex: oi })" title="Correct answer" />
+                      <input class="wp-input wp-input-portal !py-2 text-sm" [ngModel]="o" (ngModelChange)="updateOption(qi, oi, $event)" [placeholder]="'Answer ' + (oi + 1)" />
+                      @if (q.options.length > 2) {
+                        <button type="button" class="text-slate-400 hover:text-red-600" (click)="removeOption(qi, oi)" aria-label="Remove answer">✕</button>
+                      }
+                    </div>
+                  }
+                </div>
+                <div class="mt-2 flex items-center justify-between text-xs">
+                  <span class="text-slate-500">Select the correct answer with the radio button.</span>
+                  @if (q.options.length < 6) { <button type="button" class="wp-link-portal" (click)="addOption(qi)">+ Answer</button> }
+                </div>
+              </div>
+            }
+            <button type="button" class="wp-btn-ghost w-full" (click)="addQuestion()">+ Add question</button>
+          </div>
+        }
+      </div>
+      <div class="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
+        <button type="button" class="wp-btn-ghost" (click)="draft.set(null)">Cancel</button>
+        <button type="button" class="wp-btn-portal" [disabled]="saving() || uploadProgress() != null" (click)="save()">{{ saving() ? 'Saving…' : 'Save training' }}</button>
+      </div>
+    </div>
+  </div>
+}

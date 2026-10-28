@@ -19,13 +19,14 @@ import { Schedule } from '../../../../core/models/scheduler.model';
 import { Alert } from '../../../../shared/ui/alert/alert';
 import { VisitCalendar } from '../../../../shared/ui/visit-calendar/visit-calendar';
 import { ScheduleEditor } from '../../../../shared/ui/schedule-editor/schedule-editor';
+import { TrainingAccessCard } from '../../../../shared/ui/training-access-card/training-access-card';
 
 type Section = 'main' | 'schedule';
 
 /** Full-page user (caregiver/admin/manager) profile: Main details + a Schedule calendar with inline shift creation. */
 @Component({
   selector: 'app-user-profile',
-  imports: [RouterLink, ReactiveFormsModule, Alert, VisitCalendar, ScheduleEditor],
+  imports: [RouterLink, ReactiveFormsModule, Alert, VisitCalendar, ScheduleEditor, TrainingAccessCard],
   templateUrl: './user-profile.html',
 })
 export class UserProfile {

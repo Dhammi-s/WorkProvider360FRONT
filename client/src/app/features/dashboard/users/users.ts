@@ -24,11 +24,12 @@ import { AvailabilitySlot } from '../../../core/models/user-profile.model';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { Paginator } from '../../../shared/ui/paginator/paginator';
 import { AvailabilityEditor } from '../../../shared/ui/availability-editor/availability-editor';
+import { TrainingAccessCard } from '../../../shared/ui/training-access-card/training-access-card';
 
 /** Admin team management: list tenant users and create new ones. */
 @Component({
   selector: 'app-users',
-  imports: [ReactiveFormsModule, FormsModule, DatePipe, Alert, Paginator, AvailabilityEditor, RouterLink],
+  imports: [ReactiveFormsModule, FormsModule, DatePipe, Alert, Paginator, AvailabilityEditor, RouterLink, TrainingAccessCard],
   templateUrl: './users.html',
 })
 export class Users {
@@ -153,7 +154,22 @@ export class Users {
     roleId: [4, [Validators.required]],
     phone: [''],
     officeId: [''],
+    enableTrainingPortal: [false],
   });
+
+  /**
+   * "Enable training portal" toggle visibility for a role: SuperAdmin can
+   * enable anyone, Admin Managers and Users, Manager Users.
+   */
+  canEnableTrainingFor(roleId: number | string): boolean {
+    const target = Number(roleId);
+    return this.isSuperAdmin() || (target > this.myRank() && this.myRank() <= 3 && target <= 4);
+  }
+
+  /** Keeps the list badge in sync after the profile card toggles access. */
+  onTrainingChanged(userId: number, enabled: boolean): void {
+    this.users.update((list) => list.map((u) => (u.userId === userId ? { ...u, trainingPortalEnabled: enabled } : u)));
+  }
 
   constructor() {
     this.loadUsers();
@@ -197,7 +213,7 @@ export class Users {
   }
 
   openModal(): void {
-    this.form.reset({ fullName: '', email: '', password: '', roleId: 4, phone: '', officeId: '' });
+    this.form.reset({ fullName: '', email: '', password: '', roleId: 4, phone: '', officeId: '', enableTrainingPortal: false });
     this.formError.set('');
     this.showPassword.set(false);
     this.modalOpen.set(true);
@@ -228,6 +244,7 @@ export class Users {
         roleId: Number(value.roleId),
         phone: value.phone?.trim() || null,
         officeId: value.officeId || null,
+        enableTrainingPortal: value.enableTrainingPortal && this.canEnableTrainingFor(value.roleId),
       })
       .subscribe({
         next: () => {

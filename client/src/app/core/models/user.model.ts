@@ -21,6 +21,9 @@ export interface UserDto {
   isActive: boolean;
   isLockedOut: boolean;
   createdOn: string;
+  /** "Enable training portal" flag for this user. */
+  trainingPortalEnabled?: boolean;
+  trainingEnabledOn?: string | null;
 }
 
 /** Payload for admin-driven user creation (`POST /api/users`). */
@@ -31,6 +34,8 @@ export interface CreateUserRequest {
   roleId: number;
   phone?: string | null;
   officeId?: string | null;
+  /** Create training-portal credentials and email them. */
+  enableTrainingPortal?: boolean;
 }
 
 /** Manual SMS send (`POST /api/sms/send`). */
