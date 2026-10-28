@@ -41,10 +41,15 @@
       <span class="whitespace-nowrap text-lg font-extrabold tracking-tight" [class.lg:hidden]="collapsed()">WorkProvider<span class="text-accent-400">360</span></span>
     </div>
 
-    <nav class="wp-scroll mt-8 min-h-0 flex-1 space-y-1 overflow-y-auto px-4" [class.lg:px-2]="collapsed()">
+    <nav class="wp-scroll mt-8 min-h-0 flex-1 space-y-1 overflow-y-auto px-4" [class.lg:px-2]="collapsed()" (scroll)="hideTip()">
       @for (item of nav(); track item.label) {
         @if (item.soon) {
-          <span class="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/40" [class.lg:justify-center]="collapsed()" [title]="item.label">
+          <span
+            class="wp-nav-item flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/40"
+            [class.lg:justify-center]="collapsed()"
+            (mouseenter)="showTip($event, item)"
+            (mouseleave)="hideTip()"
+          >
             <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="item.icon" /></svg>
             <span class="whitespace-nowrap" [class.lg:hidden]="collapsed()">{{ item.label }}</span>
             <span class="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide" [class.lg:hidden]="collapsed()">Soon</span>
@@ -52,14 +57,18 @@
         } @else {
           <a
             [routerLink]="item.path"
-            routerLinkActive="bg-white/15 text-white"
+            routerLinkActive="wp-nav-active"
             [routerLinkActiveOptions]="{ exact: item.path === '/dashboard' }"
-            (click)="closeSidebar()"
-            [title]="item.label"
-            class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            (click)="closeSidebar(); hideTip()"
+            (mouseenter)="showTip($event, item)"
+            (mouseleave)="hideTip()"
+            (focus)="showTip($event, item)"
+            (blur)="hideTip()"
+            [attr.aria-label]="item.label"
+            class="wp-nav-item group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/70 hover:text-white"
             [class.lg:justify-center]="collapsed()"
           >
-            <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="item.icon" /></svg>
+            <svg class="wp-nav-icon h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="item.icon" /></svg>
             <span class="whitespace-nowrap" [class.lg:hidden]="collapsed()">{{ item.label }}</span>
           </a>
         }
@@ -76,6 +85,22 @@
       </p>
     </div>
   </aside>
+
+  <!-- Sidebar hover tooltip (fixed so the sidebar's scroll area can't clip it) -->
+  @if (tip(); as t) {
+    <div class="wp-tip" role="tooltip" [style.top.px]="t.top" [style.left.px]="t.left">
+      <span class="wp-tip-arrow"></span>
+      <p class="flex items-center gap-2 text-sm font-semibold text-white">
+        {{ t.label }}
+        @if (t.soon) {
+          <span class="rounded-full bg-accent-500/20 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-accent-400">Soon</span>
+        }
+      </p>
+      @if (t.hint) {
+        <p class="mt-0.5 text-xs text-slate-400">{{ t.hint }}</p>
+      }
+    </div>
+  }
 
   <!-- Main column -->
   <div class="flex min-w-0 flex-1 flex-col">

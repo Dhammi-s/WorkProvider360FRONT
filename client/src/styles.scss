@@ -128,6 +128,79 @@
 }
 
 /* =============================================================================
+   Dashboard sidebar — nav item polish + hover tooltip
+   ============================================================================= */
+.wp-nav-item {
+  position: relative;
+  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+.wp-nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.wp-nav-item .wp-nav-icon {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.wp-nav-item:hover .wp-nav-icon {
+  transform: scale(1.12);
+}
+.wp-nav-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.7);
+}
+
+/* Active tab: soft glass fill + accent bar on the left edge */
+.wp-nav-active {
+  color: #fff !important;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 20px -12px rgba(0, 0, 0, 0.6);
+}
+.wp-nav-active::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 50%;
+  height: 60%;
+  width: 3px;
+  transform: translateY(-50%);
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #34d399, #818cf8);
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
+}
+
+.wp-tip {
+  position: fixed;
+  z-index: 60;
+  max-width: 240px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.55), 0 2px 6px rgba(15, 23, 42, 0.25);
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  animation: wp-tip-in 0.16s ease-out;
+}
+.wp-tip-arrow {
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translateY(-50%) rotate(45deg);
+  background: rgba(15, 23, 42, 0.96);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+@keyframes wp-tip-in {
+  from { opacity: 0; transform: translate(-6px, -50%); }
+  to   { opacity: 1; transform: translate(0, -50%); }
+}
+@media (hover: none) {
+  .wp-tip { display: none; }
+}
+
+/* =============================================================================
    Client portal — premium animated UI (global; no component-style budget cost)
    ============================================================================= */
 .wp-glass {
