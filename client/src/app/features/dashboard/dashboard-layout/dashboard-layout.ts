@@ -33,6 +33,8 @@ interface NavItem {
   icon: string; // inline SVG path data
   roles?: RoleName[]; // undefined = all roles
   soon?: boolean;
+  /** One-line description shown under the label in the sidebar hover tooltip. */
+  hint?: string;
   /** Hidden for Admin/Manager unless the SuperAdmin granted AI Analysis access. */
   analysis?: boolean;
 }
@@ -61,6 +63,9 @@ export class DashboardLayout {
   readonly avatarUrl = signal<string | null>(null);
   readonly sidebarOpen = signal(false);
   readonly menuOpen = signal(false);
+
+  /** Sidebar hover tooltip. Fixed-positioned so the sidebar's overflow never clips it. */
+  readonly tip = signal<{ label: string; hint?: string; soon?: boolean; top: number; left: number } | null>(null);
 
   /** Desktop-only: when true the sidebar shrinks to an icons-only rail. Persisted. */
   readonly collapsed = signal<boolean>(
@@ -112,23 +117,23 @@ export class DashboardLayout {
   }
 
   private readonly allNav: NavItem[] = [
-    { label: 'Overview', path: '/dashboard', icon: 'M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10' },
-    { label: 'Team', path: '/dashboard/users', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
-    { label: 'Applications', path: '/dashboard/applications', icon: 'M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2z', roles: ['SuperAdmin', 'Admin'] },
-    { label: 'Offices', path: '/dashboard/offices', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 9h1m4 0h1M9 13h1m4 0h1M9 17h1m4 0h1', roles: ['SuperAdmin', 'Admin'] },
-    { label: 'Clients', path: '/dashboard/clients', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
-    { label: 'Payers', path: '/dashboard/payers', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
-    { label: 'Skills & Services', path: '/dashboard/service-types', icon: 'M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 16.6 5.7 21l2.3-7.2-6-4.4h7.6L12 2z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
-    { label: 'Scheduler', path: '/dashboard/scheduler', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
-    { label: 'Meetings', path: '/dashboard/meetings', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
-    { label: 'AI Analysis', path: '/dashboard/analysis', icon: 'M9.5 2a2.5 2.5 0 00-2.45 2A3 3 0 004 7a3 3 0 00.5 5.5A3 3 0 007 17a2.5 2.5 0 005 0V4.5A2.5 2.5 0 009.5 2zM14.5 2a2.5 2.5 0 012.45 2A3 3 0 0120 7a3 3 0 01-.5 5.5A3 3 0 0117 17a2.5 2.5 0 01-5 0', roles: ['SuperAdmin', 'Admin', 'Manager'], analysis: true },
-    { label: 'Reports', path: '/dashboard/reports', icon: 'M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z' },
-    { label: 'Live Map', path: '/dashboard/live-map', icon: 'M9 20l-5.4 1.8a1 1 0 01-1.3-1V5.5a1 1 0 01.7-1L9 3m0 17l6-2m-6 2V3m6 15l5.4 1.8a1 1 0 001.3-1V4.5a1 1 0 00-.7-1L15 1.7m0 16.3V3.7m0 0L9 3M12 11a2 2 0 100-4 2 2 0 000 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
-    { label: 'Announcements', path: '/dashboard/announcements', icon: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 11-5.8-1.6' },
-    { label: 'Accounting', path: '/dashboard/accounting', icon: 'M12 8c-1.7 0-3 .9-3 2s1.3 2 3 2 3 .9 3 2-1.3 2-3 2m0-8V6m0 12v-2M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z', roles: ['SuperAdmin'] },
-    { label: 'Point of Sale', path: '/dashboard/pos', icon: 'M3 3h2l.4 2M7 13h10l3-8H6.4M7 13L5.4 5M7 13l-2 4h12M9 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z', roles: ['SuperAdmin', 'Admin'] },
-    { label: 'Email Logs', path: '/dashboard/logs', icon: 'M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2M4 6l8 6 8-6', roles: ['SuperAdmin', 'Admin', 'Manager'] },
-    { label: 'My Profile', path: '/dashboard/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+    { label: 'Overview', hint: 'Your workspace at a glance', path: '/dashboard', icon: 'M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10' },
+    { label: 'Team', hint: 'Manage staff, roles and access', path: '/dashboard/users', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+    { label: 'Applications', hint: 'Review incoming job applications', path: '/dashboard/applications', icon: 'M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2z', roles: ['SuperAdmin', 'Admin'] },
+    { label: 'Offices', hint: 'Branches and office locations', path: '/dashboard/offices', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 9h1m4 0h1M9 13h1m4 0h1M9 17h1m4 0h1', roles: ['SuperAdmin', 'Admin'] },
+    { label: 'Clients', hint: 'Client profiles and care details', path: '/dashboard/clients', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+    { label: 'Payers', hint: 'Insurance and billing payers', path: '/dashboard/payers', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+    { label: 'Skills & Services', hint: 'Service types and caregiver skills', path: '/dashboard/service-types', icon: 'M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 16.6 5.7 21l2.3-7.2-6-4.4h7.6L12 2z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+    { label: 'Scheduler', hint: 'Plan and manage visits', path: '/dashboard/scheduler', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
+    { label: 'Meetings', hint: 'Schedule and join team meetings', path: '/dashboard/meetings', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+    { label: 'AI Analysis', hint: 'AI-powered insights on your data', path: '/dashboard/analysis', icon: 'M9.5 2a2.5 2.5 0 00-2.45 2A3 3 0 004 7a3 3 0 00.5 5.5A3 3 0 007 17a2.5 2.5 0 005 0V4.5A2.5 2.5 0 009.5 2zM14.5 2a2.5 2.5 0 012.45 2A3 3 0 0120 7a3 3 0 01-.5 5.5A3 3 0 0117 17a2.5 2.5 0 01-5 0', roles: ['SuperAdmin', 'Admin', 'Manager'], analysis: true },
+    { label: 'Reports', hint: 'Operational and financial reports', path: '/dashboard/reports', icon: 'M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z' },
+    { label: 'Live Map', hint: 'Track caregivers in real time', path: '/dashboard/live-map', icon: 'M9 20l-5.4 1.8a1 1 0 01-1.3-1V5.5a1 1 0 01.7-1L9 3m0 17l6-2m-6 2V3m6 15l5.4 1.8a1 1 0 001.3-1V4.5a1 1 0 00-.7-1L15 1.7m0 16.3V3.7m0 0L9 3M12 11a2 2 0 100-4 2 2 0 000 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+    { label: 'Announcements', hint: 'Broadcast news to your team', path: '/dashboard/announcements', icon: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 11-5.8-1.6' },
+    { label: 'Accounting', hint: 'Ledgers, invoices and payments', path: '/dashboard/accounting', icon: 'M12 8c-1.7 0-3 .9-3 2s1.3 2 3 2 3 .9 3 2-1.3 2-3 2m0-8V6m0 12v-2M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z', roles: ['SuperAdmin'] },
+    { label: 'Point of Sale', hint: 'Sell products and services', path: '/dashboard/pos', icon: 'M3 3h2l.4 2M7 13h10l3-8H6.4M7 13L5.4 5M7 13l-2 4h12M9 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z', roles: ['SuperAdmin', 'Admin'] },
+    { label: 'Email Logs', hint: 'History of emails sent', path: '/dashboard/logs', icon: 'M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2M4 6l8 6 8-6', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+    { label: 'My Profile', hint: 'Your account and preferences', path: '/dashboard/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
   ];
 
   // Quick-access items shown as icon buttons in the topbar (next to the bell),
@@ -172,6 +177,23 @@ export class DashboardLayout {
     const next = !this.collapsed();
     this.collapsed.set(next);
     if (typeof localStorage !== 'undefined') localStorage.setItem('wp-sidebar-collapsed', next ? '1' : '0');
+  }
+
+  showTip(event: Event, item: NavItem): void {
+    const el = event.currentTarget as HTMLElement;
+    const row = el.getBoundingClientRect();
+    const rail = el.closest('aside')?.getBoundingClientRect() ?? row;
+    this.tip.set({
+      label: item.label,
+      hint: item.hint,
+      soon: item.soon,
+      top: row.top + row.height / 2,
+      left: rail.right + 12,
+    });
+  }
+
+  hideTip(): void {
+    this.tip.set(null);
   }
 
   closeSidebar(): void {
