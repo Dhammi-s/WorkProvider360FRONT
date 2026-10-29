@@ -63,6 +63,10 @@
               <div><dt class="text-xs text-slate-400">Status</dt><dd class="font-semibold" [class]="u.isActive ? 'text-emerald-600' : 'text-slate-400'">{{ u.isActive ? 'Active' : 'Inactive' }}</dd></div>
             </dl>
 
+            <div class="mt-5">
+              <app-training-access-card [userId]="u.userId" />
+            </div>
+
             <!-- Extended profile details (shown after drawer save) -->
             @if (profileDetails(); as pd) {
               <dl class="mt-5 grid grid-cols-1 gap-4 border-t border-slate-100 pt-5 text-sm sm:grid-cols-2 lg:grid-cols-3">

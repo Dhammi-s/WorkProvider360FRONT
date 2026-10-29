@@ -1,0 +1,71 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-10-28
+     NOTE TO DEVELOPERS: Do NOT change functionality without full knowledge of the
+     SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
+     ============================================================================= -->
+<section class="space-y-6">
+  <div class="flex flex-wrap items-end justify-between gap-4 wp-anim-up">
+    <div>
+      <h1 class="text-3xl font-black tracking-tight text-portal-900">Training reports</h1>
+      <p class="mt-1 text-sm text-slate-500">Every status change of the trainings you oversee.</p>
+    </div>
+    <button type="button" class="wp-btn-ghost" [disabled]="exporting()" (click)="exportCsv()">{{ exporting() ? 'Preparing…' : '⬇ Export CSV' }}</button>
+  </div>
+
+  <app-alert type="error" [message]="error()" />
+
+  <form class="wp-pcard flex flex-wrap items-end gap-3 !p-4" (ngSubmit)="apply()">
+    <div><label class="wp-label">From</label><input type="date" name="from" class="wp-input wp-input-portal !py-2" [ngModel]="from()" (ngModelChange)="from.set($event)" /></div>
+    <div><label class="wp-label">To</label><input type="date" name="to" class="wp-input wp-input-portal !py-2" [ngModel]="to()" (ngModelChange)="to.set($event)" /></div>
+    <div>
+      <label class="wp-label">Changed to</label>
+      <select name="status" class="wp-input wp-input-portal !py-2" [ngModel]="status()" (ngModelChange)="status.set($event)">
+        <option value="">Any status</option>
+        @for (s of statuses; track s) { <option [value]="s">{{ labels[s] }}</option> }
+      </select>
+    </div>
+    <button type="submit" class="wp-btn-portal !py-2">Apply</button>
+    <span class="ml-auto text-sm text-slate-500">{{ total() }} change(s)</span>
+  </form>
+
+  <div class="wp-pcard overflow-hidden !p-0">
+    @if (loading()) {
+      <div class="space-y-2 p-5"><div class="wp-skeleton h-10 rounded-lg"></div><div class="wp-skeleton h-10 rounded-lg"></div></div>
+    } @else {
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-portal-50/60 text-left text-xs font-bold uppercase tracking-wider text-portal-800">
+            <tr><th class="px-5 py-3">When</th><th class="px-5 py-3">Person</th><th class="px-5 py-3">Training</th><th class="px-5 py-3">Change</th><th class="px-5 py-3">By</th><th class="px-5 py-3">Details</th></tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (h of rows(); track h.historyId) {
+              <tr class="hover:bg-portal-50/40">
+                <td class="px-5 py-3 whitespace-nowrap text-slate-600">{{ h.changedOn | date: 'MMM d, y, h:mm a' }}</td>
+                <td class="px-5 py-3"><div class="font-semibold text-slate-800">{{ h.userName }}</div><div class="text-xs text-slate-500">{{ h.userRoleName === 'User' ? 'Caregiver' : h.userRoleName }}</div></td>
+                <td class="px-5 py-3"><a [routerLink]="['/training/my', h.assignmentId]" class="font-medium text-portal-700 hover:underline">{{ h.trainingTitle }}</a></td>
+                <td class="px-5 py-3 whitespace-nowrap">
+                  @if (h.fromStatus) { <span class="text-xs text-slate-400">{{ labels[h.fromStatus] }} → </span> }
+                  <span class="rounded-full px-2 py-0.5 text-[11px] font-bold" [class]="badge[h.toStatus]">{{ labels[h.toStatus] }}</span>
+                </td>
+                <td class="px-5 py-3 text-slate-600">{{ h.changedByName || 'System' }}</td>
+                <td class="px-5 py-3 text-xs text-slate-500">
+                  {{ h.score != null ? 'Score ' + h.score + '% · ' : '' }}{{ h.comment }}
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="px-5 py-10 text-center text-slate-500">No changes in this period.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (total() > pageSize()) {
+        <div class="border-t border-slate-100 px-5 py-3">
+          <app-paginator [total]="total()" [page]="page()" [pageSize]="pageSize()" [pageSizeOptions]="[25, 50, 100]"
+            (pageChange)="page.set($event); load()" (pageSizeChange)="pageSize.set($event); page.set(1); load()" />
+        </div>
+      }
+    }
+  </div>
+</section>

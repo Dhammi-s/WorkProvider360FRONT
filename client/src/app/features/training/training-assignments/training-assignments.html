@@ -1,0 +1,165 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-10-28
+     NOTE TO DEVELOPERS: Do NOT change functionality without full knowledge of the
+     SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
+     ============================================================================= -->
+<section class="space-y-6">
+  <div class="flex flex-wrap items-end justify-between gap-4 wp-anim-up">
+    <div>
+      <h1 class="text-3xl font-black tracking-tight text-portal-900">{{ approvals ? 'Approvals' : 'Team trainings' }}</h1>
+      <p class="mt-1 text-sm text-slate-500">
+        @if (approvals) { Completed trainings waiting for your approval. } @else { Assign trainings and follow your team's progress. }
+      </p>
+    </div>
+    @if (!approvals) {
+      <button type="button" class="wp-btn-portal" (click)="openAssign()">+ Assign training</button>
+    }
+  </div>
+
+  <app-alert type="error" [message]="error()" />
+  <app-alert type="success" [message]="success()" />
+
+  @if (!approvals) {
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="button" (click)="setStatus('')" class="rounded-full px-3.5 py-1.5 text-xs font-semibold transition"
+        [class]="!status() ? 'bg-portal-700 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-portal-50'">All</button>
+      @for (s of statuses; track s) {
+        <button type="button" (click)="setStatus(s)" class="rounded-full px-3.5 py-1.5 text-xs font-semibold transition"
+          [class]="status() === s ? 'bg-portal-700 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-portal-50'">
+          {{ statusLabel(s) }}
+        </button>
+      }
+      <form class="ml-auto flex gap-2" (ngSubmit)="onSearch()">
+        <input class="wp-input wp-input-portal !w-56 !py-2 text-sm" name="search" placeholder="Search person or training" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+        <button type="submit" class="wp-btn-ghost !py-2 text-sm">Search</button>
+      </form>
+    </div>
+  }
+
+  <div class="wp-pcard wp-anim-up overflow-hidden !p-0">
+    @if (loading()) {
+      <div class="space-y-2 p-5"><div class="wp-skeleton h-10 rounded-lg"></div><div class="wp-skeleton h-10 rounded-lg"></div><div class="wp-skeleton h-10 rounded-lg"></div></div>
+    } @else {
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-portal-50/60 text-left text-xs font-bold uppercase tracking-wider text-portal-800">
+            <tr>
+              <th class="px-5 py-3">Person</th>
+              <th class="px-5 py-3">Training</th>
+              <th class="px-5 py-3">Due</th>
+              <th class="px-5 py-3">Progress</th>
+              <th class="px-5 py-3">Status</th>
+              <th class="px-5 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (a of items(); track a.assignmentId) {
+              <tr class="transition hover:bg-portal-50/40">
+                <td class="px-5 py-3">
+                  <div class="font-semibold text-slate-800">{{ a.userName }}</div>
+                  <div class="text-xs text-slate-500">{{ roleLabel(a.userRoleName) }}</div>
+                </td>
+                <td class="px-5 py-3">
+                  <div class="font-medium text-slate-800">{{ a.trainingTitle }}</div>
+                  <div class="text-xs text-slate-500">{{ a.contentType }} · by {{ a.assignedByName }}</div>
+                </td>
+                <td class="px-5 py-3 whitespace-nowrap" [class]="a.isOverdue ? 'font-bold text-red-600' : 'text-slate-600'">
+                  {{ a.dueDate | date: 'MMM d, y' }}
+                </td>
+                <td class="px-5 py-3">
+                  <div class="flex items-center gap-2">
+                    <div class="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100"><div class="h-full bg-portal-500" [style.width.%]="a.progressPercent"></div></div>
+                    <span class="text-xs text-slate-500">{{ a.progressPercent }}%{{ a.score != null ? ' · ' + a.score + '%' : '' }}</span>
+                  </div>
+                </td>
+                <td class="px-5 py-3"><span class="rounded-full px-2.5 py-1 text-[11px] font-bold whitespace-nowrap" [class]="badge[a.status]">{{ labels[a.status] }}</span></td>
+                <td class="px-5 py-3 text-right whitespace-nowrap">
+                  @if (a.canReview) {
+                    <button type="button" class="mr-1 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100" (click)="quickReview(a, true)">Approve</button>
+                    <button type="button" class="mr-1 rounded-lg bg-orange-50 px-2.5 py-1.5 text-xs font-bold text-orange-700 hover:bg-orange-100" (click)="quickReview(a, false)">Send back</button>
+                  }
+                  <a [routerLink]="['/training/my', a.assignmentId]" class="rounded-lg px-2.5 py-1.5 text-xs font-bold text-portal-700 hover:bg-portal-50">Open</a>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="px-5 py-10 text-center text-slate-500">
+                {{ approvals ? 'Nothing is waiting for your approval.' : 'No trainings match this filter.' }}
+              </td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (total() > pageSize()) {
+        <div class="border-t border-slate-100 px-5 py-3">
+          <app-paginator [total]="total()" [page]="page()" [pageSize]="pageSize()"
+            (pageChange)="page.set($event); load()" (pageSizeChange)="pageSize.set($event); page.set(1); load()" />
+        </div>
+      }
+    }
+  </div>
+</section>
+
+<!-- Assign dialog -->
+@if (assignOpen()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm wp-anim-in" (click)="assignOpen.set(false)">
+    <div class="wp-anim-pop flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl" (click)="$event.stopPropagation()">
+      <div class="wp-portal-hero px-6 py-5 text-white">
+        <div class="text-lg font-black">Assign a training</div>
+        <div class="text-xs text-white/75">Only people with the training portal enabled, below your role, are listed.</div>
+      </div>
+      <div class="wp-scroll-light flex-1 space-y-4 overflow-y-auto p-6">
+        <div>
+          <label class="wp-label">Training</label>
+          <select class="wp-input wp-input-portal" [ngModel]="assignTrainingId()" (ngModelChange)="assignTrainingId.set($event ? +$event : null)">
+            <option [ngValue]="null">Choose a training…</option>
+            @for (t of trainings(); track t.trainingId) {
+              <option [ngValue]="t.trainingId">{{ t.title }} ({{ t.contentType }})</option>
+            }
+          </select>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="wp-label">Due date</label>
+            <input type="date" class="wp-input wp-input-portal" [ngModel]="assignDue()" (ngModelChange)="assignDue.set($event)" />
+          </div>
+          <div>
+            <label class="wp-label">Note to trainees (optional)</label>
+            <input class="wp-input wp-input-portal" maxlength="1000" [ngModel]="assignNotes()" (ngModelChange)="assignNotes.set($event)" placeholder="e.g. Required before next shift" />
+          </div>
+        </div>
+        <div>
+          <div class="mb-2 flex items-center justify-between">
+            <label class="wp-label !mb-0">People ({{ assignUserIds().size }} selected)</label>
+            <button type="button" class="wp-link-portal text-xs" (click)="selectAllVisible()">Select all shown</button>
+          </div>
+          <input class="wp-input wp-input-portal mb-2 !py-2 text-sm" placeholder="Filter by name or role" [ngModel]="peopleFilter()" (ngModelChange)="peopleFilter.set($event)" />
+          <div class="max-h-60 divide-y divide-slate-100 overflow-y-auto rounded-xl ring-1 ring-slate-200">
+            @for (p of assignable(); track p.userId) {
+              <label class="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-portal-50/50">
+                <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-portal-600" [checked]="assignUserIds().has(p.userId)" (change)="togglePerson(p.userId)" />
+                <span class="flex-1 text-sm font-medium text-slate-800">{{ p.fullName }}</span>
+                <span class="text-xs text-slate-500">{{ roleLabel(p.roleName) }}{{ p.officeName ? ' · ' + p.officeName : '' }}</span>
+              </label>
+            } @empty {
+              <p class="px-4 py-6 text-center text-sm text-slate-500">No one available. Enable the training portal for your team from the Access tab.</p>
+            }
+          </div>
+        </div>
+        @if (skipped().length) {
+          <div class="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900">
+            <div class="mb-1 font-bold">Not assigned:</div>
+            @for (s of skipped(); track s) { <div>• {{ s }}</div> }
+          </div>
+        }
+      </div>
+      <div class="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
+        <button type="button" class="wp-btn-ghost" (click)="assignOpen.set(false)">Close</button>
+        <button type="button" class="wp-btn-portal" [disabled]="assigning() || !assignTrainingId() || assignUserIds().size === 0" (click)="submitAssign()">
+          @if (assigning()) { Assigning… } @else { Assign to {{ assignUserIds().size }} }
+        </button>
+      </div>
+    </div>
+  </div>
+}

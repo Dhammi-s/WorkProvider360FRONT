@@ -10,6 +10,7 @@ import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { environment } from '../../../environments/environment';
 import { TokenStorageService } from '../services/token-storage.service';
+import { TrainingSessionService } from '../services/training-session.service';
 
 /**
  * Attaches the Bearer access token (when present) and the `X-Tenant-Domain`
@@ -28,7 +29,13 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const storage = inject(TokenStorageService);
   const headers: Record<string, string> = {};
 
-  const token = storage.accessToken;
+  // The training portal API only accepts the training token; everything else
+  // (including /training-auth/sso) uses the main-app token.
+  const token = req.url.includes('/training-portal/') || req.url.endsWith('/training-portal')
+    ? inject(TrainingSessionService).accessToken
+    : req.url.includes('/training-auth/login')
+      ? null
+      : storage.accessToken;
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
