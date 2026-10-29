@@ -70,6 +70,19 @@
   .wp-link-portal {
     @apply font-semibold text-portal-700 hover:text-portal-800;
   }
+
+  /* Training portal (warm amber / orange) */
+  .wp-btn-train {
+    @apply wp-btn bg-train-600 text-white shadow-lg shadow-train-600/25 hover:bg-train-700 focus:ring-train-500;
+  }
+
+  .wp-input-train {
+    @apply focus:border-train-500 focus:ring-train-500/30;
+  }
+
+  .wp-link-train {
+    @apply font-semibold text-train-700 hover:text-train-800;
+  }
 }
 
 /* Three-dot route loader (box-shadow dots) in the brand palette. */
@@ -257,6 +270,41 @@
     #f0fdfa;
 }
 
+/* ---- Training portal: warm amber / orange theme (distinct from agency indigo and client teal) */
+.wp-train-hero {
+  background: linear-gradient(120deg, #431407, #7c2d12 34%, #9a3412 62%, #b45309);
+  background-size: 220% 220%;
+  animation: wp-gradient 16s ease infinite;
+}
+
+.wp-train-app-bg {
+  background:
+    radial-gradient(1200px 520px at 100% -12%, rgba(251, 146, 60, 0.16), transparent 60%),
+    radial-gradient(920px 520px at -12% 112%, rgba(251, 191, 36, 0.14), transparent 55%),
+    #fffbf5;
+}
+
+.wp-tcard {
+  position: relative;
+  border-radius: 1.25rem;
+  background: #ffffff;
+  border: 1px solid rgba(254, 215, 170, 0.75);
+  box-shadow: 0 14px 34px -20px rgba(194, 65, 12, 0.35);
+}
+
+.wp-tlift { transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.28s ease; }
+.wp-tlift:hover { transform: translateY(-5px); box-shadow: 0 26px 48px -22px rgba(234, 88, 12, 0.5); }
+
+.wp-tskeleton { position: relative; overflow: hidden; background: #fde9d6; }
+.wp-tskeleton::after {
+  content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  animation: wp-shimmer 1.5s infinite;
+}
+
+/* Active training nav item: amber accent bar instead of teal. */
+.wp-train-nav .wp-nav-active::before { background: #fbbf24; box-shadow: 0 0 10px rgba(251, 191, 36, 0.6); }
+
 .wp-blob { position: absolute; border-radius: 9999px; filter: blur(46px); animation: wp-float 9s ease-in-out infinite; }
 .wp-blob-slow { animation-duration: 13s; }
 
@@ -278,7 +326,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wp-anim-up, .wp-anim-in, .wp-anim-pop, .wp-anim-menu, .wp-portal-hero,
-  .wp-blob, .wp-avatar-ring, .wp-skeleton::after { animation: none !important; }
+  .wp-anim-up, .wp-anim-in, .wp-anim-pop, .wp-anim-menu, .wp-portal-hero, .wp-train-hero,
+  .wp-blob, .wp-avatar-ring, .wp-skeleton::after, .wp-tskeleton::after { animation: none !important; }
   .wp-anim-up, .wp-anim-pop { opacity: 1 !important; transform: none !important; }
 }

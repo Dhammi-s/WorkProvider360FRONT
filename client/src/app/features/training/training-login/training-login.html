@@ -7,8 +7,8 @@
      ============================================================================= -->
 <div class="grid min-h-screen lg:grid-cols-2">
   <!-- Brand panel -->
-  <div class="relative hidden wp-portal-hero overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between">
-    <div class="wp-blob pointer-events-none absolute -right-16 top-10 h-72 w-72 bg-portal-300/25"></div>
+  <div class="relative hidden wp-train-hero overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between">
+    <div class="wp-blob pointer-events-none absolute -right-16 top-10 h-72 w-72 bg-train-300/25"></div>
     <div class="flex items-center gap-3">
       @if (logo()) {
         <img [src]="logo()" alt="logo" class="h-10 w-10 rounded-lg bg-white/10 object-contain p-1" />
@@ -16,7 +16,7 @@
       <span class="text-lg font-bold">{{ agencyName() || 'WorkProvider360' }}</span>
     </div>
     <div class="relative">
-      <h1 class="text-4xl font-extrabold leading-tight">Learn, grow, <span class="text-portal-200">stay certified</span></h1>
+      <h1 class="text-4xl font-extrabold leading-tight">Learn, grow, <span class="text-train-200">stay certified</span></h1>
       <p class="mt-4 max-w-md text-white/80">Complete your assigned trainings, take quizzes and keep track of every approval in your agency's Training Portal.</p>
       <div class="mt-8 grid grid-cols-3 gap-4">
         <div><div class="text-2xl font-extrabold">Video</div><div class="text-xs text-white/70">Watch lessons</div></div>
@@ -28,13 +28,13 @@
   </div>
 
   <!-- Form -->
-  <div class="flex items-center justify-center wp-portal-app-bg px-6 py-12">
+  <div class="flex items-center justify-center wp-train-app-bg px-6 py-12">
     <div class="w-full max-w-sm wp-anim-up">
       <div class="mb-8 flex items-center gap-3 lg:hidden">
         @if (logo()) {
           <img [src]="logo()" alt="logo" class="h-9 w-9 rounded-lg object-contain" />
         }
-        <span class="text-lg font-bold text-portal-800">{{ agencyName() || 'Training portal' }}</span>
+        <span class="text-lg font-bold text-train-800">{{ agencyName() || 'Training portal' }}</span>
       </div>
 
       <h2 class="text-2xl font-extrabold tracking-tight text-slate-900">Training sign in</h2>
@@ -45,7 +45,7 @@
       <form [formGroup]="form" (ngSubmit)="submit()" class="mt-6 space-y-4" novalidate>
         <div>
           <label class="wp-label">Training username</label>
-          <input type="text" formControlName="username" class="wp-input wp-input-portal" placeholder="jane.doe" autocomplete="username" autocapitalize="none" />
+          <input type="text" formControlName="username" class="wp-input wp-input-train" placeholder="jane.doe" autocomplete="username" autocapitalize="none" />
           @if (form.controls.username.touched && form.controls.username.invalid) {
             <p class="mt-1 text-xs font-medium text-red-600">Enter your training username.</p>
           }
@@ -53,14 +53,14 @@
         <div>
           <label class="wp-label">Password</label>
           <div class="relative">
-            <input [type]="showPassword() ? 'text' : 'password'" formControlName="password" class="wp-input wp-input-portal pr-12" placeholder="••••••••" autocomplete="current-password" />
-            <button type="button" (click)="togglePassword()" class="absolute inset-y-0 right-3 text-xs font-semibold text-portal-600">{{ showPassword() ? 'Hide' : 'Show' }}</button>
+            <input [type]="showPassword() ? 'text' : 'password'" formControlName="password" class="wp-input wp-input-train pr-12" placeholder="••••••••" autocomplete="current-password" />
+            <button type="button" (click)="togglePassword()" class="absolute inset-y-0 right-3 text-xs font-semibold text-train-600">{{ showPassword() ? 'Hide' : 'Show' }}</button>
           </div>
           @if (form.controls.password.touched && form.controls.password.invalid) {
             <p class="mt-1 text-xs font-medium text-red-600">Password is required.</p>
           }
         </div>
-        <button type="submit" class="wp-btn-portal w-full" [disabled]="loading()">
+        <button type="submit" class="wp-btn-train w-full" [disabled]="loading()">
           @if (loading()) { Signing in… } @else { Sign in }
         </button>
       </form>
@@ -70,14 +70,14 @@
           <span class="h-px flex-1 bg-slate-200"></span> or <span class="h-px flex-1 bg-slate-200"></span>
         </div>
         <button type="button" (click)="continueWithMainAccount()" [disabled]="loading()"
-          class="w-full rounded-xl border border-portal-200 bg-white px-4 py-2.5 text-sm font-semibold text-portal-700 transition hover:bg-portal-50">
+          class="w-full rounded-xl border border-train-200 bg-white px-4 py-2.5 text-sm font-semibold text-train-700 transition hover:bg-train-50">
           Continue as {{ mainAuth.user()?.fullName }}
         </button>
       }
 
       <p class="mt-6 text-center text-xs text-slate-400">
         Forgot your training password? Ask your manager or administrator to reset it.
-        <a routerLink="/login" class="wp-link-portal">Staff sign in</a>
+        <a routerLink="/login" class="wp-link-train">Staff sign in</a>
       </p>
     </div>
   </div>

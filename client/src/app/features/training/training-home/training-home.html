@@ -7,7 +7,7 @@
      ============================================================================= -->
 <section class="space-y-6">
   <div class="wp-anim-up">
-    <h1 class="text-3xl font-black tracking-tight text-portal-900">Hi {{ firstName() }} 👋</h1>
+    <h1 class="text-3xl font-black tracking-tight text-train-900">Hi {{ firstName() }} 👋</h1>
     <p class="mt-1 text-sm text-slate-500">Your trainings at a glance.</p>
   </div>
 
@@ -15,18 +15,18 @@
 
   @if (loading()) {
     <div class="space-y-4">
-      <div class="wp-skeleton h-36 rounded-3xl"></div>
+      <div class="wp-tskeleton h-36 rounded-3xl"></div>
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div class="wp-skeleton h-24 rounded-2xl"></div>
-        <div class="wp-skeleton h-24 rounded-2xl"></div>
-        <div class="wp-skeleton h-24 rounded-2xl"></div>
-        <div class="wp-skeleton h-24 rounded-2xl"></div>
+        <div class="wp-tskeleton h-24 rounded-2xl"></div>
+        <div class="wp-tskeleton h-24 rounded-2xl"></div>
+        <div class="wp-tskeleton h-24 rounded-2xl"></div>
+        <div class="wp-tskeleton h-24 rounded-2xl"></div>
       </div>
     </div>
   } @else if (data(); as d) {
     <!-- Hero: my completion -->
-    <div class="wp-portal-hero wp-anim-pop relative overflow-hidden rounded-3xl p-7 text-white shadow-portal">
-      <div class="wp-blob pointer-events-none absolute -right-8 -top-10 h-44 w-44 bg-teal-200/25"></div>
+    <div class="wp-train-hero wp-anim-pop relative overflow-hidden rounded-3xl p-7 text-white shadow-train">
+      <div class="wp-blob pointer-events-none absolute -right-8 -top-10 h-44 w-44 bg-amber-200/25"></div>
       <div class="relative flex flex-wrap items-center justify-between gap-6">
         <div>
           <span class="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white/90 ring-1 ring-white/25">My progress</span>
@@ -41,7 +41,7 @@
             @if (d.mine.overdue > 0) { <div class="text-sm font-bold text-amber-200">⚠️ {{ d.mine.overdue }} overdue</div> }
           </div>
         }
-        <a routerLink="/training/my" class="rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-portal-800 shadow-lg transition hover:scale-105">Open my trainings</a>
+        <a routerLink="/training/my" class="rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-train-800 shadow-lg transition hover:scale-105">Open my trainings</a>
       </div>
       <div class="relative mt-5 h-2 overflow-hidden rounded-full bg-white/20">
         <div class="h-full rounded-full bg-white transition-all" [style.width.%]="completion(d.mine)"></div>
@@ -53,27 +53,27 @@
       <div>
         <h2 class="mb-3 text-sm font-bold uppercase tracking-wider text-slate-500">My team</h2>
         <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          <a routerLink="/training/assignments" class="wp-pcard wp-lift wp-anim-up wp-d1 !p-5">
-            <div class="text-3xl font-black text-portal-800">{{ t.assigned + t.inProgress + t.rejected }}</div>
+          <a routerLink="/training/assignments" class="wp-tcard wp-tlift wp-anim-up wp-d1 !p-5">
+            <div class="text-3xl font-black text-train-800">{{ t.assigned + t.inProgress + t.rejected }}</div>
             <div class="text-xs font-medium text-slate-500">Open</div>
           </a>
-          <a routerLink="/training/approvals" class="wp-pcard wp-lift wp-anim-up wp-d2 !p-5">
+          <a routerLink="/training/approvals" class="wp-tcard wp-tlift wp-anim-up wp-d2 !p-5">
             <div class="text-3xl font-black text-amber-600">{{ t.submitted }}</div>
             <div class="text-xs font-medium text-slate-500">Awaiting approval</div>
           </a>
-          <a routerLink="/training/assignments" [queryParams]="{ status: 'Overdue' }" class="wp-pcard wp-lift wp-anim-up wp-d3 !p-5">
+          <a routerLink="/training/assignments" [queryParams]="{ status: 'Overdue' }" class="wp-tcard wp-tlift wp-anim-up wp-d3 !p-5">
             <div class="text-3xl font-black text-red-600">{{ t.overdue }}</div>
             <div class="text-xs font-medium text-slate-500">Overdue</div>
           </a>
-          <div class="wp-pcard wp-anim-up wp-d4 !p-5">
+          <div class="wp-tcard wp-anim-up wp-d4 !p-5">
             <div class="text-3xl font-black text-sky-700">{{ t.dueThisWeek }}</div>
             <div class="text-xs font-medium text-slate-500">Due this week</div>
           </div>
-          <a routerLink="/training/assignments" [queryParams]="{ status: 'Approved' }" class="wp-pcard wp-lift wp-anim-up wp-d5 !p-5">
+          <a routerLink="/training/assignments" [queryParams]="{ status: 'Approved' }" class="wp-tcard wp-tlift wp-anim-up wp-d5 !p-5">
             <div class="text-3xl font-black text-emerald-600">{{ t.approved }}</div>
             <div class="text-xs font-medium text-slate-500">Completed</div>
           </a>
-          <div class="wp-pcard wp-anim-up wp-d6 !p-5">
+          <div class="wp-tcard wp-anim-up wp-d6 !p-5">
             <div class="text-3xl font-black text-slate-700">{{ t.averageScore != null ? (t.averageScore | number: '1.0-0') + '%' : '—' }}</div>
             <div class="text-xs font-medium text-slate-500">Average quiz score</div>
           </div>
@@ -83,14 +83,14 @@
 
     <div class="grid gap-6 lg:grid-cols-2">
       <!-- My open trainings -->
-      <div class="wp-pcard wp-anim-up">
+      <div class="wp-tcard wp-anim-up">
         <div class="mb-4 flex items-center justify-between">
           <h2 class="text-base font-bold text-slate-900">My open trainings</h2>
-          <a routerLink="/training/my" class="wp-link-portal text-sm">See all</a>
+          <a routerLink="/training/my" class="wp-link-train text-sm">See all</a>
         </div>
         @for (a of d.myOpen; track a.assignmentId) {
-          <a [routerLink]="['/training/my', a.assignmentId]" class="flex items-center gap-3 rounded-xl px-2 py-3 transition hover:bg-portal-50">
-            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-portal-50 text-lg">{{ a.contentType === 'Video' ? '🎬' : a.contentType === 'Quiz' ? '❓' : '📄' }}</span>
+          <a [routerLink]="['/training/my', a.assignmentId]" class="flex items-center gap-3 rounded-xl px-2 py-3 transition hover:bg-train-50">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-train-50 text-lg">{{ a.contentType === 'Video' ? '🎬' : a.contentType === 'Quiz' ? '❓' : '📄' }}</span>
             <div class="min-w-0 flex-1">
               <div class="truncate text-sm font-semibold text-slate-800">{{ a.trainingTitle }}</div>
               <div class="text-xs" [class.text-red-600]="a.isOverdue" [class.text-slate-500]="!a.isOverdue">
@@ -106,13 +106,13 @@
 
       <!-- Approvals (leaders) or my recent activity -->
       @if (d.team) {
-        <div class="wp-pcard wp-anim-up wp-d1">
+        <div class="wp-tcard wp-anim-up wp-d1">
           <div class="mb-4 flex items-center justify-between">
             <h2 class="text-base font-bold text-slate-900">Waiting for my approval</h2>
-            <a routerLink="/training/approvals" class="wp-link-portal text-sm">Review</a>
+            <a routerLink="/training/approvals" class="wp-link-train text-sm">Review</a>
           </div>
           @for (a of d.awaitingMyApproval; track a.assignmentId) {
-            <a [routerLink]="['/training/my', a.assignmentId]" class="flex items-center gap-3 rounded-xl px-2 py-3 transition hover:bg-portal-50">
+            <a [routerLink]="['/training/my', a.assignmentId]" class="flex items-center gap-3 rounded-xl px-2 py-3 transition hover:bg-train-50">
               <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 text-sm font-bold text-amber-700">{{ a.userName.charAt(0) }}</span>
               <div class="min-w-0 flex-1">
                 <div class="truncate text-sm font-semibold text-slate-800">{{ a.userName }}</div>
@@ -126,11 +126,11 @@
         </div>
       }
 
-      <div class="wp-pcard wp-anim-up wp-d2" [class.lg:col-span-2]="!!d.team">
+      <div class="wp-tcard wp-anim-up wp-d2" [class.lg:col-span-2]="!!d.team">
         <h2 class="mb-4 text-base font-bold text-slate-900">Recent activity</h2>
         @for (h of d.recentActivity; track h.historyId) {
           <div class="flex items-start gap-3 border-b border-slate-100 py-2.5 last:border-0">
-            <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-portal-500"></span>
+            <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-train-500"></span>
             <div class="min-w-0 flex-1 text-sm">
               <span class="font-semibold text-slate-800">{{ h.userName }}</span>
               <span class="text-slate-500"> · {{ h.trainingTitle }} → </span>

@@ -18,18 +18,18 @@ import { TrainingSessionService } from '../../../core/services/training-session.
   selector: 'app-training-sso',
   imports: [RouterLink],
   template: `
-    <div class="flex min-h-screen items-center justify-center wp-portal-app-bg px-6">
-      <div class="wp-pcard w-full max-w-sm text-center wp-anim-up">
+    <div class="flex min-h-screen items-center justify-center wp-train-app-bg px-6">
+      <div class="wp-tcard w-full max-w-sm text-center wp-anim-up">
         @if (error()) {
           <div class="text-lg font-bold text-slate-900">Training portal unavailable</div>
           <p class="mt-2 text-sm text-slate-500">{{ error() }}</p>
           <div class="mt-5 flex justify-center gap-3">
             <a routerLink="/dashboard" class="wp-btn-ghost">Back to dashboard</a>
-            <a routerLink="/training-login" class="wp-btn-portal">Training sign in</a>
+            <a routerLink="/training-login" class="wp-btn-train">Training sign in</a>
           </div>
         } @else {
           <div class="wp-dot-loader mx-auto"></div>
-          <p class="mt-4 text-sm font-medium text-portal-800">Opening your training portal…</p>
+          <p class="mt-4 text-sm font-medium text-train-800">Opening your training portal…</p>
         }
       </div>
     </div>
