@@ -6,7 +6,15 @@
      SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
      ============================================================================= -->
 
-<router-outlet />
+<!-- The domain must be linked to an agency and not in maintenance before the app shows. -->
+@switch (tenant.state()) {
+  @case ('maintenance') { <app-maintenance-page /> }
+  @case ('not-connected') { <app-not-connected-page /> }
+  @case ('loading') {
+    <div class="flex min-h-screen items-center justify-center bg-slate-50"><div class="wp-dot-loader"></div></div>
+  }
+  @default { <router-outlet /> }
+}
 
 <!-- Full-screen offline page: shown whenever the browser reports no connection -->
 @if (!online()) {

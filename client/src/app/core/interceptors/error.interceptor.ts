@@ -13,6 +13,7 @@ import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { TokenStorageService } from '../services/token-storage.service';
 import { TrainingSessionService } from '../services/training-session.service';
+import { TenantStatusService } from '../services/tenant-status.service';
 
 /** Endpoints that must never trigger the silent-refresh retry. */
 const AUTH_BYPASS = ['/auth/login', '/auth/refresh-token', '/auth/forgot-password', '/auth/reset-password', '/users/bootstrap-admin', '/training-auth/login'];
@@ -29,11 +30,22 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
   const isBypassed = AUTH_BYPASS.some((path) => req.url.includes(path));
   const trainingSession = inject(TrainingSessionService);
+  const tenantStatus = inject(TenantStatusService);
+
+  // Maintenance mode / domain not linked to an agency: switch the whole app to
+  // the matching full-screen page instead of showing a small error.
+  const response$ = next(req).pipe(
+    catchError((error: unknown) => {
+      if (TenantStatusService.isMaintenance(error)) tenantStatus.markMaintenance();
+      else if (TenantStatusService.isTenantNotResolved(error)) tenantStatus.markNotConnected();
+      return throwError(() => error);
+    }),
+  );
 
   // Training portal calls: a 401 ends only the training session (the main-app
   // session, if any, is left alone) and goes back to the training sign-in.
   if (req.url.includes('/training-portal/')) {
-    return next(req).pipe(
+    return response$.pipe(
       catchError((error: HttpErrorResponse) => {
         if (error.status === 401) {
           trainingSession.clear();
@@ -44,7 +56,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
     );
   }
 
-  return next(req).pipe(
+  return response$.pipe(
     catchError((error: HttpErrorResponse) => {
       if (error.status === 401 && !isBypassed && storage.refreshToken) {
         return auth.refreshToken().pipe(

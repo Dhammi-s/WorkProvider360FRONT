@@ -9,10 +9,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { PwaService } from './core/services/pwa.service';
+import { TenantStatusService } from './core/services/tenant-status.service';
+import { MaintenancePage } from './features/system/maintenance-page';
+import { NotConnectedPage } from './features/system/not-connected-page';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, MaintenancePage, NotConnectedPage],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
@@ -20,12 +23,16 @@ export class App {
   protected readonly title = signal('client');
   private readonly pwa = inject(PwaService);
 
+  /** Domain linked to an agency? Agency in maintenance? Drives the full-screen pages. */
+  readonly tenant = inject(TenantStatusService);
+
   /** Live browser connectivity — drives the full-screen "no internet" page. */
   readonly online = signal(typeof navigator === 'undefined' ? true : navigator.onLine);
 
   constructor() {
     // Register the service worker + capture the install prompt as early as possible.
     this.pwa.init();
+    this.tenant.load();
 
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => this.online.set(true));
