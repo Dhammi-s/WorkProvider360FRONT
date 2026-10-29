@@ -13,6 +13,7 @@ import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
 import { ServiceType } from '../models/service-type.model';
 import { ClientInvoice, ClientInvoiceDetail } from '../models/client-invoice.model';
+import { PortalVisitFeedback, VisitFeedback, VisitFeedbackRequest } from '../models/feedback.model';
 import {
   ClientVisit,
   ClientVisitDetail,
@@ -57,6 +58,26 @@ export class PortalService {
   visit(id: number): Observable<ClientVisitDetail> {
     return this.http
       .get<ApiResponse<ClientVisitDetail>>(`${this.baseUrl}/visits/${id}`)
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  /** All feedback this client has given (ratings shown on the visit list). */
+  myFeedback(): Observable<VisitFeedback[]> {
+    return this.http
+      .get<ApiResponse<VisitFeedback[]>>(`${this.baseUrl}/feedback`)
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  /** Whether a visit can be rated yet, and the feedback already given. */
+  visitFeedback(id: number): Observable<PortalVisitFeedback> {
+    return this.http
+      .get<ApiResponse<PortalVisitFeedback>>(`${this.baseUrl}/visits/${id}/feedback`)
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  saveVisitFeedback(id: number, request: VisitFeedbackRequest): Observable<VisitFeedback> {
+    return this.http
+      .put<ApiResponse<VisitFeedback>>(`${this.baseUrl}/visits/${id}/feedback`, request)
       .pipe(map((r) => this.unwrap(r)));
   }
 
