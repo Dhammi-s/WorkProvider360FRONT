@@ -389,6 +389,45 @@
             <app-alert type="error" [message]="detailError()" />
             <app-alert type="success" [message]="actionNotice()" />
 
+            <!-- Tabs -->
+            <div class="mb-4 flex gap-1 rounded-xl bg-slate-100 p-1 text-sm font-semibold">
+              <button type="button" (click)="showDetailTab('details')" class="flex-1 rounded-lg px-3 py-1.5 transition"
+                [class]="detailTab() === 'details' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'">Details</button>
+              <button type="button" (click)="showDetailTab('feedback')" class="flex-1 rounded-lg px-3 py-1.5 transition"
+                [class]="detailTab() === 'feedback' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'">Client feedback</button>
+            </div>
+
+            @if (detailTab() === 'feedback') {
+              @if (!feedbackLoaded()) {
+                <p class="py-8 text-center text-sm text-slate-400">Loading feedback…</p>
+              } @else if (scheduleFeedback(); as f) {
+                <div class="space-y-4">
+                  <div class="rounded-xl border border-slate-100 p-4">
+                    <div class="flex items-center justify-between text-sm">
+                      <span class="text-slate-500">Visit</span>
+                      <span class="flex items-center gap-2"><app-star-rating [value]="f.visitRating" size="md" /><span class="font-bold text-slate-700">{{ f.visitRating }}/5</span></span>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between text-sm">
+                      <span class="text-slate-500">Caregiver · {{ f.caregiverName }}</span>
+                      <span class="flex items-center gap-2"><app-star-rating [value]="f.caregiverRating" size="md" /><span class="font-bold text-slate-700">{{ f.caregiverRating }}/5</span></span>
+                    </div>
+                  </div>
+                  @if (f.comment) {
+                    <blockquote class="rounded-xl bg-amber-50/60 px-4 py-3 text-sm italic text-slate-700">“{{ f.comment }}”</blockquote>
+                  }
+                  <p class="text-xs text-slate-400">
+                    From {{ f.clientName }} · {{ f.createdOn | date: 'd MMM y, HH:mm' }}{{ f.updatedOn ? ' · edited ' + (f.updatedOn | date: 'd MMM y') : '' }}
+                  </p>
+                </div>
+              } @else {
+                <div class="rounded-xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                  The client hasn't given feedback on this visit yet.
+                  @if (d.schedule.clientId) { <div class="mt-1 text-xs text-slate-400">Clients can rate a visit from their portal once it has finished.</div> }
+                  @else { <div class="mt-1 text-xs text-slate-400">This schedule isn't linked to a client, so it can't receive feedback.</div> }
+                </div>
+              }
+            } @else {
+
             <!-- Summary -->
             <dl class="grid grid-cols-2 gap-3 text-sm">
               <div><dt class="text-xs text-slate-400">Assigned to</dt><dd class="font-semibold text-slate-700">{{ d.schedule.assignedUserName }}</dd></div>
@@ -537,6 +576,7 @@
                 </div>
               }
             </div>
+            }
           }
         </div>
 

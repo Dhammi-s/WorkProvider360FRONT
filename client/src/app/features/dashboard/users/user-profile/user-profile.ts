@@ -6,6 +6,7 @@
    SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
    ============================================================================= */
 
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -20,13 +21,16 @@ import { Alert } from '../../../../shared/ui/alert/alert';
 import { VisitCalendar } from '../../../../shared/ui/visit-calendar/visit-calendar';
 import { ScheduleEditor } from '../../../../shared/ui/schedule-editor/schedule-editor';
 import { TrainingAccessCard } from '../../../../shared/ui/training-access-card/training-access-card';
+import { StarRating } from '../../../../shared/ui/star-rating/star-rating';
+import { FeedbackService } from '../../../../core/services/feedback.service';
+import { CaregiverFeedback } from '../../../../core/models/feedback.model';
 
-type Section = 'main' | 'schedule';
+type Section = 'main' | 'schedule' | 'feedback';
 
 /** Full-page user (caregiver/admin/manager) profile: Main details + a Schedule calendar with inline shift creation. */
 @Component({
   selector: 'app-user-profile',
-  imports: [RouterLink, ReactiveFormsModule, Alert, VisitCalendar, ScheduleEditor, TrainingAccessCard],
+  imports: [RouterLink, ReactiveFormsModule, DatePipe, DecimalPipe, Alert, VisitCalendar, ScheduleEditor, TrainingAccessCard, StarRating],
   templateUrl: './user-profile.html',
 })
 export class UserProfile {
@@ -49,6 +53,12 @@ export class UserProfile {
   readonly section = signal<Section>('main');
 
   readonly shifts = signal<Schedule[]>([]);
+
+  // ---- Client feedback section ----
+  private readonly feedbackApi = inject(FeedbackService);
+  readonly feedback = signal<CaregiverFeedback | null>(null);
+  readonly feedbackLoading = signal(false);
+  readonly feedbackError = signal('');
   readonly editorOpen = signal(false);
   readonly editorStart = signal<Date | null>(null);
 
@@ -105,6 +115,29 @@ export class UserProfile {
 
   setSection(s: Section): void {
     this.section.set(s);
+    if (s === 'feedback' && !this.feedback()) this.loadFeedback(1);
+  }
+
+  /** Client feedback about this caregiver (summary + pages of comments). */
+  loadFeedback(page: number): void {
+    this.feedbackLoading.set(true);
+    this.feedbackError.set('');
+    this.feedbackApi.forCaregiver(this.userId, page, 10).subscribe({
+      next: (fb) => {
+        const prev = this.feedback();
+        this.feedback.set(page > 1 && prev ? { ...fb, items: [...prev.items, ...fb.items] } : fb);
+        this.feedbackLoading.set(false);
+      },
+      error: (err: Error) => {
+        this.feedbackError.set(err.message || 'Could not load feedback.');
+        this.feedbackLoading.set(false);
+      },
+    });
+  }
+
+  loadMoreFeedback(): void {
+    const fb = this.feedback();
+    if (fb) this.loadFeedback(fb.page + 1);
   }
 
   openEditor(date?: Date): void {

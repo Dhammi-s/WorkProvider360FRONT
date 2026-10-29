@@ -33,6 +33,9 @@ import { LocationTrackingService } from '../../../core/services/location-trackin
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { CareLog } from '../../../shared/ui/care-log/care-log';
+import { StarRating } from '../../../shared/ui/star-rating/star-rating';
+import { FeedbackService } from '../../../core/services/feedback.service';
+import { VisitFeedback } from '../../../core/models/feedback.model';
 
 type CalView = 'week' | 'day' | 'month';
 
@@ -95,11 +98,12 @@ const HOUR_PX = 56;
 
 @Component({
   selector: 'app-scheduler',
-  imports: [FormsModule, DatePipe, DecimalPipe, Alert, SignaturePad, CareLog],
+  imports: [FormsModule, DatePipe, DecimalPipe, Alert, SignaturePad, CareLog, StarRating],
   templateUrl: './scheduler.html',
 })
 export class Scheduler {
   private readonly service = inject(SchedulerService);
+  private readonly feedbackApi = inject(FeedbackService);
   private readonly auth = inject(AuthService);
   private readonly clients = inject(ClientService);
   private readonly serviceTypeService = inject(ServiceTypeService);
@@ -174,6 +178,9 @@ export class Scheduler {
   // Detail modal state.
   readonly detail = signal<ScheduleDetail | null>(null);
   readonly detailLoading = signal(false);
+  readonly detailTab = signal<'details' | 'feedback'>('details');
+  readonly scheduleFeedback = signal<VisitFeedback | null>(null);
+  readonly feedbackLoaded = signal(false);
   readonly detailError = signal('');
   readonly actionBusy = signal(false);
   readonly actionNotice = signal('');
@@ -632,6 +639,9 @@ export class Scheduler {
     this.noteIsInjury.set(false);
     this.showManual.set(false);
     this.detail.set(null);
+    this.detailTab.set('details');
+    this.scheduleFeedback.set(null);
+    this.feedbackLoaded.set(false);
     this.service.detail(id).subscribe({
       next: (d) => {
         this.detail.set(d);
@@ -647,6 +657,23 @@ export class Scheduler {
 
   closeDetail(): void {
     this.detail.set(null);
+  }
+
+  /** Feedback tab: the client's rating of this visit and its caregiver (loaded on first open). */
+  showDetailTab(tab: 'details' | 'feedback'): void {
+    this.detailTab.set(tab);
+    const d = this.detail();
+    if (tab !== 'feedback' || !d || this.feedbackLoaded()) return;
+    this.feedbackApi.forSchedule(d.schedule.scheduleId).subscribe({
+      next: (f) => {
+        this.scheduleFeedback.set(f);
+        this.feedbackLoaded.set(true);
+      },
+      error: (err: Error) => {
+        this.detailError.set(err.message || 'Could not load the feedback.');
+        this.feedbackLoaded.set(true);
+      },
+    });
   }
 
   /** Approve / remove approval (only approved schedules are invoiced by default). */
