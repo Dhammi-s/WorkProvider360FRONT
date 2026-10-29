@@ -7,7 +7,7 @@
      ============================================================================= -->
 <section class="space-y-6">
   <div class="wp-anim-up">
-    <h1 class="text-3xl font-black tracking-tight text-portal-900">Training portal access</h1>
+    <h1 class="text-3xl font-black tracking-tight text-train-900">Training portal access</h1>
     <p class="mt-1 text-sm text-slate-500">
       {{ enabledCount() }} of {{ rows().length }} people can use the training portal.
       @if (isSuperAdmin()) { As Super Admin you can see training usernames and reset passwords. }
@@ -19,13 +19,13 @@
   <app-alert type="success" [message]="success()" />
 
   @if (revealed(); as c) {
-    <div class="wp-pcard wp-anim-pop border-2 border-amber-300 !bg-amber-50">
+    <div class="wp-tcard wp-anim-pop border-2 border-amber-300 !bg-amber-50">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div class="text-sm font-bold text-amber-900">Training credentials for {{ c.name }}. Shown once only.</div>
           <div class="mt-2 grid gap-1 text-sm">
-            <div>Username: <span class="font-mono font-bold">{{ c.username }}</span> <button type="button" class="wp-link-portal text-xs" (click)="copy(c.username)">copy</button></div>
-            <div>Password: <span class="font-mono font-bold">{{ c.password }}</span> <button type="button" class="wp-link-portal text-xs" (click)="copy(c.password)">copy</button></div>
+            <div>Username: <span class="font-mono font-bold">{{ c.username }}</span> <button type="button" class="wp-link-train text-xs" (click)="copy(c.username)">copy</button></div>
+            <div>Password: <span class="font-mono font-bold">{{ c.password }}</span> <button type="button" class="wp-link-train text-xs" (click)="copy(c.password)">copy</button></div>
           </div>
         </div>
         <button type="button" class="wp-btn-ghost !py-1.5 text-xs" (click)="revealed.set(null)">I've saved it</button>
@@ -36,18 +36,18 @@
   <div class="flex flex-wrap items-center gap-2">
     @for (f of ['all', 'enabled', 'disabled']; track f) {
       <button type="button" (click)="filter.set($any(f))" class="rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize transition"
-        [class]="filter() === f ? 'bg-portal-700 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-portal-50'">{{ f }}</button>
+        [class]="filter() === f ? 'bg-train-700 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-train-50'">{{ f }}</button>
     }
-    <input class="wp-input wp-input-portal ml-auto !w-64 !py-2 text-sm" placeholder="Search name, email or username" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+    <input class="wp-input wp-input-train ml-auto !w-64 !py-2 text-sm" placeholder="Search name, email or username" [ngModel]="search()" (ngModelChange)="search.set($event)" />
   </div>
 
-  <div class="wp-pcard overflow-hidden !p-0">
+  <div class="wp-tcard overflow-hidden !p-0">
     @if (loading()) {
-      <div class="space-y-2 p-5"><div class="wp-skeleton h-10 rounded-lg"></div><div class="wp-skeleton h-10 rounded-lg"></div></div>
+      <div class="space-y-2 p-5"><div class="wp-tskeleton h-10 rounded-lg"></div><div class="wp-tskeleton h-10 rounded-lg"></div></div>
     } @else {
       <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
-          <thead class="bg-portal-50/60 text-left text-xs font-bold uppercase tracking-wider text-portal-800">
+          <thead class="bg-train-50/60 text-left text-xs font-bold uppercase tracking-wider text-train-800">
             <tr>
               <th class="px-5 py-3">Person</th>
               @if (isSuperAdmin()) { <th class="px-5 py-3">Training username</th> }
@@ -59,7 +59,7 @@
           </thead>
           <tbody class="divide-y divide-slate-100">
             @for (r of visible(); track r.userId) {
-              <tr class="hover:bg-portal-50/40" [class.opacity-60]="!r.isActive">
+              <tr class="hover:bg-train-50/40" [class.opacity-60]="!r.isActive">
                 <td class="px-5 py-3">
                   <div class="font-semibold text-slate-800">{{ r.fullName }}</div>
                   <div class="text-xs text-slate-500">{{ roleLabel(r.roleName) }} · {{ r.email }}</div>
@@ -81,10 +81,10 @@
                 <td class="px-5 py-3 text-right whitespace-nowrap">
                   @if (r.canManage) {
                     @if (r.enabled) {
-                      <button type="button" class="mr-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-portal-700 hover:bg-portal-50" [disabled]="busyId() === r.userId" (click)="reset(r)">Reset password</button>
+                      <button type="button" class="mr-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-train-700 hover:bg-train-50" [disabled]="busyId() === r.userId" (click)="reset(r)">Reset password</button>
                     }
                     <button type="button" class="rounded-lg px-2.5 py-1.5 text-xs font-bold transition" [disabled]="busyId() === r.userId" (click)="toggle(r)"
-                      [class]="r.enabled ? 'text-red-600 hover:bg-red-50' : 'bg-portal-600 text-white hover:bg-portal-700'">
+                      [class]="r.enabled ? 'text-red-600 hover:bg-red-50' : 'bg-train-600 text-white hover:bg-train-700'">
                       {{ busyId() === r.userId ? '…' : r.enabled ? 'Disable' : 'Enable' }}
                     </button>
                   } @else {

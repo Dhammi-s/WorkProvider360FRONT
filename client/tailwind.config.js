@@ -35,6 +35,21 @@ module.exports = {
           900: '#134e4a',
           950: '#042f2e',
         },
+        // Training portal: warm amber / orange, distinct from the agency
+        // indigo (brand) and the client-portal teal (portal).
+        train: {
+          50: '#fff7ed',
+          100: '#ffedd5',
+          200: '#fed7aa',
+          300: '#fdba74',
+          400: '#fb923c',
+          500: '#f97316',
+          600: '#ea580c',
+          700: '#c2410c',
+          800: '#9a3412',
+          900: '#7c2d12',
+          950: '#431407',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
@@ -43,12 +58,16 @@ module.exports = {
         card: '0 10px 30px -12px rgba(15, 23, 42, 0.25)',
         portal: '0 22px 48px -22px rgba(13, 148, 136, 0.55)',
         'portal-sm': '0 10px 26px -16px rgba(13, 148, 136, 0.45)',
+        train: '0 22px 48px -22px rgba(234, 88, 12, 0.55)',
+        'train-sm': '0 10px 26px -16px rgba(234, 88, 12, 0.45)',
       },
       backgroundImage: {
         'brand-panel':
           'linear-gradient(150deg, #1e1b4b 0%, #312e81 42%, #075985 100%)',
         'portal-panel':
           'linear-gradient(135deg, #042f2e 0%, #0f766e 55%, #0e7490 100%)',
+        'train-panel':
+          'linear-gradient(135deg, #431407 0%, #9a3412 55%, #b45309 100%)',
       },
     },
   },

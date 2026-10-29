@@ -7,7 +7,7 @@
      ============================================================================= -->
 <section class="space-y-6">
   <div class="wp-anim-up">
-    <h1 class="text-3xl font-black tracking-tight text-portal-900">My trainings</h1>
+    <h1 class="text-3xl font-black tracking-tight text-train-900">My trainings</h1>
     <p class="mt-1 text-sm text-slate-500">Everything assigned to you, with due dates and approvals.</p>
   </div>
 
@@ -17,7 +17,7 @@
     @for (t of tabs; track t.key) {
       <button type="button" (click)="tab.set(t.key)"
         class="rounded-full px-4 py-2 text-sm font-semibold transition"
-        [class]="tab() === t.key ? 'bg-portal-700 text-white shadow-portal-sm' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-portal-50'">
+        [class]="tab() === t.key ? 'bg-train-700 text-white shadow-train-sm' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-train-50'">
         {{ t.label }} <span class="ml-1 opacity-70">{{ groups()[t.key].length }}</span>
       </button>
     }
@@ -25,16 +25,16 @@
 
   @if (loading()) {
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <div class="wp-skeleton h-40 rounded-2xl"></div>
-      <div class="wp-skeleton h-40 rounded-2xl"></div>
-      <div class="wp-skeleton h-40 rounded-2xl"></div>
+      <div class="wp-tskeleton h-40 rounded-2xl"></div>
+      <div class="wp-tskeleton h-40 rounded-2xl"></div>
+      <div class="wp-tskeleton h-40 rounded-2xl"></div>
     </div>
   } @else {
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       @for (a of visible(); track a.assignmentId; let i = $index) {
-        <a [routerLink]="['/training/my', a.assignmentId]" class="wp-pcard wp-lift wp-anim-up flex flex-col" [class]="'wp-d' + ((i % 6) + 1)">
+        <a [routerLink]="['/training/my', a.assignmentId]" class="wp-tcard wp-tlift wp-anim-up flex flex-col" [class]="'wp-d' + ((i % 6) + 1)">
           <div class="flex items-start justify-between gap-3">
-            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-portal-50 text-xl">{{ icon(a.contentType) }}</span>
+            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-train-50 text-xl">{{ icon(a.contentType) }}</span>
             <span class="rounded-full px-2.5 py-1 text-[11px] font-bold" [class]="badge[a.status]">{{ labels[a.status] }}</span>
           </div>
           <div class="mt-3 text-base font-bold text-slate-900">{{ a.trainingTitle }}</div>
@@ -47,15 +47,15 @@
               <span [class]="a.isOverdue ? 'font-bold text-red-600' : 'text-slate-500'">
                 {{ a.isOverdue ? 'Overdue · was due' : 'Due' }} {{ a.dueDate | date: 'MMM d, y' }}
               </span>
-              <span class="font-semibold text-portal-700">{{ a.progressPercent }}%</span>
+              <span class="font-semibold text-train-700">{{ a.progressPercent }}%</span>
             </div>
             <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
-              <div class="h-full rounded-full bg-portal-500" [style.width.%]="a.progressPercent"></div>
+              <div class="h-full rounded-full bg-train-500" [style.width.%]="a.progressPercent"></div>
             </div>
           </div>
         </a>
       } @empty {
-        <div class="wp-pcard col-span-full py-10 text-center text-sm text-slate-500">
+        <div class="wp-tcard col-span-full py-10 text-center text-sm text-slate-500">
           @switch (tab()) {
             @case ('todo') { 🎉 You're all caught up. }
             @case ('waiting') { Nothing is waiting for approval. }
