@@ -23,6 +23,8 @@ import { LogService } from '../../../core/services/log.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { MeetingService } from '../../../core/services/meeting.service';
 import { AnalysisService } from '../../../core/services/analysis.service';
+import { PushService } from '../../../core/services/push.service';
+import { PushEvent } from '../../../core/models/push.model';
 import { AnalysisAccessLevel, AnalysisModule } from '../../../core/models/analysis.model';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { LogoUploader } from '../branding/logo-uploader';
@@ -49,6 +51,7 @@ export class Settings {
   private readonly branding = inject(BrandingService);
   private readonly clients = inject(ClientService);
   private readonly analysis = inject(AnalysisService);
+  private readonly push = inject(PushService);
 
   readonly user = this.auth.user;
   readonly isSuperAdmin = computed(() => this.auth.roleName() === 'SuperAdmin');
@@ -78,6 +81,8 @@ export class Settings {
       t.push({ id: 'announcements', label: 'Announcements', icon: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 11-5.8-1.6' });
     if (this.isSuperAdmin())
       t.push({ id: 'analysis', label: 'AI Analysis', icon: 'M9.5 2a2.5 2.5 0 00-2.45 2A3 3 0 004 7a3 3 0 00.5 5.5A3 3 0 007 17a2.5 2.5 0 005 0V4.5A2.5 2.5 0 009.5 2zM14.5 2a2.5 2.5 0 012.45 2A3 3 0 0120 7a3 3 0 01-.5 5.5A3 3 0 0117 17a2.5 2.5 0 01-5 0' });
+    if (this.isSuperAdmin())
+      t.push({ id: 'sms', label: 'SMS & Push', icon: 'M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0a3 3 0 11-6 0' });
     if (this.isSuperAdmin())
       t.push({ id: 'login', label: 'Login Page', icon: 'M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3' });
     return t;
@@ -163,6 +168,84 @@ export class Settings {
       error: (err: Error) => {
         this.aiSending.set(false);
         this.aiError.set(err.message || 'Could not run the daily report.');
+      },
+    });
+  }
+
+  // ---- SMS & Push notifications (SuperAdmin) ----
+  readonly pushEnabled = signal(true);
+  readonly pushServerConfigured = signal(true);
+  readonly pushEvents = signal<PushEvent[]>([]);
+  readonly pushSaving = signal(false);
+  readonly pushTesting = signal(false);
+  readonly pushNotice = signal('');
+  readonly pushError = signal('');
+
+  /** Events grouped by category, in catalog order. */
+  readonly pushGroups = computed(() => {
+    const groups: { category: string; events: PushEvent[] }[] = [];
+    for (const e of this.pushEvents()) {
+      let g = groups.find((x) => x.category === e.category);
+      if (!g) groups.push((g = { category: e.category, events: [] }));
+      g.events.push(e);
+    }
+    return groups;
+  });
+
+  readonly pushEnabledCount = computed(() => this.pushEvents().filter((e) => e.enabled).length);
+
+  loadPushSettings(): void {
+    this.push.getSettings().subscribe({
+      next: (s) => {
+        this.pushEnabled.set(s.enabled);
+        this.pushServerConfigured.set(s.serverConfigured);
+        this.pushEvents.set(s.events);
+      },
+      error: (err: Error) => this.pushError.set(err.message || 'Could not load push settings.'),
+    });
+  }
+
+  toggleCategory(category: string, on: boolean): void {
+    this.pushEvents.update((list) => list.map((e) => (e.category === category ? { ...e, enabled: on } : e)));
+  }
+
+  setPushEvent(key: string, on: boolean): void {
+    this.pushEvents.update((list) => list.map((e) => (e.key === key ? { ...e, enabled: on } : e)));
+  }
+
+  savePushSettings(): void {
+    this.pushSaving.set(true);
+    this.pushNotice.set('');
+    this.pushError.set('');
+    const events: Record<string, boolean> = {};
+    for (const e of this.pushEvents()) events[e.key] = e.enabled;
+    this.push.updateSettings({ enabled: this.pushEnabled(), events }).subscribe({
+      next: (s) => {
+        this.pushSaving.set(false);
+        this.pushEnabled.set(s.enabled);
+        this.pushServerConfigured.set(s.serverConfigured);
+        this.pushEvents.set(s.events);
+        this.pushNotice.set('Push notification settings saved.');
+      },
+      error: (err: Error) => {
+        this.pushSaving.set(false);
+        this.pushError.set(err.message || 'Could not save push settings.');
+      },
+    });
+  }
+
+  sendTestPush(): void {
+    this.pushTesting.set(true);
+    this.pushNotice.set('');
+    this.pushError.set('');
+    this.push.sendTest().subscribe({
+      next: (msg) => {
+        this.pushTesting.set(false);
+        this.pushNotice.set(msg);
+      },
+      error: (err: Error) => {
+        this.pushTesting.set(false);
+        this.pushError.set(err.message || 'Could not send the test push.');
       },
     });
   }
@@ -316,6 +399,7 @@ export class Settings {
       this.loadAnnouncementSettings();
       this.loadLoginContent();
       this.loadAnalysisSettings();
+      this.loadPushSettings();
     } else {
       this.loading.set(false);
     }
