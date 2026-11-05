@@ -201,6 +201,13 @@ export const routes: Routes = [
         title: 'Point of Sale · WorkProvider360',
       },
       {
+        path: 'compliance',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin'] },
+        loadComponent: () => import('./features/dashboard/compliance/compliance').then((m) => m.Compliance),
+        title: 'Compliance · WorkProvider360',
+      },
+      {
         path: 'scheduler',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },

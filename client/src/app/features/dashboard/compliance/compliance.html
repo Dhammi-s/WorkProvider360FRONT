@@ -1,0 +1,178 @@
+<div class="space-y-5">
+  <div>
+    <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Compliance</h1>
+    @if (info(); as i) {
+      <p class="mt-1 text-sm text-slate-500">
+        <span class="font-semibold text-slate-700">{{ i.countryName }}</span> · {{ i.framework }}
+      </p>
+    }
+  </div>
+
+  <app-alert type="success" [message]="notice()" />
+  <app-alert type="error" [message]="error()" />
+
+  @if (info(); as i) {
+    <div class="rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600 shadow-card">{{ i.description }}</div>
+
+    <!-- Tabs -->
+    <div class="flex flex-wrap gap-2">
+      @if (submissionAvailable()) {
+        <button type="button" (click)="setTab('visits')" [class]="tab() === 'visits' ? 'wp-btn-primary' : 'wp-btn-ghost'">EVV visits</button>
+      }
+      <button type="button" (click)="setTab('reports')" [class]="tab() === 'reports' ? 'wp-btn-primary' : 'wp-btn-ghost'">Reports</button>
+      @if (submissionAvailable() && isSuperAdmin()) {
+        <button type="button" (click)="setTab('settings')" [class]="tab() === 'settings' ? 'wp-btn-primary' : 'wp-btn-ghost'">Settings</button>
+      }
+    </div>
+
+    <!-- Date range (visits + reports) -->
+    @if (tab() !== 'settings') {
+      <div class="flex flex-wrap items-end gap-3">
+        <div>
+          <label class="wp-label" for="cmp-from">From</label>
+          <input id="cmp-from" type="date" class="wp-input" [ngModel]="from()" (ngModelChange)="from.set($event)" />
+        </div>
+        <div>
+          <label class="wp-label" for="cmp-to">To</label>
+          <input id="cmp-to" type="date" class="wp-input" [ngModel]="to()" (ngModelChange)="to.set($event)" />
+        </div>
+        @if (tab() === 'visits') {
+          <button type="button" class="wp-btn-ghost" (click)="loadVisits()" [disabled]="loading()">Apply</button>
+        }
+      </div>
+    }
+
+    <!-- ===================== EVV visits ===================== -->
+    @if (tab() === 'visits' && submissionAvailable()) {
+      @if (!i.isEnabled) {
+        <app-alert type="info" message="Third-party submission is not configured yet. A SuperAdmin can set the aggregator under Settings." />
+      }
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-slate-500">{{ visits().length }} visit(s) · {{ selected().size }} selected</span>
+        <button type="button" class="wp-btn-primary" (click)="submitSelected()" [disabled]="submitting() || !selected().size || !i.isEnabled">
+          @if (submitting()) { Sending… } @else { Send selected to aggregator }
+        </button>
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-card">
+        <table class="min-w-full text-left text-sm">
+          <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th class="px-3 py-2"><input type="checkbox" [checked]="allSelected()" (change)="toggleAll($any($event.target).checked)" aria-label="Select all" /></th>
+              <th class="px-3 py-2">Date</th>
+              <th class="px-3 py-2">Client</th>
+              <th class="px-3 py-2">Caregiver</th>
+              <th class="px-3 py-2">Service</th>
+              <th class="px-3 py-2">Clock in / out</th>
+              <th class="px-3 py-2 text-right">Hours</th>
+              <th class="px-3 py-2 text-right">Bill</th>
+              <th class="px-3 py-2">GPS</th>
+              <th class="px-3 py-2">Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (v of visits(); track v.timeEntryId) {
+              <tr>
+                <td class="px-3 py-2">
+                  <input type="checkbox" [disabled]="!v.clockOutUtc" [checked]="selected().has(v.timeEntryId)" (change)="toggle(v.timeEntryId, $any($event.target).checked)" aria-label="Select visit" />
+                </td>
+                <td class="px-3 py-2 whitespace-nowrap">{{ v.clockInUtc + 'Z' | date: 'mediumDate' }}</td>
+                <td class="px-3 py-2">{{ v.clientName || '—' }}</td>
+                <td class="px-3 py-2">{{ v.caregiverName }}</td>
+                <td class="px-3 py-2">{{ v.serviceName || '—' }}</td>
+                <td class="px-3 py-2 whitespace-nowrap">
+                  {{ v.clockInUtc + 'Z' | date: 'shortTime' }} –
+                  @if (v.clockOutUtc) { {{ v.clockOutUtc + 'Z' | date: 'shortTime' }} } @else { <span class="text-amber-600">in progress</span> }
+                </td>
+                <td class="px-3 py-2 text-right">{{ v.hours | number: '1.2-2' }}</td>
+                <td class="px-3 py-2 text-right">{{ v.billAmount | number: '1.2-2' }}</td>
+                <td class="px-3 py-2">{{ v.hasGps ? 'Yes' : 'No' }}</td>
+                <td class="px-3 py-2">
+                  @switch (v.submissionStatus) {
+                    @case ('Sent') { <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Sent</span> }
+                    @case ('Failed') { <span class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700" [title]="v.submissionResponse ?? ''">Failed</span> }
+                    @default { <span class="text-xs text-slate-400">Not sent</span> }
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="10" class="px-3 py-8 text-center text-slate-400">@if (loading()) { Loading… } @else { No visits in this range. }</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- ===================== Reports ===================== -->
+    @if (tab() === 'reports') {
+      <div class="grid gap-4 md:grid-cols-3">
+        <div class="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
+          <h2 class="text-base font-bold text-slate-900">Visit verification</h2>
+          <p class="mt-1 text-sm text-slate-500">Every visit with client, caregiver, service, location, GPS, clock in/out and third-party submission status.</p>
+          <button type="button" class="wp-btn-ghost mt-4" (click)="download('evv-visits')" [disabled]="downloading() !== null">
+            @if (downloading() === 'evv-visits') { Preparing… } @else { Download CSV }
+          </button>
+        </div>
+        <div class="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
+          <h2 class="text-base font-bold text-slate-900">Schedule details</h2>
+          <p class="mt-1 text-sm text-slate-500">Scheduled versus actual start/end times and hours for each visit.</p>
+          <button type="button" class="wp-btn-ghost mt-4" (click)="download('schedule-details')" [disabled]="downloading() !== null">
+            @if (downloading() === 'schedule-details') { Preparing… } @else { Download CSV }
+          </button>
+        </div>
+        <div class="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
+          <h2 class="text-base font-bold text-slate-900">Billing summary</h2>
+          <p class="mt-1 text-sm text-slate-500">Hours, bill amount, caregiver pay and margin per client and payer.</p>
+          <button type="button" class="wp-btn-ghost mt-4" (click)="download('billing-summary')" [disabled]="downloading() !== null">
+            @if (downloading() === 'billing-summary') { Preparing… } @else { Download CSV }
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- ===================== Settings (SuperAdmin) ===================== -->
+    @if (tab() === 'settings' && submissionAvailable() && isSuperAdmin()) {
+      <div class="max-w-2xl rounded-2xl border border-slate-100 bg-white p-6 shadow-card">
+        <h2 class="text-base font-bold text-slate-900">Aggregator connection</h2>
+        <p class="mt-1 text-sm text-slate-500">Where completed visits are sent. Credentials come from your state's EVV aggregator.</p>
+
+        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+          <label class="flex items-center gap-2 text-sm font-medium text-slate-700 sm:col-span-2">
+            <input type="checkbox" [checked]="form().isEnabled" (change)="patch('isEnabled', $any($event.target).checked)" />
+            Enable submission to the aggregator
+          </label>
+          <div>
+            <label class="wp-label" for="cmp-provider">Aggregator</label>
+            <select id="cmp-provider" class="wp-input" [ngModel]="form().providerKey" (ngModelChange)="patch('providerKey', $event)">
+              @for (p of info()!.providerOptions; track p) { <option [value]="p">{{ p }}</option> }
+            </select>
+          </div>
+          <div>
+            <label class="wp-label" for="cmp-state">State</label>
+            <input id="cmp-state" class="wp-input" maxlength="10" placeholder="e.g. TX" [ngModel]="form().stateCode" (ngModelChange)="patch('stateCode', $event)" />
+          </div>
+          <div class="sm:col-span-2">
+            <label class="wp-label" for="cmp-endpoint">Endpoint URL (HTTPS)</label>
+            <input id="cmp-endpoint" class="wp-input" placeholder="https://…" [ngModel]="form().endpointUrl" (ngModelChange)="patch('endpointUrl', $event)" />
+          </div>
+          <div>
+            <label class="wp-label" for="cmp-account">Account / provider ID</label>
+            <input id="cmp-account" class="wp-input" [ngModel]="form().accountId" (ngModelChange)="patch('accountId', $event)" />
+          </div>
+          <div>
+            <label class="wp-label" for="cmp-key">API key</label>
+            <input id="cmp-key" type="password" autocomplete="new-password" class="wp-input"
+                   [placeholder]="settings()?.hasApiKey ? '•••••• (saved — leave blank to keep)' : 'Paste API key'"
+                   [ngModel]="form().apiKey" (ngModelChange)="patch('apiKey', $event)" />
+          </div>
+        </div>
+
+        <div class="mt-5">
+          <button type="button" class="wp-btn-primary" (click)="saveSettings()" [disabled]="savingSettings()">
+            @if (savingSettings()) { Saving… } @else { Save settings }
+          </button>
+        </div>
+      </div>
+    }
+  }
+</div>

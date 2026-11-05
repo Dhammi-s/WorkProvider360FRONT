@@ -15,6 +15,8 @@ export interface AgencyInfo {
   agencyId: number;
   agencyName: string;
   location?: string | null;
+  /** ISO country code (US, CA, JP, DE) from the master DB. */
+  country?: string | null;
 }
 
 /** Exposes the current tenant's display name for the app shell. */
@@ -25,11 +27,14 @@ export class AgencyService {
 
   /** Cached agency name, shared across the app. */
   readonly name = signal<string>('');
+  /** The agency's country, from the master DB. Drives country-specific compliance features. */
+  readonly country = signal<string>('US');
 
   load(): void {
     this.http.get<ApiResponse<AgencyInfo>>(`${this.baseUrl}/me`).subscribe({
       next: (res) => {
         if (res.success && res.data?.agencyName) this.name.set(res.data.agencyName);
+        if (res.success && res.data?.country) this.country.set(res.data.country);
       },
       error: () => {},
     });
