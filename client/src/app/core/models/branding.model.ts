@@ -8,5 +8,6 @@
 
 export interface Branding {
   logoBase64?: string | null;
+  emailBannerBase64?: string | null;
   updatedOn?: string | null;
 }

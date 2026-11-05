@@ -28,6 +28,7 @@ import { PushEvent } from '../../../core/models/push.model';
 import { AnalysisAccessLevel, AnalysisModule } from '../../../core/models/analysis.model';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { LogoUploader } from '../branding/logo-uploader';
+import { EmailBannerUploader } from '../branding/email-banner-uploader';
 
 /** Workspace settings: application form (SuperAdmin) + scheduling access & defaults. */
 interface SettingsTab {
@@ -38,7 +39,7 @@ interface SettingsTab {
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, RouterLink, Alert, LogoUploader],
+  imports: [FormsModule, RouterLink, Alert, LogoUploader, EmailBannerUploader],
   templateUrl: './settings.html',
 })
 export class Settings {

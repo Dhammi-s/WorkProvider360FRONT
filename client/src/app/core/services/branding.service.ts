@@ -21,6 +21,8 @@ export class BrandingService {
 
   /** Cached agency logo (data URI) shared across the app so the sidebar updates live. */
   readonly logo = signal<string | null>(null);
+  /** Agency banner shown at the top of every email. */
+  readonly emailBanner = signal<string | null>(null);
   private loaded = false;
 
   /** Fetch once per session (call again with force to refresh). */
@@ -29,10 +31,13 @@ export class BrandingService {
     this.loaded = true;
     this.http
       .get<ApiResponse<Branding>>(this.baseUrl)
-      .pipe(map((r) => r.data?.logoBase64 ?? null))
+      .pipe(map((r) => r.data ?? null))
       .subscribe({
-        next: (logo) => this.logo.set(logo),
-        error: () => this.logo.set(null),
+        next: (b) => {
+          this.logo.set(b?.logoBase64 ?? null);
+          this.emailBanner.set(b?.emailBannerBase64 ?? null);
+        },
+        error: () => { this.logo.set(null); this.emailBanner.set(null); },
       });
   }
 
@@ -50,6 +55,16 @@ export class BrandingService {
   }
 
   /** Public (anonymous) login-page payload: agency name + logo + content. */
+  /** SuperAdmin: set the email banner; pass null/empty to remove it. */
+  updateEmailBanner(emailBannerBase64: string | null): Observable<Branding> {
+    return this.http
+      .put<ApiResponse<Branding>>(`${this.baseUrl}/email-banner`, { emailBannerBase64 })
+      .pipe(
+        map((r) => r.data ?? {}),
+        tap((b) => this.emailBanner.set(b.emailBannerBase64 ?? null)),
+      );
+  }
+
   getLoginPage(): Observable<PublicLoginPage | null> {
     return this.http
       .get<ApiResponse<PublicLoginPage>>(`${this.baseUrl}/login`)
