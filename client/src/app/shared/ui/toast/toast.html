@@ -1,0 +1,19 @@
+<div class="pointer-events-none fixed right-4 top-4 z-[300] flex w-[calc(100vw-2rem)] max-w-sm flex-col gap-2">
+  @for (t of svc.toasts(); track t.id) {
+    <div
+      class="pointer-events-auto flex items-start gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg ring-1 ring-black/5"
+      [class]="classes(t.type)"
+      role="status"
+    >
+      <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        @if (t.type === 'success') {
+          <path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 111.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd" />
+        } @else {
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 012 0v4a1 1 0 11-2 0V9zm1-4a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd" />
+        }
+      </svg>
+      <span class="flex-1">{{ t.message }}</span>
+      <button type="button" (click)="svc.dismiss(t.id)" class="text-slate-400 hover:text-slate-600" aria-label="Dismiss">&times;</button>
+    </div>
+  }
+</div>

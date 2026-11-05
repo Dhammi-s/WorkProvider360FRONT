@@ -6,7 +6,7 @@
      SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
      ============================================================================= -->
 
-@if (message()) {
+@if (message() && type() === 'info') {
   <div
     class="flex items-start gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium"
     [class]="classes"

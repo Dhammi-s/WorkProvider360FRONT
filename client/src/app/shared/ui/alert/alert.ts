@@ -6,11 +6,12 @@
    SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
    ============================================================================= */
 
-import { Component, input } from '@angular/core';
+import { Component, effect, inject, input } from '@angular/core';
+import { ToastService } from '../../../core/services/toast.service';
 
 export type AlertType = 'error' | 'success' | 'info';
 
-/** Small inline banner for form-level success / error / info messages. */
+/** Banner for info messages. Success (green) and error (red) messages are shown as toasts instead. */
 @Component({
   selector: 'app-alert',
   templateUrl: './alert.html',
@@ -18,6 +19,16 @@ export type AlertType = 'error' | 'success' | 'info';
 export class Alert {
   readonly type = input<AlertType>('info');
   readonly message = input<string>('');
+  private readonly toast = inject(ToastService);
+
+  constructor() {
+    effect(() => {
+      const m = this.message();
+      const t = this.type();
+      if (m && t === 'success') this.toast.success(m);
+      else if (m && t === 'error') this.toast.error(m);
+    });
+  }
 
   get classes(): string {
     switch (this.type()) {
