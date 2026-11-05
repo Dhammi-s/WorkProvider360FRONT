@@ -26,6 +26,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { BrandingService } from '../../../core/services/branding.service';
 import { ShortcutService } from '../../../core/services/shortcut.service';
 import { UserService } from '../../../core/services/user.service';
+import { MonitoringAuthService } from '../../monitoring/auth/monitoring-auth.service';
 
 interface NavItem {
   label: string;
@@ -39,6 +40,8 @@ interface NavItem {
   analysis?: boolean;
   /** Shown only when the training portal is enabled for the signed-in user. */
   training?: boolean;
+  /** Shown only while a Development Monitoring session is active in this browser. */
+  monitoring?: boolean;
 }
 
 /** Authenticated app shell: role-filtered sidebar + topbar + routed content. */
@@ -55,6 +58,8 @@ export class DashboardLayout {
   private readonly agency = inject(AgencyService);
   private readonly users = inject(UserService);
   private readonly analysis = inject(AnalysisService);
+  /** Separate Development Monitoring session (never mixed with the main-app auth). */
+  private readonly monitoringAuth = inject(MonitoringAuthService);
 
   /** AI Analysis tab visibility (SuperAdmin always; Admin/Manager per Settings). */
   readonly analysisAllowed = signal(false);
@@ -143,6 +148,7 @@ export class DashboardLayout {
     { label: 'Accounting', hint: 'Ledgers, invoices and payments', path: '/dashboard/accounting', icon: 'M12 8c-1.7 0-3 .9-3 2s1.3 2 3 2 3 .9 3 2-1.3 2-3 2m0-8V6m0 12v-2M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z', roles: ['SuperAdmin'] },
     { label: 'Point of Sale', hint: 'Sell products and services', path: '/dashboard/pos', icon: 'M3 3h2l.4 2M7 13h10l3-8H6.4M7 13L5.4 5M7 13l-2 4h12M9 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z', roles: ['SuperAdmin', 'Admin'] },
     { label: 'Email Logs', hint: 'History of emails sent', path: '/dashboard/logs', icon: 'M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2M4 6l8 6 8-6', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+    { label: 'Development Monitoring', hint: 'API performance, logs and errors across tenants', path: '/monitoring', icon: 'M13 10V3L4 14h7v7l9-11h-7z', monitoring: true },
     { label: 'My Profile', hint: 'Your account and preferences', path: '/dashboard/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
   ];
 
@@ -160,10 +166,12 @@ export class DashboardLayout {
     const role = this.auth.roleName();
     const analysisOk = this.analysisAllowed();
     const trainingOk = this.trainingAllowed();
+    const monitoringOk = this.monitoringAuth.isAuthenticated();
     return this.allNav.filter(
       (item) =>
         (!item.roles || (role && item.roles.includes(role))) &&
         (!item.analysis || analysisOk) &&
+        (!item.monitoring || monitoringOk) &&
         (!item.training || trainingOk),
     );
   });

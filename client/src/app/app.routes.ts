@@ -388,5 +388,11 @@ export const routes: Routes = [
     ],
   },
 
+  {
+    // Development Monitoring: its own session (in-memory token + HttpOnly cookie), never the main one.
+    path: 'monitoring',
+    loadChildren: () => import('./features/monitoring/monitoring.routes').then((m) => m.MONITORING_ROUTES),
+  },
+
   { path: '**', redirectTo: 'login' },
 ];

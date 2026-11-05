@@ -24,6 +24,11 @@ const AUTH_BYPASS = ['/auth/login', '/auth/refresh-token', '/auth/forgot-passwor
  * request; if that fails it clears the session and redirects to /login.
  */
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
+  // Development Monitoring errors are handled by the monitoring interceptor/services; never
+  // trigger the main-app refresh, logout or tenant-status handling for them.
+  if (req.url.includes('/monitoring/')) {
+    return next(req);
+  }
   const auth = inject(AuthService);
   const storage = inject(TokenStorageService);
   const router = inject(Router);

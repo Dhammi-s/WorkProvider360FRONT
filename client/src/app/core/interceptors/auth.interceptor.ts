@@ -20,6 +20,10 @@ import { TrainingSessionService } from '../services/training-session.service';
  * Only touches requests aimed at our own API.
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  // Development Monitoring has its own session: never attach the main-app token or tenant header.
+  if (req.url.includes('/monitoring/')) {
+    return next(req);
+  }
   const isApiRequest =
     req.url.startsWith(environment.apiBaseUrl) || req.url.startsWith('http') === false;
   if (!isApiRequest) {
