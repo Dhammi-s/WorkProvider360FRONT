@@ -49,6 +49,8 @@ export interface SchedulingSettings {
   superAdminCanInvoiceUnapproved: boolean;
   adminCanInvoiceUnapproved: boolean;
   managerCanInvoiceUnapproved: boolean;
+  /** What happens when a visit exceeds a payer authorization (SuperAdmin edits). */
+  authorizationLimitPolicy?: 'Allow' | 'Warn' | 'Block';
   updatedOn: string;
 }
 

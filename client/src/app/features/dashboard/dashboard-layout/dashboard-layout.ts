@@ -26,6 +26,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { BrandingService } from '../../../core/services/branding.service';
 import { ShortcutService } from '../../../core/services/shortcut.service';
 import { UserService } from '../../../core/services/user.service';
+import { AuthorizationService } from '../../../core/services/authorization.service';
 import { MonitoringAuthService } from '../../monitoring/auth/monitoring-auth.service';
 
 interface NavItem {
@@ -42,6 +43,8 @@ interface NavItem {
   training?: boolean;
   /** Shown only while a Development Monitoring session is active in this browser. */
   monitoring?: boolean;
+  /** Hidden when the role's payer authorization access is None. */
+  authorizations?: boolean;
 }
 
 /** Authenticated app shell: role-filtered sidebar + topbar + routed content. */
@@ -58,6 +61,7 @@ export class DashboardLayout {
   private readonly agency = inject(AgencyService);
   private readonly users = inject(UserService);
   private readonly analysis = inject(AnalysisService);
+  private readonly authorizationService = inject(AuthorizationService);
   /** Separate Development Monitoring session (never mixed with the main-app auth). */
   private readonly monitoringAuth = inject(MonitoringAuthService);
 
@@ -66,6 +70,12 @@ export class DashboardLayout {
 
   /** Training tab visibility: the user's own "Enable training portal" flag. */
   readonly trainingAllowed = signal(false);
+
+  /** Authorizations tab visibility: hidden once the access is known to be None. */
+  readonly authorizationsAllowed = computed(() => {
+    const a = this.authorizationService.access();
+    return !a || (a.accessLevel !== 'None' && a.canView);
+  });
 
   readonly user = this.auth.user;
   readonly logo = this.branding.logo;
@@ -102,6 +112,9 @@ export class DashboardLayout {
         error: () => this.analysisAllowed.set(false),
       });
     }
+    if (role === 'SuperAdmin' || role === 'Admin' || role === 'Manager') {
+      this.authorizationService.loadAccess().subscribe();
+    }
     this.users.getMe().subscribe({
       next: (me) => {
         this.avatarUrl.set(me.avatarUrl ?? null);
@@ -136,6 +149,7 @@ export class DashboardLayout {
     { label: 'Offices', hint: 'Branches and office locations', path: '/dashboard/offices', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 9h1m4 0h1M9 13h1m4 0h1M9 17h1m4 0h1', roles: ['SuperAdmin', 'Admin'] },
     { label: 'Clients', hint: 'Client profiles and care details', path: '/dashboard/clients', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
     { label: 'Payers', hint: 'Insurance and billing payers', path: '/dashboard/payers', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+    { label: 'Authorizations', hint: 'Payer coverage, periods and authorized hours', path: '/dashboard/authorizations', icon: 'M9 12l2 2 4-4m5.6-3.1A12 12 0 0112 2.9 12 12 0 003.4 7.9 12 12 0 003 12c0 5.2 3.4 9.6 8 11 4.6-1.4 8-5.8 8-11 0-1.4-.2-2.8-.6-4.1z', roles: ['SuperAdmin', 'Admin', 'Manager'], authorizations: true },
     { label: 'Skills & Services', hint: 'Service types and caregiver skills', path: '/dashboard/service-types', icon: 'M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 16.6 5.7 21l2.3-7.2-6-4.4h7.6L12 2z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
     { label: 'Scheduler', hint: 'Plan and manage visits', path: '/dashboard/scheduler', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
     { label: 'Meetings', hint: 'Schedule and join team meetings', path: '/dashboard/meetings', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
@@ -167,10 +181,12 @@ export class DashboardLayout {
     const analysisOk = this.analysisAllowed();
     const trainingOk = this.trainingAllowed();
     const monitoringOk = this.monitoringAuth.isAuthenticated();
+    const authorizationsOk = this.authorizationsAllowed();
     return this.allNav.filter(
       (item) =>
         (!item.roles || (role && item.roles.includes(role))) &&
         (!item.analysis || analysisOk) &&
+        (!item.authorizations || authorizationsOk) &&
         (!item.monitoring || monitoringOk) &&
         (!item.training || trainingOk),
     );

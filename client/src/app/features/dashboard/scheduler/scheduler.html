@@ -282,6 +282,46 @@
               </div>
             </div>
 
+            @if (showCoverage() && coverage(); as cov) {
+              <div class="rounded-xl border p-3" [class]="cov.wouldBlock ? 'border-red-200 bg-red-50/40' : 'border-slate-200 bg-slate-50'">
+                <div class="flex items-center justify-between">
+                  <p class="text-xs font-semibold text-slate-600">Payer coverage</p>
+                  <span class="text-[11px] text-slate-400">
+                    @if (coverageLoading()) { Updating… } @else { {{ cov.totalHours | number: '1.2-2' }} h total }
+                  </span>
+                </div>
+                <ul class="mt-2 space-y-1">
+                  @for (s of cov.shares; track $index) {
+                    <li class="flex items-baseline justify-between gap-3 text-sm">
+                      <span class="min-w-0 text-slate-700">
+                        {{ shareLabel(s) }}
+                        @if (s.authorizationNumber) { <span class="text-xs text-slate-400">({{ s.authorizationNumber }})</span> }
+                      </span>
+                      <span class="shrink-0 font-semibold text-slate-800">{{ s.hours | number: '1.2-2' }} h</span>
+                    </li>
+                  }
+                </ul>
+                @if (cov.warnings.length) {
+                  <ul class="mt-2 space-y-1">
+                    @for (w of cov.warnings; track $index) {
+                      <li class="flex gap-1.5 text-xs text-amber-700">
+                        <svg class="mt-0.5 h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.26 3.1c.77-1.33 2.7-1.33 3.47 0l6.28 10.9c.77 1.33-.2 3-1.73 3H3.72c-1.54 0-2.5-1.67-1.74-3L8.26 3.1zM10 7a1 1 0 00-1 1v3a1 1 0 002 0V8a1 1 0 00-1-1zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                        <span>{{ w.message }}</span>
+                      </li>
+                    }
+                  </ul>
+                }
+                @if (cov.wouldBlock) {
+                  <p class="mt-2 text-xs font-semibold text-red-600">
+                    This visit exceeds the payer authorization and the agency policy blocks it. Shorten the visit or add an authorization to save it.
+                  </p>
+                }
+                @if (coverageSaveError()) {
+                  <p class="mt-2 text-xs font-semibold text-red-600">{{ coverageSaveError() }}</p>
+                }
+              </div>
+            }
+
 @if (!editingId()) {
               <div>
                 <label class="wp-label">Status</label>
@@ -348,7 +388,7 @@
 
         <div class="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
           <button type="button" (click)="closeForm()" class="wp-btn-ghost">Cancel</button>
-          <button type="button" (click)="saveForm()" [disabled]="formBusy()" class="wp-btn-primary">
+          <button type="button" (click)="saveForm()" [disabled]="formBusy() || coverageBlocked()" class="wp-btn-primary">
             @if (formBusy()) { Saving… } @else { {{ editingId() ? 'Save changes' : 'Create schedule' }} }
           </button>
         </div>

@@ -12,6 +12,7 @@ import { RouterLink } from '@angular/router';
 import { Question } from '../../../core/models/application.model';
 import { DEFAULT_LOGIN_CONTENT, LoginContent } from '../../../core/models/login-content.model';
 import { AccessLevel, SchedulingAccess } from '../../../core/models/scheduler.model';
+import { AUTHORIZATION_POLICIES, AuthorizationLimitPolicy } from '../../../core/models/authorization.model';
 import { MeetingAccessLevel, MeetingAccess, MeetingSettings } from '../../../core/models/meeting.model';
 import { ApplicationService } from '../../../core/services/application.service';
 import { ClientService } from '../../../core/services/client.service';
@@ -329,6 +330,11 @@ export class Settings {
   readonly superAdminInvoiceUnapproved = signal(false);
   readonly adminInvoiceUnapproved = signal(false);
   readonly managerInvoiceUnapproved = signal(false);
+  // Over-authorization policy (SuperAdmin edits).
+  readonly authorizationPolicies = AUTHORIZATION_POLICIES;
+  readonly authPolicy = signal<AuthorizationLimitPolicy>('Warn');
+  readonly authPolicySaving = signal(false);
+  readonly authPolicyNotice = signal('');
   readonly approvalSaving = signal(false);
   readonly approvalNotice = signal('');
   readonly schedError = signal('');
@@ -593,6 +599,7 @@ export class Settings {
         this.superAdminInvoiceUnapproved.set(s.superAdminCanInvoiceUnapproved ?? false);
         this.adminInvoiceUnapproved.set(s.adminCanInvoiceUnapproved ?? false);
         this.managerInvoiceUnapproved.set(s.managerCanInvoiceUnapproved ?? false);
+        if (s.authorizationLimitPolicy) this.authPolicy.set(s.authorizationLimitPolicy);
       },
       error: (err: Error) => this.schedError.set(err.message || 'Could not load scheduling settings.'),
     });
@@ -636,6 +643,23 @@ export class Settings {
           this.approvalSaving.set(false);
         },
       });
+  }
+
+  saveAuthorizationPolicy(): void {
+    this.authPolicySaving.set(true);
+    this.authPolicyNotice.set('');
+    this.schedError.set('');
+    this.scheduler.updateAuthorizationPolicy(this.authPolicy()).subscribe({
+      next: (s) => {
+        this.authPolicySaving.set(false);
+        if (s?.authorizationLimitPolicy) this.authPolicy.set(s.authorizationLimitPolicy);
+        this.authPolicyNotice.set('Authorization policy saved.');
+      },
+      error: (err: Error) => {
+        this.schedError.set(err.message || 'Could not save the authorization policy.');
+        this.authPolicySaving.set(false);
+      },
+    });
   }
 
   saveDefaults(): void {

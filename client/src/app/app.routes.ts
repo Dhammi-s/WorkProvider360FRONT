@@ -149,6 +149,14 @@ export const routes: Routes = [
         title: 'Payer · WorkProvider360',
       },
       {
+        path: 'authorizations',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () =>
+          import('./features/dashboard/authorizations/authorizations').then((m) => m.Authorizations),
+        title: 'Authorizations · WorkProvider360',
+      },
+      {
         path: 'clients/:id',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },

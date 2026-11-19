@@ -28,6 +28,7 @@ import { PayerService } from '../../../../core/services/payer.service';
 import { Alert } from '../../../../shared/ui/alert/alert';
 import { ConfirmDialog } from '../../../../shared/ui/confirm-dialog/confirm-dialog';
 import { PayerForm } from '../../../../shared/ui/payer-form/payer-form';
+import { Authorizations } from '../../authorizations/authorizations';
 
 type Mode = 'list' | 'pick' | 'create' | 'link' | 'edit';
 
@@ -91,7 +92,7 @@ function fromLink(p: ClientPayer | null, defaultDistribution: PaymentDistributio
 @Component({
   selector: 'app-client-payers',
   standalone: true,
-  imports: [DatePipe, FormsModule, RouterLink, Alert, ConfirmDialog, PayerForm],
+  imports: [DatePipe, FormsModule, RouterLink, Alert, ConfirmDialog, PayerForm, Authorizations],
   templateUrl: './client-payers.html',
 })
 export class ClientPayers {
