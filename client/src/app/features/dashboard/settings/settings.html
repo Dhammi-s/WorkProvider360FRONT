@@ -249,6 +249,35 @@
               <p class="mt-4 text-xs text-slate-400">Only a SuperAdmin can change approval and invoicing settings.</p>
             }
           </div>
+
+          @if (schedAccess()?.isSuperAdmin) {
+            <div class="wp-card mt-6">
+              <h2 class="text-base font-bold text-slate-900">Payer authorizations</h2>
+              <p class="mt-1 text-sm text-slate-500">
+                Payers linked with the "Authorization" payment distribution pay only the hours their authorizations allow.
+                Choose what happens when a visit needs more hours than an authorization covers.
+              </p>
+              <app-alert type="success" [message]="authPolicyNotice()" />
+              <div class="mt-4 max-w-sm">
+                <label class="wp-label">When a visit exceeds a payer authorization</label>
+                <select class="wp-input" [ngModel]="authPolicy()" (ngModelChange)="authPolicy.set($event)">
+                  @for (p of authorizationPolicies; track p.value) { <option [value]="p.value">{{ p.label }}</option> }
+                </select>
+                <p class="mt-1 text-[11px] text-slate-400">
+                  @switch (authPolicy()) {
+                    @case ('Allow') { The visit is saved; the extra hours go to the next payer or the client without a warning. }
+                    @case ('Warn') { The visit is saved and the schedule form shows the warnings. }
+                    @case ('Block') { The visit is rejected until it fits the authorization or an authorization is added. }
+                  }
+                </p>
+              </div>
+              <div class="mt-5 flex justify-end">
+                <button type="button" (click)="saveAuthorizationPolicy()" [disabled]="authPolicySaving()" class="wp-btn-primary">
+                  @if (authPolicySaving()) { Saving… } @else { Save authorization policy }
+                </button>
+              </div>
+            </div>
+          }
         }
 
         <!-- ===================== Meetings ===================== -->
@@ -390,6 +419,8 @@
                 <div><label class="wp-label">Manager — clients</label><select class="wp-input" [disabled]="!canEditClients()" [ngModel]="cs.managerClientAccess" (ngModelChange)="setClientField('managerClientAccess', $event)">@for (l of levels; track l) { <option [value]="l">{{ l }}</option> }</select></div>
                 <div><label class="wp-label">Admin — service types</label><select class="wp-input" [disabled]="!canEditClients()" [ngModel]="cs.adminServiceTypeAccess" (ngModelChange)="setClientField('adminServiceTypeAccess', $event)">@for (l of levels; track l) { <option [value]="l">{{ l }}</option> }</select></div>
                 <div><label class="wp-label">Manager — service types</label><select class="wp-input" [disabled]="!canEditClients()" [ngModel]="cs.managerServiceTypeAccess" (ngModelChange)="setClientField('managerServiceTypeAccess', $event)">@for (l of levels; track l) { <option [value]="l">{{ l }}</option> }</select></div>
+                <div><label class="wp-label">Admin — Payer authorizations</label><select class="wp-input" [disabled]="!canEditClients()" [ngModel]="cs.adminAuthorizationAccess" (ngModelChange)="setClientField('adminAuthorizationAccess', $event)">@for (l of levels; track l) { <option [value]="l">{{ l }}</option> }</select></div>
+                <div><label class="wp-label">Manager — Payer authorizations</label><select class="wp-input" [disabled]="!canEditClients()" [ngModel]="cs.managerAuthorizationAccess" (ngModelChange)="setClientField('managerAuthorizationAccess', $event)">@for (l of levels; track l) { <option [value]="l">{{ l }}</option> }</select></div>
               </div>
               <div class="mt-4 space-y-2 border-t border-slate-100 pt-4">
                 <label class="flex items-center justify-between"><span class="text-sm text-slate-700">Auto clock-in at visit start</span><input type="checkbox" [disabled]="!canEditClients()" [ngModel]="cs.autoClockInEnabled" (ngModelChange)="setClientField('autoClockInEnabled', $event)" class="h-4 w-4" /></label>

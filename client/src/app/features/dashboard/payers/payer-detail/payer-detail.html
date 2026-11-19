@@ -35,12 +35,14 @@
 
   @if (!isNew()) {
     <div class="mt-4 flex flex-wrap gap-2">
-      @for (t of [['details', 'Details'], ['contacts', 'Contacts'], ['clients', 'Linked clients']]; track t[0]) {
-        <button type="button" (click)="setTab($any(t[0]))"
-          class="rounded-full px-4 py-1.5 text-sm font-semibold transition"
-          [class]="tab() === t[0] ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50'">
-          {{ t[1] }}{{ t[0] === 'contacts' ? ' (' + contacts().length + ')' : '' }}
-        </button>
+      @for (t of [['details', 'Details'], ['contacts', 'Contacts'], ['clients', 'Linked clients'], ['authorizations', 'Authorizations']]; track t[0]) {
+        @if (t[0] !== 'authorizations' || authorizationsAllowed()) {
+          <button type="button" (click)="setTab($any(t[0]))"
+            class="rounded-full px-4 py-1.5 text-sm font-semibold transition"
+            [class]="tab() === t[0] ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50'">
+            {{ t[1] }}{{ t[0] === 'contacts' ? ' (' + contacts().length + ')' : '' }}
+          </button>
+        }
       }
     </div>
   }
@@ -116,6 +118,13 @@
             </table>
           </div>
         }
+      </div>
+    }
+
+    <!-- AUTHORIZATIONS -->
+    @if (tab() === 'authorizations' && payer(); as p) {
+      <div class="mt-4">
+        <app-authorizations [fixedPayerId]="p.payerId" />
       </div>
     }
 

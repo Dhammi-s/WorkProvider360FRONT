@@ -96,6 +96,9 @@ export interface ClientSettings {
   managerClientAccess: string;
   adminServiceTypeAccess: string;
   managerServiceTypeAccess: string;
+  /** Payer authorizations access per role: 'None' | 'Read' | 'Write'. */
+  adminAuthorizationAccess: string;
+  managerAuthorizationAccess: string;
   autoClockInEnabled: boolean;
   autoClockOutEnabled: boolean;
   requireClientSignatureOnClockIn: boolean;

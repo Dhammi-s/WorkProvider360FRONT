@@ -286,6 +286,13 @@
     </div>
   }
 
+  <!-- Authorizations of this client (payers linked with the "Authorization" distribution) -->
+  @if (mode() === 'list') {
+    <div class="pt-2">
+      <app-authorizations [fixedClientId]="clientId()" />
+    </div>
+  }
+
   @if (confirmSync()) {
     <app-confirm-dialog
       title="Sync payers to visits?"

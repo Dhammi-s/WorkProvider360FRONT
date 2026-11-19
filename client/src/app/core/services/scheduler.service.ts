@@ -13,6 +13,12 @@ import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
 import { UserDto } from '../models/user.model';
 import {
+  AllocationPreview,
+  AllocationPreviewRequest,
+  AllocationShare,
+  AuthorizationLimitPolicy,
+} from '../models/authorization.model';
+import {
   ClockRequest,
   CreateScheduleNoteRequest,
   CreateScheduleRequest,
@@ -71,6 +77,27 @@ export class SchedulerService {
     return this.http
       .put<ApiResponse<SchedulingSettings>>(`${this.baseUrl}/settings/approval`, request)
       .pipe(map((r) => this.unwrap(r)));
+  }
+
+  /** SuperAdmin: what happens when a visit exceeds a payer authorization. */
+  updateAuthorizationPolicy(policy: AuthorizationLimitPolicy): Observable<SchedulingSettings> {
+    return this.http
+      .put<ApiResponse<SchedulingSettings>>(`${this.baseUrl}/settings/authorization-policy`, { policy })
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  /** How a proposed visit would split between the client's payers / authorizations. */
+  previewAllocation(request: AllocationPreviewRequest): Observable<AllocationPreview> {
+    return this.http
+      .post<ApiResponse<AllocationPreview>>(`${this.baseUrl}/authorization-preview`, request)
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  /** A saved visit's split between payers / authorizations. */
+  allocations(scheduleId: number): Observable<AllocationShare[]> {
+    return this.http
+      .get<ApiResponse<AllocationShare[]>>(`${this.baseUrl}/${scheduleId}/allocations`)
+      .pipe(map((r) => r.data ?? []));
   }
 
   /** Approve / un-approve a schedule. */

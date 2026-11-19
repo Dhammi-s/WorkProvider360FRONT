@@ -7,8 +7,11 @@
    ============================================================================= */
 
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { Subject, catchError, debounceTime, of, switchMap } from 'rxjs';
+import { AllocationPreview, AllocationPreviewRequest, AllocationShare } from '../../../core/models/authorization.model';
 import { UserDto } from '../../../core/models/user.model';
 import {
   ClockRequest,
@@ -193,10 +196,70 @@ export class Scheduler {
   readonly manualEnd = signal('17:00');
   readonly showManual = signal(false);
 
+  // Payer coverage (authorization preview) for the create / edit form.
+  readonly coverage = signal<AllocationPreview | null>(null);
+  readonly coverageLoading = signal(false);
+  /** Server message when saving was rejected over an authorization (Block policy). */
+  readonly coverageSaveError = signal('');
+  private readonly preview$ = new Subject<AllocationPreviewRequest | null>();
+  /** Hidden for clients without Authorization payers and a single bill-to (they look unchanged). */
+  readonly showCoverage = computed(() => {
+    const c = this.coverage();
+    return this.formOpen() && this.fClientId() != null && !!c && (c.hasAuthorizationPayers || c.shares.length > 1);
+  });
+  readonly coverageBlocked = computed(() => this.showCoverage() && !!this.coverage()?.wouldBlock);
+
   constructor() {
     this.loadAccess();
     this.serviceTypeService.active().subscribe({ next: (s) => this.serviceTypes.set(s), error: () => {} });
     this.clients.getSettings().subscribe({ next: (s) => this.clientSettings.set(s), error: () => {} });
+
+    // Coverage preview: 400 ms after the client, service type, date or times change.
+    this.preview$
+      .pipe(
+        debounceTime(400),
+        switchMap((req) =>
+          req ? this.service.previewAllocation(req).pipe(catchError(() => of(null))) : of(null),
+        ),
+        takeUntilDestroyed(),
+      )
+      .subscribe((p) => {
+        this.coverage.set(p);
+        this.coverageLoading.set(false);
+      });
+    effect(() => {
+      const open = this.formOpen();
+      const clientId = this.fClientId();
+      const serviceTypeId = this.fServiceTypeId();
+      const date = this.fDate();
+      const start = this.fStart();
+      const end = this.fEnd();
+      untracked(() => {
+        this.coverageSaveError.set('');
+        const startUtc = `${date}T${start}:00`;
+        const endUtc = `${date}T${end}:00`;
+        if (!open || clientId == null || !date || !start || !end || endUtc <= startUtc) {
+          this.coverage.set(null);
+          this.coverageLoading.set(false);
+          this.preview$.next(null);
+          return;
+        }
+        this.coverageLoading.set(true);
+        this.preview$.next({
+          scheduleId: this.editingId() ?? undefined,
+          clientId,
+          serviceTypeId: serviceTypeId ?? undefined,
+          startUtc,
+          endUtc,
+        });
+      });
+    });
+  }
+
+  /** "Medicaid · Personal Care 2025" or "Client (private pay)". */
+  shareLabel(s: AllocationShare): string {
+    if (s.billToType === 'Client') return `${s.billToName || 'Client'} (private pay)`;
+    return s.authorizationName ? `${s.billToName} · ${s.authorizationName}` : s.billToName;
   }
 
   // ----------------------------------------------------------------- Loading
@@ -524,6 +587,10 @@ export class Scheduler {
   }
 
   saveForm(): void {
+    if (this.coverageBlocked()) {
+      this.formError.set('This visit exceeds the payer authorization and the agency policy blocks it. Shorten the visit or add an authorization.');
+      return;
+    }
     if (!this.fTitle().trim()) {
       this.formError.set('Title is required.');
       return;
@@ -622,6 +689,8 @@ export class Scheduler {
       },
       error: (err: Error) => {
         this.formError.set(err.message || 'Could not save the schedule.');
+        // Over-authorization rejections (Block policy) are also shown in the coverage panel.
+        if (this.coverage()?.hasAuthorizationPayers) this.coverageSaveError.set(err.message || '');
         this.formBusy.set(false);
       },
     });

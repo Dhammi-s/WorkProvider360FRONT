@@ -1,0 +1,239 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     ============================================================================= -->
+<div class="fixed inset-0 z-[60] flex flex-col bg-slate-50" role="dialog" aria-modal="true">
+  <!-- Header -->
+  <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
+    <div>
+      <h2 class="text-xl font-extrabold tracking-tight text-slate-900">{{ isEdit() ? 'Edit Authorization' : 'Create Authorization' }}</h2>
+      <p class="mt-0.5 text-sm text-slate-500">Set the payer coverage, the period and the hours it authorizes.</p>
+    </div>
+    <button type="button" (click)="closed.emit()" [disabled]="saving()" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100" aria-label="Close">
+      <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+    </button>
+  </div>
+
+  <!-- Body -->
+  <div class="flex-1 overflow-y-auto">
+    <div class="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div class="space-y-5">
+        @if (error()) {
+          <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error() }}</div>
+        }
+
+        <!-- 01 Client & Payer -->
+        <div class="wp-card">
+          <div class="flex items-center gap-3">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-700">01</span>
+            <h3 class="text-base font-bold text-slate-900">Client &amp; Payer Information</h3>
+          </div>
+          <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="relative">
+              <label class="wp-label">Client *</label>
+              @if (clientLocked()) {
+                <input class="wp-input bg-slate-50" [value]="clientName() || 'Loading…'" disabled />
+              } @else {
+                <input class="wp-input" placeholder="Search clients…" autocomplete="off"
+                  [ngModel]="clientQuery()" (ngModelChange)="onClientQuery($event)" />
+                @if (clientId() != null) {
+                  <button type="button" (click)="clearClient()" class="absolute right-2 top-8 rounded px-1 text-sm font-bold text-slate-400 hover:text-red-600" aria-label="Clear client">&times;</button>
+                }
+                @if (clientPickerOpen()) {
+                  <div class="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-slate-100 bg-white shadow-card">
+                    @for (c of clientOptions(); track c.clientId) {
+                      <button type="button" (click)="selectClient(c)" class="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50">
+                        {{ c.fullName }} <span class="text-slate-400">{{ c.city ? '· ' + c.city : '' }}</span>
+                      </button>
+                    } @empty {
+                      <p class="px-3 py-2 text-sm text-slate-400">No matching active clients.</p>
+                    }
+                  </div>
+                }
+              }
+              @if (showError('client')) { <p class="mt-1 text-xs text-red-600">{{ showError('client') }}</p> }
+            </div>
+
+            <div>
+              <label class="wp-label">Payer *</label>
+              @if (isEdit()) {
+                <input class="wp-input bg-slate-50" [value]="payerName()" disabled />
+              } @else {
+                <select class="wp-input" [disabled]="clientId() == null || optionsLoading()"
+                  [ngModel]="payerId()" (ngModelChange)="payerId.set($event)">
+                  <option [ngValue]="null">{{ clientId() == null ? 'Select a client first' : optionsLoading() ? 'Loading…' : 'Select a payer' }}</option>
+                  @for (p of authPayers(); track p.payerId) {
+                    <option [ngValue]="p.payerId">{{ p.payerName }}{{ p.payerStatus !== 'Active' ? ' (inactive)' : '' }}</option>
+                  }
+                </select>
+              }
+              @if (noAuthPayerHint() && !isEdit()) {
+                <p class="mt-1 text-xs text-amber-700">Link this payer to the client with the payment distribution 'Authorization' (client → Payers tab) to add authorizations.</p>
+              } @else if (noPayers() && !isEdit()) {
+                <p class="mt-1 text-xs text-amber-700">This client has no payers yet. Link a payer with the payment distribution 'Authorization' (client → Payers tab) to add authorizations.</p>
+              }
+              @if (showError('payer')) { <p class="mt-1 text-xs text-red-600">{{ showError('payer') }}</p> }
+            </div>
+
+            <div>
+              <label class="wp-label">Service Type *</label>
+              <select class="wp-input" [disabled]="clientId() == null || optionsLoading()"
+                [ngModel]="serviceTypeId()" (ngModelChange)="serviceTypeId.set($event)">
+                <option [ngValue]="null">{{ clientId() == null ? 'Select a client first' : 'Select a service type' }}</option>
+                @if (isEdit() && !options()) {
+                  <option [ngValue]="authorization()?.serviceTypeId">{{ authorization()?.serviceTypeName }}</option>
+                }
+                @if (clientServiceTypes().length) {
+                  <optgroup label="Client services">
+                    @for (s of clientServiceTypes(); track s.serviceTypeId) { <option [ngValue]="s.serviceTypeId">{{ s.name }}</option> }
+                  </optgroup>
+                }
+                @if (otherServiceTypes().length) {
+                  <optgroup label="Other service types">
+                    @for (s of otherServiceTypes(); track s.serviceTypeId) { <option [ngValue]="s.serviceTypeId">{{ s.name }}</option> }
+                  </optgroup>
+                }
+              </select>
+              @if (showError('serviceType')) { <p class="mt-1 text-xs text-red-600">{{ showError('serviceType') }}</p> }
+            </div>
+
+            <div>
+              <label class="wp-label">Authorization Name *</label>
+              <input class="wp-input" maxlength="200" placeholder="e.g. Personal Care 2025" [ngModel]="name()" (ngModelChange)="name.set($event)" />
+              @if (showError('name')) { <p class="mt-1 text-xs text-red-600">{{ showError('name') }}</p> }
+            </div>
+
+            <div class="sm:col-span-2">
+              <label class="wp-label">Authorization Number <span class="font-normal text-slate-400">(optional)</span></label>
+              <input class="wp-input" maxlength="100" placeholder="e.g. AUTH-2025-0001" [ngModel]="number()" (ngModelChange)="number.set($event)" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 02 Period -->
+        <div class="wp-card">
+          <div class="flex items-center gap-3">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-700">02</span>
+            <h3 class="text-base font-bold text-slate-900">Authorization Period</h3>
+          </div>
+          <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label class="wp-label">Start Date *</label>
+              <input type="date" class="wp-input" [ngModel]="startDate()" (ngModelChange)="startDate.set($event ?? '')" />
+              @if (showError('start')) { <p class="mt-1 text-xs text-red-600">{{ showError('start') }}</p> }
+            </div>
+            <div>
+              <label class="wp-label">End Date *</label>
+              <input type="date" class="wp-input" [min]="startDate()" [ngModel]="endDate()" (ngModelChange)="endDate.set($event ?? '')" />
+              @if (showError('end')) { <p class="mt-1 text-xs text-red-600">{{ showError('end') }}</p> }
+            </div>
+          </div>
+          <div class="mt-4 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+            <span class="text-sm font-medium text-slate-600">Calculated status</span>
+            @if (calculatedStatus(); as s) {
+              <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusClass(s)">{{ statusLabel(s) }}</span>
+            } @else {
+              <span class="text-xs text-slate-400">Enter both dates</span>
+            }
+          </div>
+        </div>
+
+        <!-- 03 Limits -->
+        <div class="wp-card">
+          <div class="flex items-center gap-3">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-700">03</span>
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Authorization Limits</h3>
+              <p class="text-xs text-slate-500">Leave a limit empty when it does not apply.</p>
+            </div>
+          </div>
+          <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            @for (f of limitFields; track f.key) {
+              <div>
+                <label class="wp-label">{{ f.label }} <span class="font-normal text-slate-400">(optional)</span></label>
+                <div class="relative">
+                  <input type="number" min="0.25" step="0.25" [attr.max]="f.max" class="wp-input pr-14" placeholder="No limit"
+                    [ngModel]="limitValue(f.key)" (ngModelChange)="setLimit(f.key, $event)" />
+                  <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-400">hours</span>
+                </div>
+                @if (showError(f.key)) { <p class="mt-1 text-xs text-red-600">{{ showError(f.key) }}</p> }
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- 04 Allowed days -->
+        <div class="wp-card">
+          <div class="flex items-center gap-3">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-700">04</span>
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Allowed Days</h3>
+              <p class="text-xs text-slate-500">Visits on other days are not covered by this authorization.</p>
+            </div>
+          </div>
+          <div class="mt-4 flex flex-wrap gap-2">
+            @for (d of weekdays; track d.value) {
+              <button type="button" (click)="toggleDay(d.value)" [attr.aria-pressed]="isDayOn(d.value)"
+                class="min-w-[56px] rounded-full px-4 py-2 text-sm font-semibold transition"
+                [class]="isDayOn(d.value) ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50'">
+                {{ d.label }}
+              </button>
+            }
+          </div>
+          @if (showError('days')) { <p class="mt-2 text-xs text-red-600">{{ showError('days') }}</p> }
+        </div>
+
+        <!-- 05 Notes -->
+        <div class="wp-card">
+          <div class="flex items-center gap-3">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-700">05</span>
+            <h3 class="text-base font-bold text-slate-900">Notes</h3>
+          </div>
+          <textarea rows="3" maxlength="2000" class="wp-input mt-4" placeholder="Anything the team should know about this authorization (optional)"
+            [ngModel]="notes()" (ngModelChange)="notes.set($event)"></textarea>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <aside>
+        <div class="wp-card lg:sticky lg:top-6">
+          <h3 class="text-base font-bold text-slate-900">Authorization Summary</h3>
+          <p class="text-xs text-slate-500">Updates as you complete the form</p>
+          @let s = summary();
+          <dl class="mt-4 divide-y divide-slate-100 text-sm">
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Client</dt><dd class="text-right font-medium text-slate-800">{{ s.client }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Payer</dt><dd class="text-right font-medium text-slate-800">{{ s.payer }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Service Type</dt><dd class="text-right font-medium text-slate-800">{{ s.serviceType }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Validity period</dt><dd class="text-right font-medium text-slate-800">{{ s.period }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Allowed days</dt><dd class="text-right font-medium text-slate-800">{{ s.days }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Daily authorized</dt><dd class="text-right font-medium" [class]="s.daily === 'No limit' ? 'text-slate-400' : 'text-slate-800'">{{ s.daily }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Weekly authorized</dt><dd class="text-right font-medium" [class]="s.weekly === 'No limit' ? 'text-slate-400' : 'text-slate-800'">{{ s.weekly }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Monthly authorized</dt><dd class="text-right font-medium" [class]="s.monthly === 'No limit' ? 'text-slate-400' : 'text-slate-800'">{{ s.monthly }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Total authorized</dt><dd class="text-right font-medium" [class]="s.total === 'No limit' ? 'text-slate-400' : 'text-slate-800'">{{ s.total }}</dd></div>
+          </dl>
+          <div class="mt-4 flex gap-2 rounded-xl bg-portal-50 px-3 py-2.5 text-xs text-portal-800">
+            <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+            <span>Limits will be validated when creating client schedules.</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="border-t border-slate-200 bg-white px-4 py-3 sm:px-8">
+    <div class="mx-auto flex max-w-6xl justify-end gap-2">
+      <button type="button" (click)="closed.emit()" [disabled]="saving()" class="wp-btn-ghost">Cancel</button>
+      <button type="button" (click)="save()" [disabled]="saving()" class="wp-btn-primary">
+        @if (saving()) {
+          Saving…
+        } @else if (isEdit()) {
+          Save
+        } @else {
+          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
+          Create Authorization
+        }
+      </button>
+    </div>
+  </div>
+</div>
