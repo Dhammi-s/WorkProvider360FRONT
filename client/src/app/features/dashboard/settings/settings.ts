@@ -6,9 +6,12 @@
    SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
    ============================================================================= */
 
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { BillingService } from '../../../core/services/billing.service';
+import { BillingSettingsTab } from './billing-settings/billing-settings';
 import { Question } from '../../../core/models/application.model';
 import { DEFAULT_LOGIN_CONTENT, LoginContent } from '../../../core/models/login-content.model';
 import { AccessLevel, SchedulingAccess } from '../../../core/models/scheduler.model';
@@ -42,7 +45,7 @@ interface SettingsTab {
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, RouterLink, Alert, LogoUploader, EmailBannerUploader, SchedulingAutomationCard, CareAttributesSettings],
+  imports: [FormsModule, RouterLink, Alert, LogoUploader, EmailBannerUploader, SchedulingAutomationCard, CareAttributesSettings, BillingSettingsTab],
   templateUrl: './settings.html',
 })
 export class Settings {
@@ -63,6 +66,17 @@ export class Settings {
 
   readonly activeTab = signal<string>('profile');
 
+  // ---- Billing (Settings ▸ Billing): SuperAdmin edits; billing Read can view ----
+  private readonly billingService = inject(BillingService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  readonly showBilling = computed(() => this.isSuperAdmin() || this.billingService.canView());
+  /** Stripe / QuickBooks OAuth return values (?stripe= / ?qbo=). */
+  readonly stripeReturn = signal<string | null>(null);
+  readonly qboReturn = signal<string | null>(null);
+  /** ?tab= requested before its tab became visible (e.g. billing access still loading). */
+  private readonly pendingTab = signal<string | null>(null);
+
   readonly tabs = computed<SettingsTab[]>(() => {
     const t: SettingsTab[] = [
       { id: 'profile', label: 'Company Profile', icon: 'M3 21h18M4 21V7l8-4 8 4v14M9 9h1m4 0h1M9 13h1m4 0h1M9 17h1m4 0h1' },
@@ -79,6 +93,8 @@ export class Settings {
       t.push({ id: 'clients', label: 'Clients & Visits', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z' });
     if (this.showClients_())
       t.push({ id: 'care-attributes', label: 'Care attributes', icon: 'M7 7h.01M7 3h5a2 2 0 011.4.6l7 7a2 2 0 010 2.8l-7 7a2 2 0 01-2.8 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' });
+    if (this.showBilling())
+      t.push({ id: 'billing', label: 'Billing', icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z' });
     if (this.isSuperAdmin())
       t.push({ id: 'application', label: 'Application Form', icon: 'M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2z' });
     if (this.isSuperAdmin())
@@ -419,6 +435,24 @@ export class Settings {
     this.loadScheduling();
     this.loadClientData();
     this.loadMeetingData();
+
+    // Billing access decides whether the Billing tab is shown.
+    if (!this.isSuperAdmin()) this.billingService.loadAccess().pipe(takeUntilDestroyed()).subscribe();
+    // ?tab=… opens that tab; ?stripe= / ?qbo= come back from the Stripe / QuickBooks connect flows.
+    const q = this.route.snapshot.queryParamMap;
+    this.pendingTab.set(q.get('tab'));
+    this.stripeReturn.set(q.get('stripe'));
+    this.qboReturn.set(q.get('qbo'));
+    if (q.get('stripe') || q.get('qbo')) {
+      this.router.navigate([], { relativeTo: this.route, queryParams: { tab: q.get('tab') ?? 'billing' }, replaceUrl: true });
+    }
+    effect(() => {
+      const want = this.pendingTab();
+      if (want && this.tabs().some((t) => t.id === want)) {
+        this.activeTab.set(want);
+        this.pendingTab.set(null);
+      }
+    });
   }
 
   // ---- Announcement visibility ----

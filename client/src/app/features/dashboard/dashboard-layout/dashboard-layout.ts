@@ -27,6 +27,7 @@ import { BrandingService } from '../../../core/services/branding.service';
 import { ShortcutService } from '../../../core/services/shortcut.service';
 import { UserService } from '../../../core/services/user.service';
 import { AuthorizationService } from '../../../core/services/authorization.service';
+import { BillingService } from '../../../core/services/billing.service';
 import { MonitoringAuthService } from '../../monitoring/auth/monitoring-auth.service';
 
 interface NavItem {
@@ -45,6 +46,8 @@ interface NavItem {
   monitoring?: boolean;
   /** Hidden when the role's payer authorization access is None. */
   authorizations?: boolean;
+  /** Hidden when the role's billing access is None. */
+  billing?: boolean;
 }
 
 /** Authenticated app shell: role-filtered sidebar + topbar + routed content. */
@@ -62,6 +65,7 @@ export class DashboardLayout {
   private readonly users = inject(UserService);
   private readonly analysis = inject(AnalysisService);
   private readonly authorizationService = inject(AuthorizationService);
+  private readonly billingService = inject(BillingService);
   /** Separate Development Monitoring session (never mixed with the main-app auth). */
   private readonly monitoringAuth = inject(MonitoringAuthService);
 
@@ -75,6 +79,12 @@ export class DashboardLayout {
   readonly authorizationsAllowed = computed(() => {
     const a = this.authorizationService.access();
     return !a || (a.accessLevel !== 'None' && a.canView);
+  });
+
+  /** Billing tab visibility: hidden once the access is known to be None (or failed). */
+  readonly billingAllowed = computed(() => {
+    const a = this.billingService.access();
+    return !!a && a.accessLevel !== 'None' && a.canView;
   });
 
   readonly user = this.auth.user;
@@ -114,6 +124,7 @@ export class DashboardLayout {
     }
     if (role === 'SuperAdmin' || role === 'Admin' || role === 'Manager') {
       this.authorizationService.loadAccess().subscribe();
+      this.billingService.loadAccess().subscribe();
     }
     this.users.getMe().subscribe({
       next: (me) => {
@@ -162,6 +173,7 @@ export class DashboardLayout {
     { label: 'Reports', hint: 'Operational and financial reports', path: '/dashboard/reports', icon: 'M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z' },
     { label: 'Live Map', hint: 'Track caregivers in real time', path: '/dashboard/live-map', icon: 'M9 20l-5.4 1.8a1 1 0 01-1.3-1V5.5a1 1 0 01.7-1L9 3m0 17l6-2m-6 2V3m6 15l5.4 1.8a1 1 0 001.3-1V4.5a1 1 0 00-.7-1L15 1.7m0 16.3V3.7m0 0L9 3M12 11a2 2 0 100-4 2 2 0 000 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
     { label: 'Announcements', hint: 'Broadcast news to your team', path: '/dashboard/announcements', icon: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 11-5.8-1.6' },
+    { label: 'Billing', hint: 'Invoices, payments, AR, claims and eligibility', path: '/dashboard/billing', icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z', roles: ['SuperAdmin', 'Admin', 'Manager'], billing: true },
     { label: 'Accounting', hint: 'Ledgers, invoices and payments', path: '/dashboard/accounting', icon: 'M12 8c-1.7 0-3 .9-3 2s1.3 2 3 2 3 .9 3 2-1.3 2-3 2m0-8V6m0 12v-2M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z', roles: ['SuperAdmin'] },
     { label: 'Point of Sale', hint: 'Sell products and services', path: '/dashboard/pos', icon: 'M3 3h2l.4 2M7 13h10l3-8H6.4M7 13L5.4 5M7 13l-2 4h12M9 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z', roles: ['SuperAdmin', 'Admin'] },
     { label: 'Email Logs', hint: 'History of emails sent', path: '/dashboard/logs', icon: 'M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2M4 6l8 6 8-6', roles: ['SuperAdmin', 'Admin', 'Manager'] },
@@ -185,11 +197,13 @@ export class DashboardLayout {
     const trainingOk = this.trainingAllowed();
     const monitoringOk = this.monitoringAuth.isAuthenticated();
     const authorizationsOk = this.authorizationsAllowed();
+    const billingOk = this.billingAllowed();
     return this.allNav.filter(
       (item) =>
         (!item.roles || (role && item.roles.includes(role))) &&
         (!item.analysis || analysisOk) &&
         (!item.authorizations || authorizationsOk) &&
+        (!item.billing || billingOk) &&
         (!item.monitoring || monitoringOk) &&
         (!item.training || trainingOk),
     );

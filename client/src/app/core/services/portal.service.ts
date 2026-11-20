@@ -99,6 +99,24 @@ export class PortalService {
       );
   }
 
+  /**
+   * Starts a Stripe Checkout for the invoice's current balance (private-pay invoices only).
+   * successUrl / cancelUrl must be on this origin; the API defaults to /portal/invoices?payment=…
+   */
+  checkout(id: number, successUrl?: string | null, cancelUrl?: string | null): Observable<{ sessionId: string; url: string }> {
+    return this.http
+      .post<ApiResponse<{ sessionId: string; url: string }>>(`${this.baseUrl}/invoices/${id}/checkout`, {
+        successUrl: successUrl ?? null,
+        cancelUrl: cancelUrl ?? null,
+      })
+      .pipe(
+        map((r) => {
+          if (!r.success || r.data == null || !r.data.url) throw new Error(r.message ?? 'Could not start the payment.');
+          return r.data;
+        }),
+      );
+  }
+
   serviceTypes(): Observable<ServiceType[]> {
     return this.http
       .get<ApiResponse<ServiceType[]>>(`${this.baseUrl}/service-types`)

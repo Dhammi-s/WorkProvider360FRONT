@@ -7,7 +7,7 @@
 
 /** Mirrors the backend client-invoice DTOs. Times are ISO-8601 strings. */
 
-export type ClientInvoiceStatus = 'Issued' | 'Paid' | 'Void';
+export type ClientInvoiceStatus = 'Draft' | 'Issued' | 'PartiallyPaid' | 'Paid' | 'Void';
 
 export interface ClientInvoice {
   clientInvoiceId: number;
@@ -28,6 +28,17 @@ export interface ClientInvoice {
   createdByName?: string | null;
   createdOn: string;
   paidOn?: string | null;
+  // Billing and AR fields (portal + legacy endpoints, ADR-0004).
+  billToType?: 'Payer' | 'Client' | null;
+  runId?: number | null;
+  invoiceDate?: string | null;
+  dueDate?: string | null;
+  sentOn?: string | null;
+  amountPaid?: number | null;
+  amountAdjusted?: number | null;
+  balance?: number | null;
+  /** Portal: the client may pay this invoice online (Stripe Checkout). */
+  canPayOnline?: boolean | null;
 }
 
 export interface ClientInvoiceLine {
@@ -41,6 +52,13 @@ export interface ClientInvoiceLine {
   amount: number;
   isApproved: boolean;
   status?: string | null;
+  lineType?: string | null;
+  serviceDate?: string | null;
+  procedureCode?: string | null;
+  unitType?: string | null;
+  units?: number | null;
+  unitRate?: number | null;
+  balance?: number | null;
 }
 
 export interface ClientInvoiceDetail {

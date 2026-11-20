@@ -1,0 +1,341 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     ============================================================================= -->
+<ng-template #cardErr let-e>
+  <div class="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+    {{ e.message }}
+    @if (e.errors.length) {
+      <ul class="mt-1 list-disc pl-5 text-xs">@for (x of e.errors; track $index) { <li>{{ x }}</li> }</ul>
+    }
+  </div>
+</ng-template>
+
+@if (returnNotice(); as n) {
+  <div class="mb-4 flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-sm"
+    [class]="n.tone === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-brand-200 bg-brand-50 text-brand-700'">
+    <span>{{ n.text }}</span>
+    <button type="button" (click)="returnNotice.set(null)" class="text-xs font-semibold opacity-70 hover:opacity-100">Dismiss</button>
+  </div>
+}
+
+@if (!canEdit()) {
+  <div class="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+    Read only — only a SuperAdmin can change billing settings.
+  </div>
+}
+
+@if (loading()) {
+  <div class="wp-card flex items-center justify-center py-16 text-slate-400"><span class="text-sm">Loading billing settings…</span></div>
+} @else if (loadError()) {
+  <div class="wp-card py-10 text-center">
+    <p class="text-sm text-red-600">{{ loadError() }}</p>
+    <button type="button" (click)="load()" class="wp-link mt-2 text-sm">Try again</button>
+  </div>
+} @else if (form(); as f) {
+  <!-- ===================== Billing provider ===================== -->
+  <div class="wp-card">
+    <h2 class="text-base font-bold text-slate-900">Billing provider</h2>
+    <p class="mt-1 text-sm text-slate-500">The agency as it appears on invoices and electronic claims (837P loop 2010AA).</p>
+    @if (errorFor('provider'); as e) { <ng-container *ngTemplateOutlet="cardErr; context: { $implicit: e }" /> }
+    <fieldset [disabled]="!canEdit()">
+      <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="sm:col-span-2 lg:col-span-3">
+          <label class="wp-label">Legal name</label>
+          <input class="wp-input" maxlength="200" [ngModel]="f.legalName" (ngModelChange)="patch({ legalName: $event })" />
+        </div>
+        <div>
+          <label class="wp-label">NPI (10 digits)</label>
+          <input class="wp-input font-mono" maxlength="10" inputmode="numeric" [ngModel]="f.npi" (ngModelChange)="patch({ npi: $event })" />
+        </div>
+        <div>
+          <label class="wp-label">EIN / tax id (9 digits)</label>
+          <input class="wp-input font-mono" maxlength="11" [ngModel]="f.taxId" (ngModelChange)="patch({ taxId: $event })" placeholder="12-3456789" />
+        </div>
+        <div>
+          <label class="wp-label">Taxonomy code</label>
+          <input class="wp-input font-mono uppercase" maxlength="10" [ngModel]="f.taxonomyCode" (ngModelChange)="patch({ taxonomyCode: $event })" placeholder="251E00000X" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="wp-label">Address</label>
+          <input class="wp-input" maxlength="100" [ngModel]="f.address1" (ngModelChange)="patch({ address1: $event })" placeholder="Street (no PO box for claims)" />
+        </div>
+        <div>
+          <label class="wp-label">Address line 2</label>
+          <input class="wp-input" maxlength="100" [ngModel]="f.address2" (ngModelChange)="patch({ address2: $event })" />
+        </div>
+        <div>
+          <label class="wp-label">City</label>
+          <input class="wp-input" maxlength="60" [ngModel]="f.city" (ngModelChange)="patch({ city: $event })" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="wp-label">State</label>
+            <input class="wp-input uppercase" maxlength="2" [ngModel]="f.state" (ngModelChange)="patch({ state: $event })" />
+          </div>
+          <div>
+            <label class="wp-label">ZIP</label>
+            <input class="wp-input" maxlength="10" [ngModel]="f.postalCode" (ngModelChange)="patch({ postalCode: $event })" />
+          </div>
+        </div>
+        <div>
+          <label class="wp-label">Phone</label>
+          <input class="wp-input" maxlength="20" [ngModel]="f.phone" (ngModelChange)="patch({ phone: $event })" />
+        </div>
+      </div>
+
+      <h3 class="mt-6 text-xs font-bold uppercase tracking-wide text-slate-400">Pay-to address (optional)</h3>
+      <p class="mt-1 text-xs text-slate-400">Only when payments go to a different address than the provider address.</p>
+      <div class="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="sm:col-span-2">
+          <label class="wp-label">Address</label>
+          <input class="wp-input" maxlength="100" [ngModel]="f.payToAddress1" (ngModelChange)="patch({ payToAddress1: $event })" />
+        </div>
+        <div>
+          <label class="wp-label">Address line 2</label>
+          <input class="wp-input" maxlength="100" [ngModel]="f.payToAddress2" (ngModelChange)="patch({ payToAddress2: $event })" />
+        </div>
+        <div>
+          <label class="wp-label">City</label>
+          <input class="wp-input" maxlength="60" [ngModel]="f.payToCity" (ngModelChange)="patch({ payToCity: $event })" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="wp-label">State</label>
+            <input class="wp-input uppercase" maxlength="2" [ngModel]="f.payToState" (ngModelChange)="patch({ payToState: $event })" />
+          </div>
+          <div>
+            <label class="wp-label">ZIP</label>
+            <input class="wp-input" maxlength="10" [ngModel]="f.payToPostalCode" (ngModelChange)="patch({ payToPostalCode: $event })" />
+          </div>
+        </div>
+      </div>
+    </fieldset>
+    @if (canEdit()) {
+      <div class="mt-5 flex justify-end">
+        <button type="button" (click)="saveSettings('provider')" [disabled]="saving() !== null" class="wp-btn-primary">
+          {{ saving() === 'provider' ? 'Saving…' : 'Save billing provider' }}
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- ===================== Invoices ===================== -->
+  <div class="wp-card mt-6">
+    <h2 class="text-base font-bold text-slate-900">Invoices</h2>
+    <p class="mt-1 text-sm text-slate-500">Numbering, payment terms, rounding and what is printed on invoices.</p>
+    @if (errorFor('invoices'); as e) { <ng-container *ngTemplateOutlet="cardErr; context: { $implicit: e }" /> }
+    <fieldset [disabled]="!canEdit()">
+      <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <label class="wp-label">Number prefix</label>
+          <input class="wp-input" maxlength="10" [ngModel]="f.invoicePrefix" (ngModelChange)="patch({ invoicePrefix: $event })" />
+          <p class="mt-1 text-[11px] text-slate-400">e.g. {{ f.invoicePrefix || 'INV' }}-2026-000041</p>
+        </div>
+        <div>
+          <label class="wp-label">Next invoice number</label>
+          <input type="number" min="1" step="1" class="wp-input" [ngModel]="f.nextInvoiceNumber" (ngModelChange)="patch({ nextInvoiceNumber: $event })"
+            [placeholder]="'Keep (' + (settings()?.nextInvoiceNumber ?? 1) + ')'" />
+          <p class="mt-1 text-[11px] text-slate-400">Leave empty to keep the sequence (next: {{ settings()?.nextInvoiceNumber ?? 1 }}).</p>
+        </div>
+        <div>
+          <label class="wp-label">Payment terms (days)</label>
+          <input type="number" min="0" max="365" class="wp-input" [ngModel]="f.paymentTermsDays" (ngModelChange)="patch({ paymentTermsDays: $event })" />
+          <p class="mt-1 text-[11px] text-slate-400">Due date = invoice date + terms.</p>
+        </div>
+        <div>
+          <label class="wp-label">Default rounding</label>
+          <select class="wp-input" [ngModel]="f.defaultRoundingRule" (ngModelChange)="patch({ defaultRoundingRule: $event })">
+            @for (r of roundingRules; track r.value) { <option [value]="r.value">{{ r.label }}</option> }
+          </select>
+        </div>
+        <div>
+          <label class="wp-label">Write-off approval threshold ($)</label>
+          <input type="number" min="0" step="0.01" class="wp-input" [ngModel]="f.writeOffApprovalThreshold" (ngModelChange)="patch({ writeOffApprovalThreshold: $event })" />
+          <p class="mt-1 text-[11px] text-slate-400">Write-offs above this need a SuperAdmin.</p>
+        </div>
+        <div>
+          <label class="wp-label">Claim retention (years)</label>
+          <input type="number" min="1" max="30" class="wp-input" [ngModel]="f.claimRetentionYears" (ngModelChange)="patch({ claimRetentionYears: $event })" />
+        </div>
+        <div class="sm:col-span-2 lg:col-span-3">
+          <label class="wp-label">Remit-to text</label>
+          <textarea rows="2" maxlength="500" class="wp-input" [ngModel]="f.remitToText" (ngModelChange)="patch({ remitToText: $event })" placeholder="Make checks payable to…"></textarea>
+        </div>
+        <div class="sm:col-span-2 lg:col-span-3">
+          <label class="wp-label">Invoice footer</label>
+          <textarea rows="2" maxlength="1000" class="wp-input" [ngModel]="f.invoiceFooter" (ngModelChange)="patch({ invoiceFooter: $event })"></textarea>
+        </div>
+      </div>
+    </fieldset>
+    @if (canEdit()) {
+      <div class="mt-5 flex justify-end">
+        <button type="button" (click)="saveSettings('invoices')" [disabled]="saving() !== null" class="wp-btn-primary">
+          {{ saving() === 'invoices' ? 'Saving…' : 'Save invoice settings' }}
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- ===================== Access ===================== -->
+  <div class="wp-card mt-6">
+    <h2 class="text-base font-bold text-slate-900">Billing access</h2>
+    <p class="mt-1 text-sm text-slate-500">
+      What Admins and Managers can do in Billing. SuperAdmins always have full access; Admins and Managers see only their offices' clients.
+    </p>
+    @if (errorFor('access'); as e) { <ng-container *ngTemplateOutlet="cardErr; context: { $implicit: e }" /> }
+    <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      @for (row of [{ role: 'Admin', key: 'admin' }, { role: 'Manager', key: 'manager' }]; track row.key) {
+        <div>
+          <label class="wp-label">{{ row.role }}s</label>
+          <div class="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 text-sm font-semibold">
+            @for (l of levels; track l) {
+              <button type="button" [disabled]="!canEdit()"
+                (click)="row.key === 'admin' ? adminAccess.set(l) : managerAccess.set(l)"
+                class="rounded-lg px-4 py-1.5 transition disabled:cursor-not-allowed"
+                [class]="(row.key === 'admin' ? adminAccess() : managerAccess()) === l ? 'bg-brand-600 text-white' : 'text-slate-500 hover:text-slate-800'">{{ l }}</button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+    <p class="mt-3 text-xs text-slate-400">Read = view invoices, payments, aging, claims. Write = also run billing, record payments, submit claims.</p>
+    @if (canEdit()) {
+      <div class="mt-5 flex justify-end">
+        <button type="button" (click)="saveAccess()" [disabled]="saving() !== null" class="wp-btn-primary">
+          {{ saving() === 'access' ? 'Saving…' : 'Save access' }}
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- ===================== Billing codes ===================== -->
+  <app-billing-codes [canEdit]="canEdit()" />
+
+  <!-- ===================== Clearinghouse ===================== -->
+  <app-clearinghouse-card [canEdit]="canEdit()" />
+
+  <!-- ===================== Online payments (Stripe) ===================== -->
+  @if (settings(); as s) {
+    <div class="wp-card mt-6">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Online payments</h2>
+          <p class="mt-1 text-sm text-slate-500">
+            Connect your Stripe account so clients can pay invoices online (portal and the "Pay online" link in invoice emails). Money goes straight to your Stripe account.
+          </p>
+        </div>
+        @if (stripeConnected()) {
+          <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Connected</span>
+        } @else {
+          <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">Not connected</span>
+        }
+      </div>
+      @if (errorFor('stripe'); as e) { <ng-container *ngTemplateOutlet="cardErr; context: { $implicit: e }" /> }
+      <div class="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+        @if (stripeConnected()) {
+          <span class="text-slate-600">Account <span class="font-mono text-xs font-semibold text-slate-800">{{ s.stripeAccountId }}</span></span>
+          @if (s.stripeConnectedOn) { <span class="text-slate-500">since {{ s.stripeConnectedOn | date: 'MMM d, y' }}</span> }
+          <label class="flex items-center gap-2 text-slate-700">
+            <input type="checkbox" [disabled]="!canEdit() || stripeBusy()" [ngModel]="s.onlinePaymentsEnabled" (ngModelChange)="setOnlinePayments($event)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+            Accept online payments
+          </label>
+        }
+        @if (canEdit()) {
+          <div class="ml-auto flex gap-2">
+            @if (stripeConnected()) {
+              <button type="button" (click)="confirmStripeDisconnect.set(true)" [disabled]="stripeBusy()" class="wp-btn-ghost !py-1.5 !text-red-600 text-sm">Disconnect</button>
+            } @else {
+              <button type="button" (click)="connectStripe()" [disabled]="stripeBusy()" class="wp-btn-primary !py-2 text-sm">{{ stripeBusy() ? 'Opening Stripe…' : 'Connect Stripe' }}</button>
+            }
+          </div>
+        }
+      </div>
+      <p class="mt-3 text-xs text-slate-400">Electronic-claim payers (837P) never pay online; the portal pays only the client's own private-pay invoices.</p>
+    </div>
+  }
+
+  <!-- ===================== QuickBooks ===================== -->
+  <app-quickbooks-card [settings]="settings()" [canEdit]="canEdit()" [canManage]="canManage()" (settingsChange)="onSettingsChanged($event)" />
+
+  <!-- ===================== Eligibility ===================== -->
+  @if (settings(); as s) {
+    <div class="wp-card mt-6">
+      <h2 class="text-base font-bold text-slate-900">Eligibility</h2>
+      <p class="mt-1 text-sm text-slate-500">How insurance eligibility is checked: real-time with pVerify, or recorded manually.</p>
+      @if (errorFor('eligibility'); as e) { <ng-container *ngTemplateOutlet="cardErr; context: { $implicit: e }" /> }
+      <fieldset [disabled]="!canEdit()">
+        <div class="mt-4 inline-flex rounded-xl border border-slate-200 bg-white p-0.5 text-sm font-semibold">
+          <button type="button" (click)="eligVendor.set('Manual')" class="rounded-lg px-4 py-1.5 transition"
+            [class]="eligVendor() === 'Manual' ? 'bg-brand-600 text-white' : 'text-slate-500 hover:text-slate-800'">Manual</button>
+          <button type="button" (click)="eligVendor.set('PVerify')" class="rounded-lg px-4 py-1.5 transition"
+            [class]="eligVendor() === 'PVerify' ? 'bg-brand-600 text-white' : 'text-slate-500 hover:text-slate-800'">pVerify</button>
+        </div>
+        <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          @if (eligVendor() === 'PVerify') {
+            <div>
+              <label class="wp-label">pVerify client id</label>
+              <input class="wp-input" maxlength="100" autocomplete="off" [ngModel]="eligClientId()" (ngModelChange)="eligClientId.set($event)" />
+            </div>
+            <div>
+              <label class="wp-label">
+                Client secret
+                @if (s.hasEligibilitySecret) {
+                  <span class="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Set</span>
+                } @else {
+                  <span class="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Not set</span>
+                }
+              </label>
+              @if (eligEditingSecret()) {
+                <input type="password" class="wp-input" autocomplete="new-password" [ngModel]="eligSecret()" (ngModelChange)="eligSecret.set($event)" />
+                <button type="button" (click)="eligEditingSecret.set(false); eligSecret.set('')" class="mt-1 text-xs font-semibold text-slate-500 hover:text-slate-800">Keep the current one</button>
+              } @else {
+                <div class="flex flex-wrap items-center gap-3">
+                  <button type="button" (click)="eligEditingSecret.set(true); eligClearSecret.set(false)" class="wp-btn-ghost !py-1.5 !px-3 text-xs">{{ s.hasEligibilitySecret ? 'Replace' : 'Set' }}</button>
+                  @if (s.hasEligibilitySecret) {
+                    <label class="flex items-center gap-2 text-xs text-slate-600">
+                      <input type="checkbox" [ngModel]="eligClearSecret()" (ngModelChange)="eligClearSecret.set($event)" class="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                      Remove on save
+                    </label>
+                  }
+                </div>
+              }
+              <p class="mt-1 text-[11px] text-slate-400">Stored encrypted and never shown again.</p>
+            </div>
+          }
+          <div>
+            <label class="wp-label">Re-check after (days)</label>
+            <input type="number" min="0" max="365" class="wp-input" [ngModel]="eligRecheckDays()" (ngModelChange)="eligRecheckDays.set($event)" />
+            <p class="mt-1 text-[11px] text-slate-400">A result newer than this is reused unless the user forces a new check.</p>
+          </div>
+          <div>
+            <label class="wp-label">Bulk check cap</label>
+            <input type="number" min="1" max="5000" class="wp-input" [ngModel]="eligBulkCap()" (ngModelChange)="eligBulkCap.set($event)" />
+            <p class="mt-1 text-[11px] text-slate-400">Maximum checks queued by one bulk run.</p>
+          </div>
+        </div>
+      </fieldset>
+      @if (canEdit()) {
+        <div class="mt-5 flex justify-end">
+          <button type="button" (click)="saveEligibility()" [disabled]="saving() !== null" class="wp-btn-primary">
+            {{ saving() === 'eligibility' ? 'Saving…' : 'Save eligibility' }}
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  @if (settings()?.updatedOn) {
+    <p class="mt-4 text-right text-xs text-slate-400">Billing settings last saved {{ settings()!.updatedOn | date: 'MMM d, y h:mm a' }}</p>
+  }
+}
+
+@if (confirmStripeDisconnect()) {
+  <app-confirm-dialog
+    tone="danger"
+    title="Disconnect Stripe?"
+    message="Online payments stop immediately: the portal button and the emailed pay links no longer work. Payments already received stay recorded."
+    confirmLabel="Disconnect"
+    (confirmed)="disconnectStripe()"
+    (cancelled)="confirmStripeDisconnect.set(false)" />
+}

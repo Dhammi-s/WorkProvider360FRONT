@@ -1,0 +1,168 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     ============================================================================= -->
+<div class="space-y-4">
+  <div>
+    <h2 class="text-lg font-bold text-slate-900">Statements</h2>
+    <p class="mt-1 text-sm text-slate-500">A client's or payer's open invoices with aging and recent payments — preview, download as PDF or email it.</p>
+  </div>
+
+  <div class="wp-card">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[auto_1fr_1fr_auto_auto] lg:items-end">
+      <div>
+        <label class="wp-label">Statement for</label>
+        <div class="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 text-sm font-semibold">
+          <button type="button" (click)="setParty('Client')" class="rounded-lg px-3 py-1.5 transition" [class]="party() === 'Client' ? 'bg-brand-600 text-white' : 'text-slate-500 hover:text-slate-800'">Client</button>
+          <button type="button" (click)="setParty('Payer')" class="rounded-lg px-3 py-1.5 transition" [class]="party() === 'Payer' ? 'bg-brand-600 text-white' : 'text-slate-500 hover:text-slate-800'">Payer</button>
+        </div>
+      </div>
+      @if (party() === 'Payer') {
+        <app-payer-select label="Payer" allLabel="Choose a payer…" [auto]="false" [value]="payerId()" (valueChange)="payerId.set($event); statement.set(null)" />
+        <app-client-picker [label]="isSuperAdmin() ? 'Client (optional)' : 'Client *'" placeholder="Narrow to one client…" clearLabel="Clear" [client]="client()" (clientChange)="client.set($event); statement.set(null)" />
+      } @else {
+        <app-client-picker label="Client" [client]="client()" (clientChange)="client.set($event); statement.set(null)" />
+        <div></div>
+      }
+      <div>
+        <label class="wp-label">As of</label>
+        <input type="date" class="wp-input !py-2" [ngModel]="asOf()" (ngModelChange)="asOf.set($event ?? ''); statement.set(null)" />
+      </div>
+      <button type="button" (click)="preview()" [disabled]="loading() || !ready()" class="wp-btn-primary">{{ loading() ? 'Loading…' : 'Preview' }}</button>
+    </div>
+    <p class="mt-3 text-xs text-slate-400">
+      @if (party() === 'Client') {
+        A client statement lists the client's own (private-pay) invoices.
+      } @else {
+        A payer statement lists that payer's invoices across its clients.
+        @if (!isSuperAdmin()) { Payer statements span offices, so Admins and Managers must pick one of their clients. }
+      }
+    </p>
+  </div>
+
+  @if (notice()) {
+    <div class="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+      <span>{{ notice() }}</span>
+      <button type="button" (click)="notice.set('')" class="text-xs font-semibold text-emerald-700/70 hover:text-emerald-900">Dismiss</button>
+    </div>
+  }
+  @if (error()) {
+    <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {{ error() }}
+      @if (errors().length) { <ul class="mt-1 list-disc pl-5 text-xs">@for (e of errors(); track $index) { <li>{{ e }}</li> }</ul> }
+    </div>
+  }
+
+  @if (statement(); as s) {
+    <div class="wp-card">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ s.party.partyType === 'Payer' ? 'Payer' : 'Client' }} statement · as of {{ fmtDate(s.party.asOf) }}</p>
+          <h3 class="mt-1 text-lg font-bold text-slate-900">{{ s.party.partyName }}</h3>
+          <p class="text-sm text-slate-500">
+            {{ s.party.address1 }}{{ s.party.address2 ? ', ' + s.party.address2 : '' }}
+            @if (s.party.city || s.party.state) { <br />{{ s.party.city }}{{ s.party.city && s.party.state ? ', ' : '' }}{{ s.party.state }} {{ s.party.postalCode }} }
+          </p>
+          <p class="text-sm text-slate-500">{{ s.party.email || 'No email on file' }}</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" (click)="pdf()" [disabled]="pdfBusy()" class="wp-btn-ghost ring-1 ring-inset ring-slate-200">{{ pdfBusy() ? 'Preparing…' : 'PDF' }}</button>
+          @if (canManage()) {
+            <button type="button" (click)="openSend()" [disabled]="sending()" class="wp-btn-primary">{{ sending() ? 'Sending…' : 'Send by email' }}</button>
+          }
+        </div>
+      </div>
+
+      <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        @for (b of agingBoxes(); track b.label) {
+          <div class="rounded-xl border border-slate-200 px-3 py-2" [class.bg-slate-50]="b.label === 'Total due'">
+            <div class="text-[11px] text-slate-400">{{ b.label }}</div>
+            <div class="mt-0.5 font-bold" [class]="b.value ? b.cls : 'text-slate-300'">{{ money(b.value) }}</div>
+          </div>
+        }
+      </div>
+
+      <h4 class="mt-6 text-xs font-bold uppercase tracking-wide text-slate-400">Open invoices ({{ s.invoices.length }})</h4>
+      <div class="mt-2 overflow-x-auto rounded-xl border border-slate-200">
+        <table class="min-w-full divide-y divide-slate-100 text-sm">
+          <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <tr>
+              <th class="px-3 py-2">Invoice</th>
+              @if (s.party.partyType === 'Payer') { <th class="px-3 py-2">Client</th> }
+              <th class="px-3 py-2">Period</th>
+              <th class="px-3 py-2">Invoice date</th>
+              <th class="px-3 py-2">Due</th>
+              <th class="px-3 py-2 text-right">Amount</th>
+              <th class="px-3 py-2 text-right">Paid / adj.</th>
+              <th class="px-3 py-2 text-right">Balance</th>
+              <th class="px-3 py-2">Aging</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (i of s.invoices; track i.clientInvoiceId) {
+              <tr>
+                <td class="px-3 py-2 font-mono text-xs text-slate-700">{{ numberLabel(i) }}
+                  <div><span class="rounded-full px-2 py-0.5 font-sans text-[10px] font-semibold" [class]="statusClass(i.status)">{{ statusLabel(i.status) }}</span></div>
+                </td>
+                @if (s.party.partyType === 'Payer') { <td class="px-3 py-2 text-slate-700">{{ i.clientName }}</td> }
+                <td class="px-3 py-2 whitespace-nowrap text-slate-600">{{ periodLabel(i.periodFromUtc, i.periodToUtc) }}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-slate-600">{{ fmtDate(i.invoiceDate) }}</td>
+                <td class="px-3 py-2 whitespace-nowrap" [class]="i.daysPastDue > 0 ? 'text-red-600' : 'text-slate-600'">{{ fmtDate(i.dueDate) }}</td>
+                <td class="px-3 py-2 text-right text-slate-600">{{ money(i.amount) }}</td>
+                <td class="px-3 py-2 text-right text-slate-500">{{ money(i.amountPaid + i.amountAdjusted) }}</td>
+                <td class="px-3 py-2 text-right font-semibold text-slate-900">{{ money(i.balance) }}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-xs" [class]="i.daysPastDue > 0 ? 'font-semibold text-red-600' : 'text-slate-500'">{{ i.agingBucket }}{{ i.daysPastDue > 0 ? ' (' + i.daysPastDue + 'd)' : '' }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="9" class="px-3 py-8 text-center text-sm text-slate-400">Nothing is due.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <h4 class="mt-6 text-xs font-bold uppercase tracking-wide text-slate-400">Recent payments</h4>
+      @if (s.payments.length === 0) {
+        <p class="mt-2 text-sm text-slate-400">No recent payments.</p>
+      } @else {
+        <div class="mt-2 overflow-x-auto rounded-xl border border-slate-200">
+          <table class="min-w-full divide-y divide-slate-100 text-sm">
+            <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <tr><th class="px-3 py-2">Received</th><th class="px-3 py-2">Method</th><th class="px-3 py-2">Reference</th><th class="px-3 py-2 text-right">Amount</th><th class="px-3 py-2 text-right">Applied</th><th class="px-3 py-2 text-right">Unapplied</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (p of s.payments; track p.paymentId) {
+                <tr>
+                  <td class="px-3 py-2 text-slate-700">{{ fmtDate(p.receivedOn) }}</td>
+                  <td class="px-3 py-2 text-slate-600">{{ p.method }}</td>
+                  <td class="px-3 py-2 text-xs text-slate-600">{{ p.reference || '—' }}</td>
+                  <td class="px-3 py-2 text-right font-semibold text-slate-900">{{ money(p.amount) }}</td>
+                  <td class="px-3 py-2 text-right text-emerald-700">{{ money(p.appliedAmount) }}</td>
+                  <td class="px-3 py-2 text-right" [class]="p.unappliedAmount > 0 ? 'text-amber-700' : 'text-slate-400'">{{ money(p.unappliedAmount) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  } @else if (!loading()) {
+    <div class="wp-card py-12 text-center text-sm text-slate-400">Choose a {{ party() === 'Payer' ? 'payer' : 'client' }} and preview the statement.</div>
+  }
+</div>
+
+@if (sendOpen()) {
+  <div class="fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-slate-900/50" (click)="sendOpen.set(false)"></div>
+    <div class="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <h3 class="text-lg font-bold text-slate-900">Email this statement?</h3>
+      <p class="mt-1 text-sm text-slate-500">The statement PDF (as of {{ fmtDate(asOf()) }}) is emailed to the address below.</p>
+      <label class="wp-label mt-4">To</label>
+      <input type="email" class="wp-input" [ngModel]="toEmail()" (ngModelChange)="toEmail.set($event)" placeholder="name@example.com" />
+      <p class="mt-1 text-[11px] text-slate-400">Leave as is to use the {{ party() === 'Payer' ? 'payer' : 'client' }}'s email on file.</p>
+      <div class="mt-5 flex justify-end gap-2">
+        <button type="button" (click)="sendOpen.set(false)" class="wp-btn-ghost">Cancel</button>
+        <button type="button" (click)="send()" [disabled]="!toEmail().trim()" class="wp-btn-primary">Send</button>
+      </div>
+    </div>
+  </div>
+}

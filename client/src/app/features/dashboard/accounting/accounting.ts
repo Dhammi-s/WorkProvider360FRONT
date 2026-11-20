@@ -9,7 +9,7 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Invoice, PayInvoiceRequest } from '../../../core/models/accounting.model';
 import { ScheduleReportRow } from '../../../core/models/scheduler.model';
 import { UserDto } from '../../../core/models/user.model';
@@ -32,7 +32,7 @@ const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' 
 
 @Component({
   selector: 'app-accounting',
-  imports: [CurrencyPipe, DatePipe, FormsModule, Alert, ClientInvoices, ConfirmDialog],
+  imports: [CurrencyPipe, DatePipe, FormsModule, RouterLink, Alert, ClientInvoices, ConfirmDialog],
   templateUrl: './accounting.html',
 })
 export class Accounting {

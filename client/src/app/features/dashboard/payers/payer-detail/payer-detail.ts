@@ -25,12 +25,14 @@ import { ClientService } from '../../../../core/services/client.service';
 import { OfficeService } from '../../../../core/services/office.service';
 import { PayerService } from '../../../../core/services/payer.service';
 import { AuthorizationService } from '../../../../core/services/authorization.service';
+import { BillingService } from '../../../../core/services/billing.service';
 import { Alert } from '../../../../shared/ui/alert/alert';
 import { ConfirmDialog } from '../../../../shared/ui/confirm-dialog/confirm-dialog';
 import { PayerForm } from '../../../../shared/ui/payer-form/payer-form';
 import { Authorizations } from '../../authorizations/authorizations';
+import { PayerBillingEdi } from './payer-billing-edi/payer-billing-edi';
 
-type Tab = 'details' | 'contacts' | 'clients' | 'authorizations';
+type Tab = 'details' | 'contacts' | 'clients' | 'authorizations' | 'billing';
 
 interface ContactForm {
   contactId: number | null;
@@ -46,7 +48,7 @@ const emptyContact = (): ContactForm => ({ contactId: null, firstName: '', lastN
 /** Add a payer (/payers/new) or view / edit one: details, contacts and linked clients. */
 @Component({
   selector: 'app-payer-detail',
-  imports: [DatePipe, FormsModule, RouterLink, Alert, ConfirmDialog, PayerForm, Authorizations],
+  imports: [DatePipe, FormsModule, RouterLink, Alert, ConfirmDialog, PayerForm, Authorizations, PayerBillingEdi],
   templateUrl: './payer-detail.html',
 })
 export class PayerDetailPage {
@@ -57,6 +59,13 @@ export class PayerDetailPage {
   private readonly officeService = inject(OfficeService);
   private readonly auth = inject(AuthService);
   private readonly authorizations = inject(AuthorizationService);
+  private readonly billing = inject(BillingService);
+  /** Billing / EDI tab: shown when the role can view billing; SuperAdmin edits. */
+  readonly billingAllowed = computed(() => {
+    const a = this.billing.access();
+    return !!a && a.accessLevel !== 'None' && a.canView;
+  });
+  readonly canEditBilling = computed(() => this.auth.roleName() === 'SuperAdmin');
   /** Authorizations tab: hidden when the role has no authorization access. */
   readonly authorizationsAllowed = computed(() => {
     const a = this.authorizations.access();
@@ -91,6 +100,7 @@ export class PayerDetailPage {
   constructor() {
     this.clients.access().subscribe({ next: (a) => this.access.set(a), error: () => {} });
     this.authorizations.loadAccess().subscribe();
+    this.billing.loadAccess().subscribe();
     if (this.auth.roleName() === 'SuperAdmin') {
       this.officeService.list().subscribe({ next: (o) => this.offices.set(o.filter((x) => x.isActive)), error: () => {} });
     }
