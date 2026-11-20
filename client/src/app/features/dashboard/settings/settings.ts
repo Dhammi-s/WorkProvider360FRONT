@@ -30,6 +30,8 @@ import { AnalysisAccessLevel, AnalysisModule } from '../../../core/models/analys
 import { Alert } from '../../../shared/ui/alert/alert';
 import { LogoUploader } from '../branding/logo-uploader';
 import { EmailBannerUploader } from '../branding/email-banner-uploader';
+import { SchedulingAutomationCard } from './scheduling-automation/scheduling-automation';
+import { CareAttributesSettings } from './care-attributes/care-attributes';
 
 /** Workspace settings: application form (SuperAdmin) + scheduling access & defaults. */
 interface SettingsTab {
@@ -40,7 +42,7 @@ interface SettingsTab {
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, RouterLink, Alert, LogoUploader, EmailBannerUploader],
+  imports: [FormsModule, RouterLink, Alert, LogoUploader, EmailBannerUploader, SchedulingAutomationCard, CareAttributesSettings],
   templateUrl: './settings.html',
 })
 export class Settings {
@@ -75,6 +77,8 @@ export class Settings {
       t.push({ id: 'meetings', label: 'Meetings', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' });
     if (this.showClients_())
       t.push({ id: 'clients', label: 'Clients & Visits', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z' });
+    if (this.showClients_())
+      t.push({ id: 'care-attributes', label: 'Care attributes', icon: 'M7 7h.01M7 3h5a2 2 0 011.4.6l7 7a2 2 0 010 2.8l-7 7a2 2 0 01-2.8 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' });
     if (this.isSuperAdmin())
       t.push({ id: 'application', label: 'Application Form', icon: 'M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2z' });
     if (this.isSuperAdmin())
@@ -387,6 +391,8 @@ export class Settings {
   readonly clientNotice = signal('');
   readonly clientError = signal('');
   readonly canEditClients = computed(() => !!this.clientAccess()?.canManageSettings);
+  /** Client-Write (SuperAdmin always): manage the care attribute list. */
+  readonly canEditCareAttributes = computed(() => this.isSuperAdmin() || !!this.clientAccess()?.canManage);
   readonly showClients_ = computed(() => {
     const a = this.clientAccess();
     return this.isSuperAdmin() || (!!a && a.accessLevel !== 'None');

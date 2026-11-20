@@ -21,7 +21,10 @@ import {
   Authorization,
   AuthorizationDetail,
   AuthorizationFormOptions,
+  AuthorizationImpact,
+  AuthorizationImpactRow,
   AuthorizationStatus,
+  LimitUnit,
   SaveAuthorizationRequest,
   WEEKDAY_CODES,
   WeekdayCode,
@@ -29,7 +32,9 @@ import {
   displayStatusClass,
   displayStatusLabel,
   formatDateOnly,
+  formatLimit,
 } from '../../../../core/models/authorization.model';
+import { wallRange } from '../../../../core/models/scheduler.model';
 import { Client } from '../../../../core/models/client.model';
 import { AuthorizationService } from '../../../../core/services/authorization.service';
 import { ClientService } from '../../../../core/services/client.service';
@@ -40,6 +45,9 @@ interface LimitField {
   key: 'maxDay' | 'maxWeek' | 'maxMonth' | 'total';
   label: string;
   max: number | null;
+  /** Label / max when the limit unit is Visits. */
+  visitLabel: string;
+  visitMax: number | null;
 }
 
 const num = (v: string) =>
@@ -120,6 +128,15 @@ export class AuthorizationEditor implements OnInit {
   readonly allowedDays = signal<WeekdayCode[]>(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
   readonly notes = signal('');
   readonly status = signal<AuthorizationStatus>('Active');
+  readonly limitUnit = signal<LimitUnit>('Hours');
+  readonly isVisits = computed(() => this.limitUnit() === 'Visits');
+  readonly unitWord = computed(() => (this.isVisits() ? 'visits' : 'hours'));
+
+  // ---- Impact review (edit mode): runs before the final save.
+  readonly review = signal<AuthorizationImpact | null>(null);
+  readonly reviewing = signal(false);
+  private pendingRequest: SaveAuthorizationRequest | null = null;
+  readonly range = wallRange;
 
   readonly saving = signal(false);
   readonly error = signal('');
@@ -129,10 +146,10 @@ export class AuthorizationEditor implements OnInit {
   readonly statusClass = displayStatusClass;
   readonly statusLabel = displayStatusLabel;
   readonly limitFields: LimitField[] = [
-    { key: 'maxDay', label: 'Maximum Hours Per Day', max: 24 },
-    { key: 'maxWeek', label: 'Maximum Hours Per Week', max: 168 },
-    { key: 'maxMonth', label: 'Maximum Hours Per Month', max: 744 },
-    { key: 'total', label: 'Total hours (whole period)', max: null },
+    { key: 'maxDay', label: 'Maximum Hours Per Day', max: 24, visitLabel: 'Maximum Visits Per Day', visitMax: 24 },
+    { key: 'maxWeek', label: 'Maximum Hours Per Week', max: 168, visitLabel: 'Maximum Visits Per Week', visitMax: 168 },
+    { key: 'maxMonth', label: 'Maximum Hours Per Month', max: 744, visitLabel: 'Maximum Visits Per Month', visitMax: 744 },
+    { key: 'total', label: 'Total hours (whole period)', max: null, visitLabel: 'Total visits (whole period)', visitMax: null },
   ];
 
   readonly calculatedStatus = computed(() =>
@@ -158,9 +175,11 @@ export class AuthorizationEditor implements OnInit {
   readonly summary = computed(() => {
     const start = this.startDate();
     const end = this.endDate();
+    const visits = this.isVisits();
     const limit = (v: string) => {
       const n = num(v);
-      return n == null ? 'No limit' : `${n.toFixed(2)} hours`;
+      if (n == null) return 'No limit';
+      return visits ? `${n} visit${n === 1 ? '' : 's'}` : `${n.toFixed(2)} hours`;
     };
     return {
       client: this.clientName() || '—',
@@ -197,7 +216,10 @@ export class AuthorizationEditor implements OnInit {
       const raw = this.limitValue(f.key);
       if (raw === '' || raw == null) continue;
       const n = num(String(raw));
-      if (n == null || n < 0.25) e[f.key] = 'Enter at least 0.25 hours, or leave it empty.';
+      if (this.isVisits()) {
+        if (n == null || n < 1 || !Number.isInteger(n)) e[f.key] = 'Enter a whole number of visits (1 or more), or leave it empty.';
+        else if (f.visitMax != null && n > f.visitMax) e[f.key] = `Cannot be more than ${f.visitMax} visits.`;
+      } else if (n == null || n < 0.25) e[f.key] = 'Enter at least 0.25 hours, or leave it empty.';
       else if (f.max != null && n > f.max) e[f.key] = `Cannot be more than ${f.max} hours.`;
     }
     if (this.allowedDays().length === 0) e['days'] = 'Choose at least one day.';
@@ -229,6 +251,7 @@ export class AuthorizationEditor implements OnInit {
       this.allowedDays.set([...(a.allowedDays ?? [])]);
       this.notes.set(a.notes ?? '');
       this.status.set(a.status);
+      this.limitUnit.set(a.limitUnit ?? 'Hours');
       this.loadOptions(a.clientId);
       return;
     }
@@ -248,7 +271,8 @@ export class AuthorizationEditor implements OnInit {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (!this.saving()) this.closed.emit();
+    if (this.review()) this.cancelReview();
+    else if (!this.saving()) this.closed.emit();
   }
 
   // ------------------------------------------------------------- Client
@@ -354,6 +378,22 @@ export class AuthorizationEditor implements OnInit {
     }
   }
 
+  fieldLabel(f: LimitField): string {
+    return this.isVisits() ? f.visitLabel : f.label;
+  }
+
+  fieldMax(f: LimitField): number | null {
+    return this.isVisits() ? f.visitMax : f.max;
+  }
+
+  setUnit(unit: LimitUnit): void {
+    this.limitUnit.set(unit);
+  }
+
+  impactLabel(r: AuthorizationImpactRow): string {
+    return `${formatLimit(r.hoursBefore, this.limitUnit(), '0')} → ${formatLimit(r.hoursAfter, this.limitUnit(), '0')}`;
+  }
+
   toggleDay(d: WeekdayCode): void {
     this.allowedDays.update((list) =>
       list.includes(d) ? list.filter((x) => x !== d) : [...list, d],
@@ -392,7 +432,46 @@ export class AuthorizationEditor implements OnInit {
       totalAuthorizedHours: num(this.total()),
       allowedDays: [...this.allowedDays()].sort((a, b) => order.indexOf(a) - order.indexOf(b)),
       notes: this.notes().trim() || null,
+      limitUnit: this.limitUnit(),
     };
+    const existing = this.isEdit() ? this.authorization() : null;
+    if (existing) {
+      // Edit: review the impact on the client's visits before the final save.
+      this.pendingRequest = request;
+      this.reviewing.set(true);
+      this.saving.set(true);
+      this.service.impact(existing.authorizationId, request).subscribe({
+        next: (impact) => {
+          this.saving.set(false);
+          this.review.set(impact);
+        },
+        error: (err: Error) => {
+          this.saving.set(false);
+          this.reviewing.set(false);
+          this.error.set(err.message || 'Could not check the impact of this change.');
+        },
+      });
+      return;
+    }
+    this.persist(request);
+  }
+
+  cancelReview(): void {
+    this.review.set(null);
+    this.reviewing.set(false);
+    this.pendingRequest = null;
+  }
+
+  confirmReview(): void {
+    const r = this.review();
+    if (!r || r.frozen.length || !this.pendingRequest) return;
+    const request = this.pendingRequest;
+    this.review.set(null);
+    this.reviewing.set(false);
+    this.persist(request);
+  }
+
+  private persist(request: SaveAuthorizationRequest): void {
     const existing = this.isEdit() ? this.authorization() : null;
     this.saving.set(true);
     const req$ = existing

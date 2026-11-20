@@ -22,6 +22,7 @@ import { VisitCalendar } from '../../../../shared/ui/visit-calendar/visit-calend
 import { ScheduleEditor } from '../../../../shared/ui/schedule-editor/schedule-editor';
 import { TrainingAccessCard } from '../../../../shared/ui/training-access-card/training-access-card';
 import { StarRating } from '../../../../shared/ui/star-rating/star-rating';
+import { CareProfileCard } from '../../../../shared/ui/care-profile-card/care-profile-card';
 import { FeedbackService } from '../../../../core/services/feedback.service';
 import { CaregiverFeedback } from '../../../../core/models/feedback.model';
 
@@ -30,7 +31,7 @@ type Section = 'main' | 'schedule' | 'feedback';
 /** Full-page user (caregiver/admin/manager) profile: Main details + a Schedule calendar with inline shift creation. */
 @Component({
   selector: 'app-user-profile',
-  imports: [RouterLink, ReactiveFormsModule, DatePipe, DecimalPipe, Alert, VisitCalendar, ScheduleEditor, TrainingAccessCard, StarRating],
+  imports: [RouterLink, ReactiveFormsModule, DatePipe, DecimalPipe, Alert, VisitCalendar, ScheduleEditor, TrainingAccessCard, StarRating, CareProfileCard],
   templateUrl: './user-profile.html',
 })
 export class UserProfile {

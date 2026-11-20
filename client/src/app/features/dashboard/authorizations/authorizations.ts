@@ -20,7 +20,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
 import {
+  AUTHORIZATION_STATUSES,
   Authorization,
+  AuthorizationStatus,
   AuthorizationSummary,
   DISPLAY_STATUSES,
   DisplayStatus,
@@ -29,6 +31,7 @@ import {
   displayStatusLabel,
   formatDateOnly,
   formatHours,
+  formatLimit,
 } from '../../../core/models/authorization.model';
 import { ServiceType } from '../../../core/models/service-type.model';
 import { AuthorizationService } from '../../../core/services/authorization.service';
@@ -113,6 +116,12 @@ export class Authorizations {
   readonly confirmDelete = signal<Authorization | null>(null);
   readonly deleteBlocked = signal<{ auth: Authorization; message: string } | null>(null);
   readonly busy = signal(false);
+  /** Status change waiting for its note (required for Pending / Hold). */
+  readonly statusDialog = signal<{ auth: Authorization; status: AuthorizationStatus } | null>(null);
+  readonly statusNote = signal('');
+  readonly statusDialogError = signal('');
+  readonly authStatuses = AUTHORIZATION_STATUSES;
+  readonly fmtLimit = formatLimit;
 
   readonly statuses = DISPLAY_STATUSES;
   readonly statusClass = displayStatusClass;
@@ -277,7 +286,7 @@ export class Authorizations {
     }
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const menuWidth = 176;
-    const menuHeight = 84;
+    const menuHeight = 200;
     const below = rect.bottom + 4 + menuHeight <= window.innerHeight;
     this.menuPos.set({
       top: below ? rect.bottom + 4 : Math.max(8, rect.top - 4 - menuHeight),
@@ -286,18 +295,40 @@ export class Authorizations {
     this.menuFor.set(a.authorizationId);
   }
 
-  setStatus(a: Authorization, status: 'Active' | 'Inactive'): void {
+  /** Opens the note dialog (note required for Pending / Hold, optional otherwise). */
+  askStatus(a: Authorization, status: AuthorizationStatus): void {
+    this.menuFor.set(null);
+    this.deleteBlocked.set(null);
+    this.statusNote.set('');
+    this.statusDialogError.set('');
+    this.statusDialog.set({ auth: a, status });
+  }
+
+  noteRequired(status: AuthorizationStatus): boolean {
+    return status === 'Pending' || status === 'Hold';
+  }
+
+  confirmStatus(): void {
+    const d = this.statusDialog();
+    if (!d) return;
+    const note = this.statusNote().trim();
+    if (this.noteRequired(d.status) && !note) {
+      this.statusDialogError.set('Please add a note explaining why.');
+      return;
+    }
+    this.statusDialog.set(null);
+    this.setStatus(d.auth, d.status, note || null);
+  }
+
+  setStatus(a: Authorization, status: AuthorizationStatus, note: string | null = null): void {
     this.menuFor.set(null);
     this.deleteBlocked.set(null);
     this.busy.set(true);
-    this.service.setStatus(a.authorizationId, status).subscribe({
+    this.service.setStatus(a.authorizationId, status, note).subscribe({
       next: () => {
         this.busy.set(false);
-        this.toast.success(
-          status === 'Active'
-            ? `${a.authorizationName} activated.`
-            : `${a.authorizationName} deactivated.`,
-        );
+        const label = this.authStatuses.find((x) => x.value === status)?.label ?? status;
+        this.toast.success(`${a.authorizationName}: status set to ${label}.`);
         this.reload();
       },
       error: (err: Error) => {
@@ -336,6 +367,12 @@ export class Authorizations {
   }
 
   usedLabel(a: Authorization): string {
+    if (a.limitUnit === 'Visits') {
+      const usedVisits = Math.round(a.usedHours ?? 0);
+      return a.totalAuthorizedHours == null
+        ? `${usedVisits} visits`
+        : `${usedVisits} / ${Math.round(a.totalAuthorizedHours)} visits`;
+    }
     const used = (a.usedHours ?? 0).toFixed(2);
     return a.totalAuthorizedHours == null
       ? `${used} h`

@@ -12,8 +12,17 @@
  */
 
 export type AuthorizationAccessLevel = 'None' | 'Read' | 'Write';
-export type AuthorizationStatus = 'Active' | 'Inactive';
-export type DisplayStatus = 'Active' | 'Upcoming' | 'ExpiringSoon' | 'Expired' | 'Inactive';
+export type AuthorizationStatus = 'Active' | 'Pending' | 'Hold' | 'Inactive';
+export type DisplayStatus = 'Active' | 'Upcoming' | 'ExpiringSoon' | 'Expired' | 'Pending' | 'Hold' | 'Inactive';
+/** Hours: limits are hours; Visits: limits are whole visit counts (>= 1). */
+export type LimitUnit = 'Hours' | 'Visits';
+
+export const AUTHORIZATION_STATUSES: { value: AuthorizationStatus; label: string; noteRequired: boolean }[] = [
+  { value: 'Active', label: 'Active', noteRequired: false },
+  { value: 'Pending', label: 'Pending', noteRequired: true },
+  { value: 'Hold', label: 'On hold', noteRequired: true },
+  { value: 'Inactive', label: 'Inactive', noteRequired: false },
+];
 export type WeekdayCode = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 export type AuthorizationLimitPolicy = 'Allow' | 'Warn' | 'Block';
 
@@ -32,6 +41,8 @@ export const DISPLAY_STATUSES: { value: DisplayStatus; label: string }[] = [
   { value: 'ExpiringSoon', label: 'Expiring soon' },
   { value: 'Upcoming', label: 'Upcoming' },
   { value: 'Expired', label: 'Expired' },
+  { value: 'Pending', label: 'Pending' },
+  { value: 'Hold', label: 'On hold' },
   { value: 'Inactive', label: 'Inactive' },
 ];
 
@@ -51,6 +62,8 @@ export function displayStatusClass(s: DisplayStatus | string | null | undefined)
     case 'Active':
       return 'bg-emerald-50 text-emerald-700';
     case 'ExpiringSoon':
+    case 'Pending':
+    case 'Hold':
       return 'bg-amber-50 text-amber-700';
     case 'Expired':
       return 'bg-orange-50 text-orange-700';
@@ -83,6 +96,7 @@ export function calculateDisplayStatus(
   endDate: string,
 ): DisplayStatus | null {
   if (status === 'Inactive') return 'Inactive';
+  if (status === 'Pending' || status === 'Hold') return status;
   if (!startDate || !endDate) return null;
   const today = todayDateOnly();
   if (startDate > today) return 'Upcoming';
@@ -94,6 +108,13 @@ export function calculateDisplayStatus(
 /** "6.00 h" or "No limit". */
 export function formatHours(h: number | null | undefined, empty = 'No limit'): string {
   return h == null ? empty : `${h.toFixed(2)} h`;
+}
+
+/** "6.00 h" / "3 visits" (or "No limit") for the authorization's limit unit. */
+export function formatLimit(v: number | null | undefined, unit: LimitUnit | null | undefined, empty = 'No limit'): string {
+  if (v == null) return empty;
+  if (unit === 'Visits') return `${Math.round(v)} visit${Math.round(v) === 1 ? '' : 's'}`;
+  return `${v.toFixed(2)} h`;
 }
 
 /** "Mon–Fri", "Mon, Wed, Fri", "Every day". */
@@ -136,6 +157,10 @@ export interface Authorization {
   allowedDays: WeekdayCode[];
   status: AuthorizationStatus;
   displayStatus: DisplayStatus;
+  /** Hours (default) or Visits. */
+  limitUnit?: LimitUnit;
+  /** Note given with the last Pending / Hold change. */
+  statusNote?: string | null;
   daysLeft: number;
   usedHours: number;
   notes: string | null;
@@ -160,6 +185,8 @@ export interface AuthorizationSummary {
   expiringSoon: number;
   expired: number;
   inactive: number;
+  hold?: number;
+  pending?: number;
 }
 
 export interface AuthorizationUsage {
@@ -226,6 +253,32 @@ export interface SaveAuthorizationRequest {
   totalAuthorizedHours: number | null;
   allowedDays: string[];
   notes: string | null;
+  limitUnit: LimitUnit;
+}
+
+export interface AuthorizationStatusHistory {
+  historyId: number;
+  statusFrom: AuthorizationStatus | null;
+  statusTo: AuthorizationStatus;
+  note: string | null;
+  changedByName: string | null;
+  changedOn: string;
+}
+
+export interface AuthorizationImpactRow {
+  scheduleId: number;
+  startUtc: string;
+  endUtc: string;
+  hoursBefore: number;
+  hoursAfter: number;
+}
+
+export interface AuthorizationImpact {
+  gains: AuthorizationImpactRow[];
+  losses: AuthorizationImpactRow[];
+  /** Invoiced shares that would no longer fit: saving will be refused. */
+  frozen: AuthorizationImpactRow[];
+  unchangedCount: number;
 }
 
 // ------------------------------------------------------------ Scheduling (P2)

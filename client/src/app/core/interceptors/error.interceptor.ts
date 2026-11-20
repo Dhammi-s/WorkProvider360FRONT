@@ -92,6 +92,21 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
 /** Pull the friendliest message out of the API envelope or HTTP error. */
 function normalise(error: unknown): Error {
+  const result = normaliseMessage(error);
+  // Keep the raw envelope parts too (status, message, errors[]) for screens that show both.
+  if (error instanceof HttpErrorResponse) {
+    const body = error.error && typeof error.error === 'object' ? error.error : null;
+    const errors = (body as { errors?: unknown } | null)?.errors;
+    Object.assign(result, {
+      status: error.status,
+      apiMessage: (body as { message?: string } | null)?.message ?? null,
+      apiErrors: Array.isArray(errors) ? errors.filter((e): e is string => typeof e === 'string') : [],
+    });
+  }
+  return result;
+}
+
+function normaliseMessage(error: unknown): Error {
   if (error instanceof HttpErrorResponse) {
     const body = error.error;
     if (body && typeof body === 'object') {

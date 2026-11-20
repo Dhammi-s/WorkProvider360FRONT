@@ -147,14 +147,26 @@
               <p class="text-xs text-slate-500">Leave a limit empty when it does not apply.</p>
             </div>
           </div>
+          <div class="mt-4">
+            <label class="wp-label">Limit unit</label>
+            <div class="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 text-sm font-semibold">
+              @for (u of ['Hours', 'Visits']; track u) {
+                <button type="button" (click)="setUnit($any(u))" class="rounded-lg px-4 py-1.5 transition"
+                  [class]="limitUnit() === u ? 'bg-brand-600 text-white' : 'text-slate-500 hover:text-slate-800'">{{ u }}</button>
+              }
+            </div>
+            <p class="mt-1 text-xs text-slate-400">
+              @if (isVisits()) { Limits count visits (whole numbers). A visit is covered entirely or not at all. } @else { Limits are hours of care. }
+            </p>
+          </div>
           <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             @for (f of limitFields; track f.key) {
               <div>
-                <label class="wp-label">{{ f.label }} <span class="font-normal text-slate-400">(optional)</span></label>
+                <label class="wp-label">{{ fieldLabel(f) }} <span class="font-normal text-slate-400">(optional)</span></label>
                 <div class="relative">
-                  <input type="number" min="0.25" step="0.25" [attr.max]="f.max" class="wp-input pr-14" placeholder="No limit"
+                  <input type="number" [attr.min]="isVisits() ? 1 : 0.25" [attr.step]="isVisits() ? 1 : 0.25" [attr.max]="fieldMax(f)" class="wp-input pr-14" placeholder="No limit"
                     [ngModel]="limitValue(f.key)" (ngModelChange)="setLimit(f.key, $event)" />
-                  <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-400">hours</span>
+                  <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-400">{{ unitWord() }}</span>
                 </div>
                 @if (showError(f.key)) { <p class="mt-1 text-xs text-red-600">{{ showError(f.key) }}</p> }
               </div>
@@ -228,7 +240,7 @@
         @if (saving()) {
           Saving…
         } @else if (isEdit()) {
-          Save
+          Review &amp; save
         } @else {
           <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
           Create Authorization
@@ -236,4 +248,53 @@
       </button>
     </div>
   </div>
+
+  <!-- Impact review (edit): what the change does to the client's visits before saving -->
+  @if (review(); as r) {
+    <div class="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-slate-900/50" (click)="cancelReview()"></div>
+      <div class="relative z-10 flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl">
+        <div class="border-b border-slate-100 px-6 py-4">
+          <h3 class="text-lg font-bold text-slate-900">Review the impact</h3>
+          <p class="mt-0.5 text-sm text-slate-500">How this change re-allocates the client's visits that are not invoiced yet.</p>
+        </div>
+        <div class="flex-1 overflow-y-auto px-6 py-5">
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-xl bg-emerald-50 px-3 py-2"><p class="text-xs text-emerald-700">Gains</p><p class="text-xl font-extrabold text-emerald-800">{{ r.gains.length }}</p></div>
+            <div class="rounded-xl bg-amber-50 px-3 py-2"><p class="text-xs text-amber-700">Losses</p><p class="text-xl font-extrabold text-amber-800">{{ r.losses.length }}</p></div>
+            <div class="rounded-xl px-3 py-2" [class]="r.frozen.length ? 'bg-red-50' : 'bg-slate-50'"><p class="text-xs" [class]="r.frozen.length ? 'text-red-700' : 'text-slate-500'">Frozen (invoiced)</p><p class="text-xl font-extrabold" [class]="r.frozen.length ? 'text-red-800' : 'text-slate-700'">{{ r.frozen.length }}</p></div>
+            <div class="rounded-xl bg-slate-50 px-3 py-2"><p class="text-xs text-slate-500">Unchanged</p><p class="text-xl font-extrabold text-slate-700">{{ r.unchangedCount }}</p></div>
+          </div>
+
+          @if (r.frozen.length) {
+            <div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <p class="font-semibold">This change cannot be saved.</p>
+              <p class="mt-1">These visits are already invoiced with this authorization and would no longer fit its date range, days, service type or unit. Void or credit the invoices first, or keep the authorization as it is.</p>
+            </div>
+          }
+
+          @for (group of [{ t: 'Frozen — already invoiced', rows: r.frozen, c: 'text-red-700' }, { t: 'Gains — more covered by this authorization', rows: r.gains, c: 'text-emerald-700' }, { t: 'Losses — less covered (moves to the next payer or private pay)', rows: r.losses, c: 'text-amber-700' }]; track group.t) {
+            @if (group.rows.length) {
+              <h4 class="mt-5 text-xs font-bold uppercase tracking-wide" [class]="group.c">{{ group.t }}</h4>
+              <ul class="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200">
+                @for (row of group.rows; track row.scheduleId) {
+                  <li class="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                    <span class="text-slate-700">{{ range(row.startUtc, row.endUtc) }}</span>
+                    <span class="whitespace-nowrap font-semibold text-slate-800">{{ impactLabel(row) }}</span>
+                  </li>
+                }
+              </ul>
+            }
+          }
+          @if (!r.gains.length && !r.losses.length && !r.frozen.length) {
+            <p class="mt-5 rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No visit changes its coverage.</p>
+          }
+        </div>
+        <div class="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
+          <button type="button" (click)="cancelReview()" class="wp-btn-ghost">Back to editing</button>
+          <button type="button" (click)="confirmReview()" [disabled]="saving() || r.frozen.length > 0" class="wp-btn-primary">Save changes</button>
+        </div>
+      </div>
+    </div>
+  }
 </div>

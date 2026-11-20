@@ -5,6 +5,7 @@
    SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
    ============================================================================= */
 
+import { DatePipe } from '@angular/common';
 import {
   Component,
   HostListener,
@@ -17,13 +18,16 @@ import {
 } from '@angular/core';
 import {
   AuthorizationDetail,
+  AuthorizationStatusHistory,
   AuthorizationUsage,
+  AUTHORIZATION_STATUSES,
   AuthorizationVisit,
   allowedDaysLabel,
   displayStatusClass,
   displayStatusLabel,
   formatDateOnly,
   formatHours,
+  formatLimit,
 } from '../../../../core/models/authorization.model';
 import { AuthorizationService } from '../../../../core/services/authorization.service';
 import { Paginator } from '../../../../shared/ui/paginator/paginator';
@@ -39,7 +43,7 @@ function timeOf(value: string | null | undefined): string {
 /** Right-side drawer: an authorization's details, usage per window and the visits using it. */
 @Component({
   selector: 'app-authorization-usage',
-  imports: [Paginator],
+  imports: [Paginator, DatePipe],
   templateUrl: './authorization-usage.html',
 })
 export class AuthorizationUsagePanel {
@@ -57,6 +61,9 @@ export class AuthorizationUsagePanel {
   readonly visitPage = signal(1);
   readonly visitPageSize = signal(10);
   readonly visitsLoading = signal(false);
+  readonly history = signal<AuthorizationStatusHistory[]>([]);
+  readonly historyLoading = signal(false);
+  readonly fmtLimit = formatLimit;
 
   readonly statusClass = displayStatusClass;
   readonly statusLabel = displayStatusLabel;
@@ -72,6 +79,7 @@ export class AuthorizationUsagePanel {
         this.visitPage.set(1);
         this.load(id);
         this.loadVisits();
+        this.loadHistory(id);
       });
     });
   }
@@ -94,6 +102,30 @@ export class AuthorizationUsagePanel {
         this.loading.set(false);
       },
     });
+  }
+
+  private loadHistory(id: number): void {
+    this.historyLoading.set(true);
+    this.service.statusHistory(id).subscribe({
+      next: (h) => {
+        this.history.set(h);
+        this.historyLoading.set(false);
+      },
+      error: () => {
+        this.history.set([]);
+        this.historyLoading.set(false);
+      },
+    });
+  }
+
+  statusName(s: string | null): string {
+    if (!s) return '';
+    return AUTHORIZATION_STATUSES.find((x) => x.value === s)?.label ?? s;
+  }
+
+  /** "2.50 h" or "3 visits" for the drawer's authorization unit. */
+  amount(v: number | null | undefined): string {
+    return formatLimit(v ?? 0, this.detail()?.authorization.limitUnit);
   }
 
   loadVisits(): void {
