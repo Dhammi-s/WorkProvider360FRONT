@@ -282,6 +282,11 @@
           }
         }
 
+        <!-- ===================== Billing ===================== -->
+        @if (activeTab() === 'billing' && showBilling()) {
+          <app-billing-settings [canEdit]="isSuperAdmin()" [stripeReturn]="stripeReturn()" [qboReturn]="qboReturn()" />
+        }
+
         <!-- ===================== Care attributes ===================== -->
         @if (activeTab() === 'care-attributes') {
           <app-care-attributes-settings [canEdit]="canEditCareAttributes()" />

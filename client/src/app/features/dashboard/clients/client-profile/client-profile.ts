@@ -20,7 +20,7 @@ import { Alert } from '../../../../shared/ui/alert/alert';
 import { VisitCalendar } from '../../../../shared/ui/visit-calendar/visit-calendar';
 import { ScheduleEditor } from '../../../../shared/ui/schedule-editor/schedule-editor';
 import { CareLog } from '../../../../shared/ui/care-log/care-log';
-import { ClientInvoices } from '../../../../shared/ui/client-invoices/client-invoices';
+import { ClientBilling } from '../client-billing/client-billing';
 import { ConfirmDialog } from '../../../../shared/ui/confirm-dialog/confirm-dialog';
 import { ClientPayer, ResolvedRates, isPayerInEffect, rankLabel } from '../../../../core/models/payer.model';
 import { ClientPayerService } from '../../../../core/services/ClientPayerService';
@@ -43,7 +43,7 @@ function rateText(value: number | null | undefined): string {
 /** Full-page client profile: Main details, Schedule, Care Logs, Payers and Billing & Invoice. */
 @Component({
   selector: 'app-client-profile',
-  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, Alert, VisitCalendar, ScheduleEditor, CareLog, ClientInvoices, ConfirmDialog, ClientPayers, ClientCompatibilityTab],
+  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, Alert, VisitCalendar, ScheduleEditor, CareLog, ClientBilling, ConfirmDialog, ClientPayers, ClientCompatibilityTab],
   templateUrl: './client-profile.html',
 })
 export class ClientProfile {

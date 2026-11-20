@@ -74,6 +74,13 @@ export const routes: Routes = [
     title: 'About · WorkProvider360',
   },
   {
+    // Public: where Stripe Checkout (and the "Pay online" email link) returns:
+    // /pay/result?status=success|cancelled|paid&invoice={number}
+    path: 'pay/result',
+    loadComponent: () => import('./features/pay-result/pay-result').then((m) => m.PayResult),
+    title: 'Payment · WorkProvider360',
+  },
+  {
     path: 'setup',
     loadComponent: () => import('./features/auth/setup/setup').then((m) => m.Setup),
     title: 'Workspace setup · WorkProvider360',
@@ -193,6 +200,14 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/dashboard/accounting/accounting').then((m) => m.Accounting),
         title: 'Accounting · WorkProvider360',
+      },
+      {
+        // Billing & revenue cycle; the page itself hides when the billing access is None.
+        path: 'billing',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () => import('./features/dashboard/billing/billing').then((m) => m.Billing),
+        title: 'Billing · WorkProvider360',
       },
       {
         path: 'security',

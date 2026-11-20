@@ -1,0 +1,407 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     ============================================================================= -->
+<div class="space-y-4">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 text-sm font-semibold">
+      <button type="button" (click)="setView('claims')" class="rounded-lg px-4 py-1.5 transition"
+        [class]="view() === 'claims' ? 'bg-brand-600 text-white' : 'text-slate-500 hover:text-slate-800'">Claims</button>
+      <button type="button" (click)="setView('batches')" class="rounded-lg px-4 py-1.5 transition"
+        [class]="view() === 'batches' ? 'bg-brand-600 text-white' : 'text-slate-500 hover:text-slate-800'">Batches</button>
+    </div>
+    @if (view() === 'claims' && canManage()) {
+      <div class="flex flex-wrap gap-2">
+        <button type="button" (click)="openCreate()" class="wp-btn-ghost ring-1 ring-inset ring-slate-200">Create from invoices</button>
+        <button type="button" (click)="validateSelected()" [disabled]="busy() || selectedValidatable().length === 0" class="wp-btn-ghost ring-1 ring-inset ring-slate-200">
+          Validate{{ selectedValidatable().length ? ' (' + selectedValidatable().length + ')' : '' }}
+        </button>
+        <button type="button" (click)="generateBatch()" [disabled]="busy() || selectedReady().length === 0" class="wp-btn-primary">
+          Generate batch{{ selectedReady().length ? ' (' + selectedReady().length + ')' : '' }}
+        </button>
+      </div>
+    }
+  </div>
+
+  @if (error()) {
+    <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error() }}</div>
+  }
+
+  @if (view() === 'claims') {
+    <div class="wp-card overflow-hidden !p-0">
+      <div class="flex flex-wrap items-end gap-3 border-b border-slate-100 px-6 py-4">
+        <div class="min-w-[180px] flex-1">
+          <label class="wp-label">Search</label>
+          <input type="text" class="wp-input !py-2" placeholder="Claim, invoice, client…" [ngModel]="search()" (ngModelChange)="onSearch($event)" (keyup.enter)="applyFilters()" />
+        </div>
+        <div>
+          <label class="wp-label">Status</label>
+          <select class="wp-input !w-auto !py-2" [disabled]="workQueue()" [ngModel]="status()" (ngModelChange)="status.set($event); applyFilters()">
+            <option value="">All statuses</option>
+            @for (s of statuses; track s.value) { <option [value]="s.value">{{ s.label }}</option> }
+          </select>
+        </div>
+        <div>
+          <app-payer-select label="Payer" [value]="payerId()" (valueChange)="payerId.set($event); applyFilters()" />
+        </div>
+        <div class="w-52">
+          <app-client-picker label="Client" clearLabel="Clear" [client]="client()" (clientChange)="client.set($event); applyFilters()" />
+        </div>
+        <div>
+          <label class="wp-label">Service from</label>
+          <input type="date" class="wp-input !py-2" [ngModel]="fromDate()" (ngModelChange)="fromDate.set($event ?? ''); applyFilters()" />
+        </div>
+        <div>
+          <label class="wp-label">To</label>
+          <input type="date" class="wp-input !py-2" [ngModel]="toDate()" (ngModelChange)="toDate.set($event ?? ''); applyFilters()" />
+        </div>
+        <label class="flex items-center gap-2 pb-2 text-sm font-semibold text-slate-700" title="Rejected, Denied and Draft claims with errors">
+          <input type="checkbox" [ngModel]="workQueue()" (ngModelChange)="workQueue.set($event); applyFilters()" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+          Work queue
+        </label>
+        <button type="button" (click)="resetFilters()" class="wp-link pb-2 text-sm">Reset</button>
+      </div>
+
+      @if (loading()) {
+        <div class="flex items-center justify-center py-16 text-slate-400"><span class="text-sm">Loading claims…</span></div>
+      } @else if (items().length === 0) {
+        <div class="py-16 text-center">
+          <p class="text-sm text-slate-500">No claims match the filters.</p>
+          <p class="mt-1 text-xs text-slate-400">Claims are created when an invoice for a payer with claim format "Electronic claim (837P)" is finalized.</p>
+        </div>
+      } @else {
+        <div class="max-h-[60vh] overflow-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-sm">
+            <thead class="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <tr>
+                @if (canManage()) {
+                  <th class="w-10 px-4 py-3"><input type="checkbox" [checked]="allSelected()" (change)="toggleAll()" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" /></th>
+                }
+                <th class="px-4 py-3">Claim</th>
+                <th class="px-4 py-3">Client</th>
+                <th class="px-4 py-3">Payer</th>
+                <th class="px-4 py-3">Invoice</th>
+                <th class="px-4 py-3">Service dates</th>
+                <th class="px-4 py-3 text-right">Charge</th>
+                <th class="px-4 py-3 text-right">Paid</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-4 py-3">Last update</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (c of items(); track c.claimId) {
+                <tr class="hover:bg-slate-50/60" [class.bg-brand-50]="selected().has(c.claimId)">
+                  @if (canManage()) {
+                    <td class="px-4 py-3"><input type="checkbox" [checked]="selected().has(c.claimId)" (change)="toggle(c.claimId)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" /></td>
+                  }
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <button type="button" (click)="drawerId.set(c.claimId)" class="font-mono text-xs font-semibold text-slate-800 hover:text-brand-700">{{ c.claimNumber }}</button>
+                    @if (c.frequencyCode !== '1') {
+                      <span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">{{ freqLabel(c.frequencyCode) }}</span>
+                    }
+                    <div class="text-xs text-slate-400">{{ c.lineCount }} line{{ c.lineCount === 1 ? '' : 's' }}{{ c.authorizationNumber ? ' · auth ' + c.authorizationNumber : '' }}</div>
+                  </td>
+                  <td class="px-4 py-3 text-slate-700">{{ c.clientName }}</td>
+                  <td class="px-4 py-3 text-slate-700">{{ c.payerName }}</td>
+                  <td class="px-4 py-3 whitespace-nowrap font-mono text-xs text-slate-500">{{ c.invoiceNumber || '—' }}</td>
+                  <td class="px-4 py-3 whitespace-nowrap text-slate-600">{{ fmtDate(c.serviceFrom) }} – {{ fmtDate(c.serviceTo) }}</td>
+                  <td class="px-4 py-3 text-right font-semibold text-slate-900">{{ money(c.totalCharge) }}</td>
+                  <td class="px-4 py-3 text-right text-slate-600">{{ money(c.paidAmount) }}</td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusClass(c.status)">{{ statusLabel(c.status) }}</span>
+                    @if (errorCount(c); as n) {
+                      <button type="button" (click)="drawerId.set(c.claimId)" class="mt-1 block text-[11px] font-semibold text-red-600 hover:underline">{{ n }} error{{ n === 1 ? '' : 's' }}</button>
+                    }
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap text-slate-500">{{ fmtDate(c.lastStatusOn || c.createdOn) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="border-t border-slate-100 px-6 py-3 text-sm text-slate-500">
+          {{ total() }} claim{{ total() === 1 ? '' : 's' }} · total charge <span class="font-semibold text-slate-700">{{ money(totalCharge()) }}</span>
+          @if (selected().size) { · <span class="font-semibold text-slate-700">{{ selected().size }} selected</span> ({{ selectedReady().length }} ready) }
+        </p>
+        <app-paginator [total]="total()" [page]="page()" [pageSize]="pageSize()" (pageChange)="onPage($event)" (pageSizeChange)="onPageSize($event)" />
+      }
+    </div>
+  } @else {
+    <!-- Batches -->
+    <div class="wp-card overflow-hidden !p-0">
+      <div class="flex flex-wrap items-end gap-3 border-b border-slate-100 px-6 py-4">
+        <div class="flex-1">
+          <h3 class="text-base font-bold text-slate-900">Claim batches (837P files)</h3>
+          <p class="text-xs text-slate-500">Download a batch to upload it to your clearinghouse yourself, or let SFTP send it.</p>
+        </div>
+        <div>
+          <label class="wp-label">Status</label>
+          <select class="wp-input !w-auto !py-2" [ngModel]="batchStatus()" (ngModelChange)="batchStatus.set($event); batchPage.set(1); loadBatches()">
+            <option value="">All</option>
+            @for (s of ['Generated', 'Uploaded', 'Accepted', 'PartiallyAccepted', 'Rejected']; track s) { <option [value]="s">{{ s }}</option> }
+          </select>
+        </div>
+        <button type="button" (click)="loadBatches()" class="wp-link pb-2 text-sm">Refresh</button>
+      </div>
+      @if (batchLoading()) {
+        <div class="flex items-center justify-center py-16 text-slate-400"><span class="text-sm">Loading batches…</span></div>
+      } @else if (batches().length === 0) {
+        <p class="py-16 text-center text-sm text-slate-500">No batches yet. Select Ready claims and use "Generate batch".</p>
+      } @else {
+        <div class="max-h-[60vh] overflow-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-sm">
+            <thead class="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <tr>
+                <th class="px-4 py-3">Control no.</th>
+                <th class="px-4 py-3">File</th>
+                <th class="px-4 py-3 text-right">Claims</th>
+                <th class="px-4 py-3 text-right">Charge</th>
+                <th class="px-4 py-3">Transport</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-4 py-3">Created</th>
+                <th class="px-4 py-3 text-right"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (b of batches(); track b.submissionId) {
+                <tr class="hover:bg-slate-50/60">
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <button type="button" (click)="openBatch(b)" class="font-mono text-xs font-semibold text-slate-800 hover:text-brand-700">{{ b.interchangeControlNumber }}</button>
+                    @if (b.usageIndicator === 'T') { <span class="ml-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">TEST</span> }
+                  </td>
+                  <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ b.fileName }}</td>
+                  <td class="px-4 py-3 text-right text-slate-700">{{ b.claimCount }}</td>
+                  <td class="px-4 py-3 text-right font-semibold text-slate-900">{{ money(b.totalCharge) }}</td>
+                  <td class="px-4 py-3 text-slate-600">{{ b.transport === 'Sftp' ? 'SFTP' : 'Download' }}</td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="subClass(b.status)">{{ b.status }}</span>
+                    @if (b.lastError) { <div class="mt-1 max-w-[220px] truncate text-[11px] text-red-600" [title]="b.lastError">{{ b.lastError }}</div> }
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap text-slate-500">{{ fmtDate(b.createdOn) }}{{ b.createdByName ? ' · ' + b.createdByName : '' }}</td>
+                  <td class="px-4 py-3 text-right whitespace-nowrap">
+                    @if (batchBusyId() === b.submissionId) {
+                      <span class="text-xs text-slate-400">Working…</span>
+                    } @else if (canManage()) {
+                      <button type="button" (click)="downloadBatch(b.submissionId, b.fileName)" class="wp-link text-sm">Download</button>
+                      @if (b.transport === 'Sftp' && b.status === 'Generated') {
+                        <button type="button" (click)="uploadBatch(b)" class="ml-3 text-sm font-semibold text-slate-600 hover:text-slate-900">Upload now</button>
+                      }
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-paginator [total]="batchTotal()" [page]="batchPage()" [pageSize]="batchPageSize()" (pageChange)="onBatchPage($event)" (pageSizeChange)="onBatchPageSize($event)" />
+      }
+    </div>
+  }
+</div>
+
+<!-- Claim drawer -->
+@if (drawerId(); as id) {
+  <app-claim-drawer [claimId]="id" (closed)="drawerId.set(null)" (changed)="load()" (openClaim)="drawerId.set($event)" />
+}
+
+<!-- Validation results -->
+@if (validation(); as v) {
+  <div class="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-slate-900/50" (click)="validation.set(null)"></div>
+    <div class="relative z-10 flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl">
+      <div class="border-b border-slate-100 px-6 py-4">
+        <h3 class="text-lg font-bold text-slate-900">Validation results</h3>
+        <p class="text-sm text-slate-500">{{ validCount(v) }} of {{ v.length }} claim{{ v.length === 1 ? '' : 's' }} valid and Ready.</p>
+      </div>
+      <div class="flex-1 space-y-3 overflow-y-auto px-6 py-4">
+        @for (r of v; track r.claimId) {
+          <div class="rounded-xl border p-3" [class]="r.errors.length ? 'border-red-200 bg-red-50/50' : 'border-emerald-200 bg-emerald-50/50'">
+            <div class="flex items-center justify-between gap-2">
+              <button type="button" (click)="validation.set(null); drawerId.set(r.claimId)" class="font-mono text-sm font-semibold text-slate-800 hover:text-brand-700">{{ r.claimNumber }}</button>
+              <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusClass(r.status)">{{ statusLabel(r.status) }}</span>
+            </div>
+            @for (g of grouped(r.errors); track g.level) {
+              <p class="mt-2 text-xs font-semibold text-red-800">{{ g.level }}</p>
+              <ul class="list-disc pl-5 text-sm text-red-700">
+                @for (m of g.messages; track $index) { <li>{{ m }}</li> }
+              </ul>
+            }
+          </div>
+        }
+      </div>
+      <div class="flex justify-end border-t border-slate-100 px-6 py-4">
+        <button type="button" (click)="validation.set(null)" class="wp-btn-primary">Close</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Batch result -->
+@if (batchResult() || batchError()) {
+  <div class="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-slate-900/50" (click)="batchResult.set(null); batchError.set(null)"></div>
+    <div class="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      @if (batchResult(); as b) {
+        <h3 class="text-lg font-bold text-slate-900">Batch {{ b.interchangeControlNumber }} generated</h3>
+        <p class="mt-1 text-sm text-slate-600">{{ b.claimCount }} claim{{ b.claimCount === 1 ? '' : 's' }} · {{ money(b.totalCharge) }} · <span class="font-mono text-xs">{{ b.fileName }}</span></p>
+        @if (b.transport === 'Download') {
+          <p class="mt-3 text-sm text-slate-600">Download the 837P file and upload it to your clearinghouse. The batch is marked Uploaded when you download it.</p>
+        } @else if (b.status === 'Uploaded') {
+          <p class="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Uploaded to the clearinghouse by SFTP.</p>
+        } @else {
+          <p class="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Queued for SFTP: the background worker will retry the upload.
+            @if (b.uploadError) { <span class="mt-1 block text-xs">Last error: {{ b.uploadError }}</span> }
+          </p>
+        }
+        <div class="mt-5 flex justify-end gap-2">
+          <button type="button" (click)="batchResult.set(null)" class="wp-btn-ghost">Close</button>
+          @if (b.transport === 'Download') {
+            <button type="button" (click)="downloadBatch(b.submissionId, b.fileName)" [disabled]="batchBusyId() === b.submissionId" class="wp-btn-primary">Download file</button>
+          }
+        </div>
+      } @else if (batchError(); as e) {
+        <h3 class="text-lg font-bold text-slate-900">The batch was not generated</h3>
+        <p class="mt-1 text-sm text-red-700">{{ e.message }}</p>
+        @if (e.errors.length) {
+          @for (g of grouped(e.errors); track g.level) {
+            <p class="mt-2 text-xs font-semibold text-red-800">{{ g.level }}</p>
+            <ul class="list-disc pl-5 text-sm text-red-700">@for (m of g.messages; track $index) { <li>{{ m }}</li> }</ul>
+          }
+        }
+        <p class="mt-3 text-xs text-slate-500">Claims that are no longer valid went back to Draft. Fix them and validate again.</p>
+        <div class="mt-5 flex justify-end">
+          <button type="button" (click)="batchError.set(null)" class="wp-btn-primary">Close</button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- Create from invoices -->
+@if (createOpen()) {
+  <div class="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-slate-900/50" (click)="createOpen.set(false)"></div>
+    <div class="relative z-10 flex max-h-[88vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl">
+      <div class="border-b border-slate-100 px-6 py-4">
+        <h3 class="text-lg font-bold text-slate-900">Create claims from invoices</h3>
+        <p class="text-sm text-slate-500">Finalized invoices of payers set to "Electronic claim (837P)". Each invoice is split into claims by place of service, authorization and the payer's line limit, then validated.</p>
+      </div>
+      @if (createResult(); as r) {
+        <div class="flex-1 space-y-3 overflow-y-auto px-6 py-4">
+          <p class="text-sm text-slate-700">{{ r.claims.length }} claim{{ r.claims.length === 1 ? '' : 's' }} created.</p>
+          @for (w of r.warnings; track $index) {
+            <p class="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{{ w }}</p>
+          }
+          @for (c of r.claims; track c.claimId) {
+            <div class="rounded-xl border p-3" [class]="c.errors.length ? 'border-red-200 bg-red-50/50' : 'border-emerald-200 bg-emerald-50/50'">
+              <div class="flex items-center justify-between">
+                <button type="button" (click)="createOpen.set(false); drawerId.set(c.claimId)" class="font-mono text-sm font-semibold text-slate-800 hover:text-brand-700">{{ c.claimNumber }}</button>
+                <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusClass(c.status)">{{ statusLabel(c.status) }}</span>
+              </div>
+              @for (g of grouped(c.errors); track g.level) {
+                <p class="mt-2 text-xs font-semibold text-red-800">{{ g.level }}</p>
+                <ul class="list-disc pl-5 text-sm text-red-700">@for (m of g.messages; track $index) { <li>{{ m }}</li> }</ul>
+              }
+            </div>
+          }
+        </div>
+        <div class="flex justify-end border-t border-slate-100 px-6 py-4">
+          <button type="button" (click)="createOpen.set(false)" class="wp-btn-primary">Done</button>
+        </div>
+      } @else {
+        <div class="flex items-center gap-2 border-b border-slate-100 px-6 py-3">
+          <input class="wp-input !py-1.5 text-sm" placeholder="Search invoice / client…" [ngModel]="invSearch()" (ngModelChange)="invSearch.set($event)" (keyup.enter)="loadClaimableInvoices()" />
+          <button type="button" (click)="loadClaimableInvoices()" class="wp-btn-ghost !py-1.5 text-sm ring-1 ring-inset ring-slate-200">Search</button>
+        </div>
+        @if (createError()) {
+          <div class="mx-6 mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{{ createError() }}</div>
+        }
+        <div class="flex-1 overflow-y-auto">
+          @if (invLoading()) {
+            <p class="py-10 text-center text-sm text-slate-400">Loading…</p>
+          } @else if (invoiceRows().length === 0) {
+            <p class="py-10 text-center text-sm text-slate-400">No finalized 837P invoices found.</p>
+          } @else {
+            <table class="min-w-full divide-y divide-slate-100 text-sm">
+              <thead class="sticky top-0 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <tr><th class="w-10 px-4 py-2"></th><th class="px-4 py-2">Invoice</th><th class="px-4 py-2">Client</th><th class="px-4 py-2">Payer</th><th class="px-4 py-2">Period</th><th class="px-4 py-2 text-right">Amount</th></tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                @for (i of invoiceRows(); track i.clientInvoiceId) {
+                  <tr class="cursor-pointer hover:bg-slate-50/60" (click)="toggleInvoice(i.clientInvoiceId)">
+                    <td class="px-4 py-2"><input type="checkbox" [checked]="invSelected().has(i.clientInvoiceId)" (click)="$event.stopPropagation()" (change)="toggleInvoice(i.clientInvoiceId)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" /></td>
+                    <td class="px-4 py-2 font-mono text-xs text-slate-700">{{ i.invoiceNumber }}</td>
+                    <td class="px-4 py-2 text-slate-700">{{ i.clientName }}</td>
+                    <td class="px-4 py-2 text-slate-600">{{ i.payerName }}</td>
+                    <td class="px-4 py-2 whitespace-nowrap text-slate-600">{{ periodLabel(i.periodFromUtc, i.periodToUtc) }}</td>
+                    <td class="px-4 py-2 text-right font-semibold text-slate-800">{{ money(i.amount) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+        <div class="flex items-center justify-between border-t border-slate-100 px-6 py-4">
+          <span class="text-sm text-slate-500">{{ invSelected().size }} selected</span>
+          <div class="flex gap-2">
+            <button type="button" (click)="createOpen.set(false)" class="wp-btn-ghost">Cancel</button>
+            <button type="button" (click)="createClaims()" [disabled]="busy() || invSelected().size === 0" class="wp-btn-primary">{{ busy() ? 'Creating…' : 'Create claims' }}</button>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- Batch detail -->
+@if (batchDetail(); as bd) {
+  <div class="fixed inset-0 z-[60] flex justify-end" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-slate-900/40" (click)="batchDetail.set(null)"></div>
+    <div class="relative z-10 flex h-full w-full max-w-xl flex-col bg-white shadow-2xl">
+      <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-6 py-4">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Claim batch</p>
+          <h2 class="mt-0.5 font-mono text-lg font-bold text-slate-900">{{ bd.submission.interchangeControlNumber }}</h2>
+        </div>
+        <button type="button" (click)="batchDetail.set(null)" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close">
+          <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+        </button>
+      </div>
+      <div class="flex-1 overflow-y-auto px-6 py-5">
+        @let s = bd.submission;
+        <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+          <dt class="text-slate-400">Status</dt><dd><span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="subClass(s.status)">{{ s.status }}</span></dd>
+          <dt class="text-slate-400">File</dt><dd class="font-mono text-xs text-slate-700">{{ s.fileName }}</dd>
+          <dt class="text-slate-400">Group control</dt><dd class="font-mono text-xs text-slate-700">{{ s.groupControlNumber || '—' }}</dd>
+          <dt class="text-slate-400">Transport</dt><dd class="text-slate-700">{{ s.transport }}{{ s.usageIndicator === 'T' ? ' · test' : s.usageIndicator === 'P' ? ' · production' : '' }}</dd>
+          <dt class="text-slate-400">Uploaded</dt><dd class="text-slate-700">{{ s.uploadedOn ? fmtDate(s.uploadedOn) : '—' }}{{ s.uploadAttempts ? ' · ' + s.uploadAttempts + ' attempt(s)' : '' }}</dd>
+          <dt class="text-slate-400">Downloaded</dt><dd class="text-slate-700">{{ s.downloadedOn ? fmtDate(s.downloadedOn) : '—' }}</dd>
+          <dt class="text-slate-400">Acknowledged</dt><dd class="text-slate-700">{{ s.ackOn ? fmtDate(s.ackOn) : '—' }}</dd>
+          <dt class="text-slate-400">Total charge</dt><dd class="font-semibold text-slate-900">{{ money(s.totalCharge) }}</dd>
+        </dl>
+        @if (s.lastError) { <p class="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{{ s.lastError }}</p> }
+        <h3 class="mt-6 text-xs font-bold uppercase tracking-wide text-slate-400">Claims</h3>
+        <ul class="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-100">
+          @for (c of bd.claims; track c.claimId) {
+            <li class="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+              <button type="button" (click)="batchDetail.set(null); drawerId.set(c.claimId)" class="text-left">
+                <span class="font-mono text-xs font-semibold text-slate-800">{{ c.claimNumber }}</span>
+                <span class="ml-2 text-slate-600">{{ c.clientName }} · {{ c.payerName }}</span>
+              </button>
+              <span class="flex items-center gap-2 whitespace-nowrap">
+                <span class="text-slate-700">{{ money(c.totalCharge) }}</span>
+                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" [class]="statusClass(c.status)">{{ statusLabel(c.status) }}</span>
+              </span>
+            </li>
+          }
+        </ul>
+        @if (canManage()) {
+          <div class="mt-4 flex gap-2">
+            <button type="button" (click)="downloadBatch(s.submissionId, s.fileName)" class="wp-btn-ghost ring-1 ring-inset ring-slate-200">Download file</button>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
