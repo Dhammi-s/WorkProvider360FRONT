@@ -223,6 +223,29 @@ export const routes: Routes = [
         title: 'Scheduler · WorkProvider360',
       },
       {
+        path: 'master-schedules',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () =>
+          import('./features/dashboard/master-schedules/master-schedules').then((m) => m.MasterSchedules),
+        title: 'Master schedules · WorkProvider360',
+      },
+      {
+        path: 'open-shifts',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },
+        loadComponent: () => import('./features/dashboard/open-shifts/open-shifts').then((m) => m.OpenShifts),
+        title: 'Open shifts · WorkProvider360',
+      },
+      {
+        path: 'visit-exceptions',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () =>
+          import('./features/dashboard/visit-exceptions/visit-exceptions').then((m) => m.VisitExceptions),
+        title: 'Missed clock-ins · WorkProvider360',
+      },
+      {
         path: 'meetings',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User', 'Client'] },

@@ -52,6 +52,9 @@
           <p class="text-sm font-medium text-slate-500">Active</p>
           <p class="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">{{ summary()?.active ?? '—' }}</p>
           <p class="mt-1 text-xs text-slate-400">Available for scheduling</p>
+          @if ((summary()?.pending ?? 0) + (summary()?.hold ?? 0) > 0) {
+            <p class="mt-0.5 text-xs font-semibold text-amber-700">{{ summary()?.pending ?? 0 }} pending · {{ summary()?.hold ?? 0 }} on hold</p>
+          }
         </div>
         <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-500/10 text-accent-600">
           <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4m5.6-3.1A12 12 0 0112 2.9 12 12 0 003.4 7.9 12 12 0 003 12c0 5.2 3.4 9.6 8 11 4.6-1.4 8-5.8 8-11 0-1.4-.2-2.8-.6-4.1z" /></svg>
@@ -156,9 +159,9 @@
                 <td class="px-4 py-3 whitespace-nowrap text-slate-600">{{ a.authorizationNumber || '—' }}</td>
                 <td class="px-4 py-3 whitespace-nowrap text-slate-600">{{ fmtDate(a.startDate) }}</td>
                 <td class="px-4 py-3 whitespace-nowrap text-slate-600">{{ fmtDate(a.endDate) }}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-right" [class]="a.maxHoursPerDay == null ? 'text-slate-400' : 'text-slate-700'">{{ fmtHours(a.maxHoursPerDay) }}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-right" [class]="a.maxHoursPerWeek == null ? 'text-slate-400' : 'text-slate-700'">{{ fmtHours(a.maxHoursPerWeek) }}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-right" [class]="a.maxHoursPerMonth == null ? 'text-slate-400' : 'text-slate-700'">{{ fmtHours(a.maxHoursPerMonth) }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-right" [class]="a.maxHoursPerDay == null ? 'text-slate-400' : 'text-slate-700'">{{ fmtLimit(a.maxHoursPerDay, a.limitUnit) }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-right" [class]="a.maxHoursPerWeek == null ? 'text-slate-400' : 'text-slate-700'">{{ fmtLimit(a.maxHoursPerWeek, a.limitUnit) }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-right" [class]="a.maxHoursPerMonth == null ? 'text-slate-400' : 'text-slate-700'">{{ fmtLimit(a.maxHoursPerMonth, a.limitUnit) }}</td>
                 <td class="px-4 py-3 whitespace-nowrap text-right">
                   <div class="text-slate-700">{{ usedLabel(a) }}</div>
                   @if (a.totalAuthorizedHours) {
@@ -168,7 +171,10 @@
                   }
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap">
-                  <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusClass(a.displayStatus)">{{ statusLabel(a.displayStatus) }}</span>
+                  <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusClass(a.displayStatus)" [title]="a.statusNote || ''">{{ statusLabel(a.displayStatus) }}</span>
+                  @if (a.statusNote && (a.displayStatus === 'Pending' || a.displayStatus === 'Hold')) {
+                    <div class="mt-1 max-w-[180px] truncate text-[11px] text-slate-400" [title]="a.statusNote">{{ a.statusNote }}</div>
+                  }
                 </td>
                 <td class="px-4 py-3 text-right whitespace-nowrap">
                   <div class="relative inline-flex items-center gap-1">
@@ -206,11 +212,13 @@
     <div class="fixed inset-0 z-40" (click)="menuFor.set(null)"></div>
     <div class="fixed z-50 w-44 overflow-hidden rounded-xl border border-slate-100 bg-white text-left shadow-card"
       [style.top.px]="m.top" [style.left.px]="m.left">
-      @if (m.auth.status === 'Active') {
-        <button type="button" (click)="setStatus(m.auth, 'Inactive')" class="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Deactivate</button>
-      } @else {
-        <button type="button" (click)="setStatus(m.auth, 'Active')" class="block w-full px-3 py-2 text-left text-sm text-emerald-700 hover:bg-slate-50">Activate</button>
+      <p class="px-3 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Set status</p>
+      @for (st of authStatuses; track st.value) {
+        @if (st.value !== m.auth.status) {
+          <button type="button" (click)="askStatus(m.auth, st.value)" class="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">{{ st.label }}</button>
+        }
       }
+      <div class="border-t border-slate-100"></div>
       <button type="button" (click)="askDelete(m.auth)" class="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">Delete</button>
     </div>
   }
@@ -239,6 +247,30 @@
       (cancelled)="confirmDelete.set(null)" />
   }
 
+  @if (statusDialog(); as sd) {
+    <div class="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-slate-900/50" (click)="statusDialog.set(null)"></div>
+      <div class="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <h3 class="text-lg font-bold text-slate-900">Set {{ sd.auth.authorizationName }} to {{ sd.status === 'Hold' ? 'On hold' : sd.status }}</h3>
+        <p class="mt-1 text-sm text-slate-500">
+          @switch (sd.status) {
+            @case ('Pending') { Pending authorizations are waiting for the payer: visits are not allocated to them until they are Active. }
+            @case ('Hold') { On hold stops allocating visits to this authorization until it is Active again. }
+            @case ('Inactive') { Inactive authorizations stay on record for the visits that use them, but new visits will not use them. }
+            @default { Active authorizations cover visits within their period and limits. }
+          }
+        </p>
+        <label class="wp-label mt-4">Note {{ noteRequired(sd.status) ? '*' : '(optional)' }}</label>
+        <textarea rows="3" maxlength="500" class="wp-input" [ngModel]="statusNote()" (ngModelChange)="statusNote.set($event)" placeholder="e.g. Payer review until 12/15"></textarea>
+        @if (statusDialogError()) { <p class="mt-1 text-xs text-red-600">{{ statusDialogError() }}</p> }
+        <div class="mt-5 flex justify-end gap-2">
+          <button type="button" (click)="statusDialog.set(null)" class="wp-btn-ghost">Cancel</button>
+          <button type="button" (click)="confirmStatus()" [disabled]="busy()" class="wp-btn-primary">Save status</button>
+        </div>
+      </div>
+    </div>
+  }
+
   @if (deleteBlocked(); as b) {
     <app-confirm-dialog
       title="Could not delete the authorization"
@@ -246,7 +278,7 @@
       [details]="b.auth.status === 'Active' ? ['Deactivate it instead: it stays on record for the visits that use it, but new visits will not use it.'] : []"
       [confirmLabel]="b.auth.status === 'Active' ? 'Deactivate instead' : null"
       cancelLabel="Close"
-      (confirmed)="setStatus(b.auth, 'Inactive')"
+      (confirmed)="askStatus(b.auth, 'Inactive')"
       (cancelled)="deleteBlocked.set(null)" />
   }
 </section>

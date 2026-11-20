@@ -14,6 +14,8 @@ import {
   AuthorizationAccess,
   AuthorizationDetail,
   AuthorizationFormOptions,
+  AuthorizationImpact,
+  AuthorizationStatusHistory,
   AuthorizationListQuery,
   AuthorizationStatus,
   AuthorizationSummary,
@@ -113,9 +115,24 @@ export class AuthorizationService {
       .pipe(map((r) => this.unwrap(r)));
   }
 
-  setStatus(id: number, status: AuthorizationStatus): Observable<AuthorizationDetail> {
+  /** Note is required for Pending / Hold. */
+  setStatus(id: number, status: AuthorizationStatus, note: string | null = null): Observable<AuthorizationDetail> {
     return this.http
-      .patch<ApiResponse<AuthorizationDetail>>(`${this.baseUrl}/${id}/status`, { status })
+      .patch<ApiResponse<AuthorizationDetail>>(`${this.baseUrl}/${id}/status`, { status, note })
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  /** Status changes, newest first (statusFrom null on the creation row). */
+  statusHistory(id: number): Observable<AuthorizationStatusHistory[]> {
+    return this.http
+      .get<ApiResponse<AuthorizationStatusHistory[]>>(`${this.baseUrl}/${id}/status-history`)
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  /** What an edit would change for the client's visits (gains / losses / frozen invoiced shares). */
+  impact(id: number, request: SaveAuthorizationRequest): Observable<AuthorizationImpact> {
+    return this.http
+      .post<ApiResponse<AuthorizationImpact>>(`${this.baseUrl}/${id}/impact`, request)
       .pipe(map((r) => this.unwrap(r)));
   }
 

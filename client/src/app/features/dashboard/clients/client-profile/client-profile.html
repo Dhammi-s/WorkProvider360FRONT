@@ -115,6 +115,11 @@
           }
         }
 
+        <!-- COMPATIBILITY -->
+        @if (section() === 'compatibility') {
+          <app-client-compatibility [clientId]="clientId" [canManage]="canManage()" />
+        }
+
         <!-- PAYERS -->
         @if (section() === 'payers') {
           <app-client-payers [clientId]="clientId" [canManage]="canManage()" (changed)="onPayersChanged($event)" />

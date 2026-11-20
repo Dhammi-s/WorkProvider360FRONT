@@ -39,6 +39,34 @@ import { CareLog } from '../../../shared/ui/care-log/care-log';
 import { StarRating } from '../../../shared/ui/star-rating/star-rating';
 import { FeedbackService } from '../../../core/services/feedback.service';
 import { VisitFeedback } from '../../../core/models/feedback.model';
+import { apiErrorLines } from '../../../core/models/api-response.model';
+import { SeriesPattern } from '../../../core/models/schedule-series.model';
+import { addDaysDateOnly, localDateOnly } from '../../../core/models/scheduler.model';
+import { ScheduleSeriesService } from '../../../core/services/schedule-series.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { CaregiverSuggestions } from '../../../shared/ui/caregiver-suggestions/caregiver-suggestions';
+
+type RepeatMode = 'None' | SeriesPattern;
+
+/** Weekday buttons of the Repeat section (0 = Sunday, the API's numbering). */
+const REPEAT_DAYS = [
+  { value: 1, label: 'Mon' },
+  { value: 2, label: 'Tue' },
+  { value: 3, label: 'Wed' },
+  { value: 4, label: 'Thu' },
+  { value: 5, label: 'Fri' },
+  { value: 6, label: 'Sat' },
+  { value: 0, label: 'Sun' },
+];
+
+/** Tech filter key for open shifts (no caregiver yet). */
+const OPEN_KEY = -1;
+const OPEN_COLOR = {
+  dot: 'bg-sky-400',
+  text: 'text-sky-700',
+  ring: 'ring-sky-300',
+  bar: 'border-l-sky-400 bg-white border border-dashed border-sky-300',
+};
 
 type CalView = 'week' | 'day' | 'month';
 
@@ -67,7 +95,8 @@ const PALETTE = [
   { dot: 'bg-fuchsia-500', text: 'text-fuchsia-700', ring: 'ring-fuchsia-300', bar: 'border-l-fuchsia-500 bg-fuchsia-50' },
 ];
 
-function colorFor(userId: number) {
+function colorFor(userId: number | null) {
+  if (userId == null || userId === OPEN_KEY) return OPEN_COLOR;
   return PALETTE[Math.abs(userId) % PALETTE.length];
 }
 
@@ -101,7 +130,7 @@ const HOUR_PX = 56;
 
 @Component({
   selector: 'app-scheduler',
-  imports: [FormsModule, DatePipe, DecimalPipe, Alert, SignaturePad, CareLog, StarRating],
+  imports: [FormsModule, DatePipe, DecimalPipe, Alert, SignaturePad, CareLog, StarRating, CaregiverSuggestions],
   templateUrl: './scheduler.html',
 })
 export class Scheduler {
@@ -111,6 +140,8 @@ export class Scheduler {
   private readonly clients = inject(ClientService);
   private readonly serviceTypeService = inject(ServiceTypeService);
   private readonly payerService = inject(ClientPayerService);
+  private readonly seriesService = inject(ScheduleSeriesService);
+  private readonly toast = inject(ToastService);
   readonly locationTracking = inject(LocationTrackingService);
 
   readonly myUserId = this.auth.user()?.userId ?? 0;
@@ -138,7 +169,22 @@ export class Scheduler {
   readonly editingId = signal<number | null>(null);
   readonly formBusy = signal(false);
   readonly formError = signal('');
+  /** errors[] of a refused save (e.g. 409 compatibility / authorization issues). */
+  readonly formErrorDetails = signal<string[]>([]);
   readonly schedConflicts = signal<ScheduleConflict[] | null>(null);
+  /** Overlapping visits in the conflict box. */
+  readonly overlapConflicts = computed(() => (this.schedConflicts() ?? []).filter((c) => !c.kind || c.kind === 'Overlap'));
+  /** Unavailable / Compatibility rows in the conflict box. */
+  readonly otherConflicts = computed(() => (this.schedConflicts() ?? []).filter((c) => !!c.kind && c.kind !== 'Overlap'));
+  /** A Compatibility row under the Block policy: saving would be refused. */
+  readonly blockingConflict = computed(() => (this.schedConflicts() ?? []).some((c) => !!c.blocking));
+  // Open shift + repeat (create) + suggestions drawer.
+  readonly fOpenShift = signal(false);
+  readonly fRepeat = signal<RepeatMode>('None');
+  readonly fRepeatDays = signal<Set<number>>(new Set());
+  readonly fRepeatUntil = signal('');
+  readonly repeatDays = REPEAT_DAYS;
+  readonly suggestOpen = signal(false);
   readonly fTitle = signal('');
   readonly fCustomer = signal('');
   readonly fLocation = signal('');
@@ -372,8 +418,9 @@ export class Scheduler {
   readonly techs = computed<Tech[]>(() => {
     const map = new Map<number, Tech>();
     for (const s of this.schedules()) {
-      if (!map.has(s.assignedUserId)) {
-        map.set(s.assignedUserId, { userId: s.assignedUserId, name: s.assignedUserName, color: colorFor(s.assignedUserId) });
+      const key = s.assignedUserId ?? OPEN_KEY;
+      if (!map.has(key)) {
+        map.set(key, { userId: key, name: s.assignedUserId == null ? 'Open shifts' : s.assignedUserName, color: colorFor(key) });
       }
     }
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
@@ -394,7 +441,7 @@ export class Scheduler {
   readonly visible = computed<Schedule[]>(() => {
     const f = this.techFilter();
     const rows = this.schedules();
-    return f.size === 0 ? rows : rows.filter((s) => f.has(s.assignedUserId));
+    return f.size === 0 ? rows : rows.filter((s) => f.has(s.assignedUserId ?? OPEN_KEY));
   });
 
   colorFor = colorFor;
@@ -535,6 +582,12 @@ export class Scheduler {
     this.clientQuery.set("");
     this.eligible.set(null);
     this.fNotifyManager.set(false);
+    this.fOpenShift.set(false);
+    this.fRepeat.set('None');
+    this.fRepeatDays.set(new Set([base.getDay()]));
+    this.fRepeatUntil.set('');
+    this.formErrorDetails.set([]);
+    this.schedConflicts.set(null);
     // Prime defaults from settings.
     this.service.getSettings().subscribe({
       next: (s) => {
@@ -564,6 +617,10 @@ export class Scheduler {
     this.fCustomer.set(s.customerName ?? '');
     this.fLocation.set(s.location ?? '');
     this.fAssignee.set(s.assignedUserId);
+    this.fOpenShift.set(!!s.isOpenShift || s.assignedUserId == null);
+    this.fRepeat.set('None');
+    this.formErrorDetails.set([]);
+    this.schedConflicts.set(null);
     this.fDate.set(`${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`);
     this.fStart.set(`${pad(start.getHours())}:${pad(start.getMinutes())}`);
     this.fEnd.set(`${pad(end.getHours())}:${pad(end.getMinutes())}`);
@@ -595,14 +652,19 @@ export class Scheduler {
       this.formError.set('Title is required.');
       return;
     }
-    if (this.fAssignee() == null) {
-      this.formError.set('Please choose who to assign.');
+    this.formErrorDetails.set([]);
+    if (!this.fOpenShift() && this.fAssignee() == null) {
+      this.formError.set('Please choose who to assign, or make it an open shift.');
       return;
     }
     const startUtc = `${this.fDate()}T${this.fStart()}:00`;
     const endUtc = `${this.fDate()}T${this.fEnd()}:00`;
     if (endUtc <= startUtc) {
       this.formError.set('End time must be after start time.');
+      return;
+    }
+    if (this.isRepeating()) {
+      this.saveAsSeries();
       return;
     }
     // Rate conflict: nothing in the client / payers / defaults chain had a rate.
@@ -613,8 +675,14 @@ export class Scheduler {
     }
     this.formBusy.set(true);
     this.formError.set('');
-    // Double-booking check before saving; the warning box lets the scheduler save anyway.
-    this.service.conflicts(this.fAssignee()!, startUtc, endUtc, this.editingId() ?? undefined).subscribe({
+    // Open shifts have no caregiver to check.
+    if (this.fOpenShift()) {
+      this.doSaveForm(startUtc, endUtc);
+      return;
+    }
+    // Double-booking, availability and compatibility check before saving; the warning box
+    // lets the scheduler save anyway unless a compatibility row is blocking.
+    this.service.conflicts(this.fAssignee()!, startUtc, endUtc, this.editingId() ?? undefined, this.fClientId()).subscribe({
       next: (list) => {
         if (list.length) {
           this.schedConflicts.set(list);
@@ -645,6 +713,7 @@ export class Scheduler {
   }
 
   ignoreConflictsSave(): void {
+    if (this.blockingConflict()) return;
     const startUtc = `${this.fDate()}T${this.fStart()}:00`;
     const endUtc = `${this.fDate()}T${this.fEnd()}:00`;
     this.schedConflicts.set(null);
@@ -658,11 +727,13 @@ export class Scheduler {
   }
 
   private doSaveForm(startUtc: string, endUtc: string): void {
+    const open = this.fOpenShift();
     const base = {
       title: this.fTitle().trim(),
       customerName: this.fCustomer().trim() || null,
       location: this.fLocation().trim() || null,
-      assignedUserId: this.fAssignee()!,
+      assignedUserId: open ? null : this.fAssignee(),
+      isOpenShift: open,
       startUtc,
       endUtc,
       payRatePerHour: Number(this.fRate()) || 0,
@@ -677,9 +748,10 @@ export class Scheduler {
       ? this.service.update(id, base)
       : this.service.create({
           ...base,
-          status: this.fStatus(),
+          status: open ? 'Scheduled' : this.fStatus(),
           notifyAdmin: this.fNotifyAdmin(),
           notifyManager: this.fNotifyManager(),
+          offerToUserIds: open ? null : undefined,
         });
     req$.subscribe({
       next: () => {
@@ -688,7 +760,10 @@ export class Scheduler {
         this.load();
       },
       error: (err: Error) => {
-        this.formError.set(err.message || 'Could not save the schedule.');
+        // 409 (compatibility / authorization Block): the server message plus its errors[] lines.
+        const lines = apiErrorLines(err, 'Could not save the schedule.');
+        this.formError.set(lines.message || err.message || 'Could not save the schedule.');
+        this.formErrorDetails.set(lines.errors);
         // Over-authorization rejections (Block policy) are also shown in the coverage panel.
         if (this.coverage()?.hasAuthorizationPayers) this.coverageSaveError.set(err.message || '');
         this.formBusy.set(false);
@@ -768,7 +843,148 @@ export class Scheduler {
   }
 
   isMine(s: Schedule): boolean {
-    return s.assignedUserId === this.myUserId;
+    return s.assignedUserId != null && s.assignedUserId === this.myUserId;
+  }
+
+  isOpen(s: Schedule): boolean {
+    return !!s.isOpenShift || s.assignedUserId == null;
+  }
+
+  // ------------------------------------------------- Open shift / repeat / suggest
+
+  setOpenShift(on: boolean): void {
+    this.fOpenShift.set(on);
+    if (on) {
+      this.fStatus.set('Scheduled');
+      this.fAssignee.set(null);
+    }
+  }
+
+  isRepeating(): boolean {
+    return this.editingId() == null && this.fRepeat() !== 'None';
+  }
+
+  toggleRepeatDay(d: number): void {
+    this.fRepeatDays.update((set) => {
+      const next = new Set(set);
+      if (next.has(d)) next.delete(d);
+      else next.add(d);
+      return next;
+    });
+  }
+
+  /** Day of month of the picked date (Monthly repeats on that date). */
+  repeatMonthDay(): number {
+    return Number((this.fDate() || '').slice(8, 10)) || 1;
+  }
+
+  openSuggest(): void {
+    if (this.fClientId() == null) {
+      this.formError.set('Pick a client first: suggestions rank caregivers for that client.');
+      return;
+    }
+    this.suggestOpen.set(true);
+  }
+
+  readonly suggestRequest = computed(() => {
+    const clientId = this.fClientId();
+    if (clientId == null) return null;
+    return {
+      clientId,
+      serviceTypeId: this.fServiceTypeId(),
+      startUtc: `${this.fDate()}T${this.fStart()}:00`,
+      endUtc: `${this.fDate()}T${this.fEnd()}:00`,
+      scheduleId: this.editingId(),
+    };
+  });
+
+  /** A suggested caregiver missing from the assignable list (so the select can show it). */
+  readonly extraAssignee = signal<{ userId: number; fullName: string } | null>(null);
+
+  pickSuggested(p: { userId: number; fullName: string }): void {
+    this.suggestOpen.set(false);
+    this.fOpenShift.set(false);
+    this.extraAssignee.set(this.assignableUsers().some((u) => u.userId === p.userId) ? null : p);
+    this.fAssignee.set(p.userId);
+    this.schedConflicts.set(null);
+  }
+
+  /** Repeat: create a master schedule from the form, then publish its first two weeks. */
+  private saveAsSeries(): void {
+    const clientId = this.fClientId();
+    if (clientId == null) {
+      this.formError.set('Repeating visits need a client. Pick a client, or set Repeat to None.');
+      return;
+    }
+    const pattern = this.fRepeat() as SeriesPattern;
+    const days = [...this.fRepeatDays()];
+    if (pattern !== 'Monthly' && days.length === 0) {
+      this.formError.set('Choose at least one day to repeat on.');
+      return;
+    }
+    if (this.fRepeatUntil() && this.fRepeatUntil() < this.fDate()) {
+      this.formError.set('The repeat end date is before the first visit.');
+      return;
+    }
+    const open = this.fOpenShift();
+    const slotBase = { seriesSlotId: null, startTime: this.fStart(), endTime: this.fEnd(), assignedUserId: null };
+    const slots =
+      pattern === 'Monthly'
+        ? [{ ...slotBase, dayOfWeek: 0, weekNo: null, monthDay: this.repeatMonthDay(), monthWeekNo: null }]
+        : days.map((d) => ({ ...slotBase, dayOfWeek: d, weekNo: pattern === 'BiWeekly' ? 1 : null, monthDay: null, monthWeekNo: null }));
+    const rate = (v: unknown) => (Number(v) > 0 ? Number(v) : null);
+    this.formBusy.set(true);
+    this.formError.set('');
+    this.seriesService
+      .create({
+        clientId,
+        serviceTypeId: this.fServiceTypeId(),
+        assignedUserId: open ? null : this.fAssignee(),
+        title: this.fTitle().trim(),
+        pattern,
+        startDate: this.fDate(),
+        endDate: this.fRepeatUntil() || null,
+        payRatePerHour: rate(this.fRate()),
+        billRatePerHour: rate(this.fBillRate()),
+        autoPublishWeeksAhead: 2,
+        notes: null,
+        slots,
+      })
+      .subscribe({
+        next: (series) => {
+          const today = localDateOnly();
+          const from = this.fDate() > today ? this.fDate() : today;
+          this.seriesService
+            .publish({
+              from,
+              to: addDaysDateOnly(from, 13),
+              seriesIds: [series.seriesId],
+              clientId: null,
+              openShiftOnCaregiverConflict: false,
+            })
+            .subscribe({
+              next: (r) => {
+                this.formBusy.set(false);
+                this.formOpen.set(false);
+                const skipped = r.skipped.length ? ` ${r.skipped.length} skipped (conflicts) — see Master schedules.` : '';
+                this.toast.success(`Repeating visits saved: ${r.created} visit(s) published for the next 2 weeks.${skipped}`);
+                this.load();
+              },
+              error: (err: Error) => {
+                this.formBusy.set(false);
+                this.formOpen.set(false);
+                this.toast.error(`The master schedule was saved but publishing failed: ${err.message}. Publish it from Master schedules.`);
+                this.load();
+              },
+            });
+        },
+        error: (err: Error) => {
+          const lines = apiErrorLines(err, 'Could not save the repeating visits.');
+          this.formError.set(lines.message || err.message);
+          this.formErrorDetails.set(lines.errors);
+          this.formBusy.set(false);
+        },
+      });
   }
 
   canManage(): boolean {

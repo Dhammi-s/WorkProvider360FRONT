@@ -22,9 +22,12 @@ import { Alert } from '../../../shared/ui/alert/alert';
 import { ShortcutsPanel } from '../../../shared/ui/shortcuts-panel/shortcuts-panel';
 
 /** Current-user profile plus a change-password form and the user's own schedule. */
+import { CareProfileCard } from '../../../shared/ui/care-profile-card/care-profile-card';
+import { CalendarFeedCard } from './calendar-feed-card/calendar-feed-card';
+
 @Component({
   selector: 'app-profile',
-  imports: [ReactiveFormsModule, RouterLink, DatePipe, Alert, ImageCropperComponent, ShortcutsPanel],
+  imports: [ReactiveFormsModule, RouterLink, DatePipe, Alert, ImageCropperComponent, ShortcutsPanel, CareProfileCard, CalendarFeedCard],
   templateUrl: './profile.html',
 })
 export class Profile {
@@ -36,6 +39,8 @@ export class Profile {
 
   readonly profile = signal<UserDto | null>(null);
   readonly loadError = signal('');
+  /** The signed-in user (care profile + calendar feed cards). */
+  readonly myUserId = (): number | null => this.auth.user()?.userId ?? null;
 
   readonly mySchedules = signal<Schedule[]>([]);
   readonly schedulesLoading = signal(true);

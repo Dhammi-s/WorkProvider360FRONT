@@ -113,6 +113,7 @@
                 <button type="button"
                   class="absolute overflow-hidden rounded-md border-l-4 px-2 py-1 text-left shadow-sm transition hover:shadow-md"
                   [class]="colorFor(b.schedule.assignedUserId).bar"
+                  [class.border-dashed]="isOpen(b.schedule)"
                   [style.top.px]="b.top" [style.height.px]="b.height"
                   [style.left]="'calc(' + b.leftPct + '% + 2px)'"
                   [style.width]="'calc(' + b.widthPct + '% - 4px)'"
@@ -122,7 +123,13 @@
                     <span class="block truncate text-[11px] text-slate-500">{{ b.schedule.customerName || b.schedule.location }}</span>
                   }
                   @if (b.height > 54) {
-                    <span class="block truncate text-[11px] text-slate-400">{{ b.schedule.assignedUserName }}</span>
+                    <span class="block truncate text-[11px]" [class]="isOpen(b.schedule) ? 'font-semibold text-sky-700' : 'text-slate-400'">{{ isOpen(b.schedule) ? 'Open' : b.schedule.assignedUserName }}</span>
+                  }
+                  @if (b.height > 70 && b.schedule.seriesId) {
+                    <span class="mt-0.5 flex flex-wrap gap-1">
+                      @if (b.schedule.seriesId) { <span class="rounded bg-violet-100 px-1 text-[10px] font-semibold text-violet-700">Series</span> }
+                      @if (b.schedule.isSeriesException) { <span class="rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700">Edited</span> }
+                    </span>
                   }
                 </button>
               }
@@ -160,10 +167,12 @@
                 <div class="mt-1 space-y-1">
                   @for (s of schedulesOn(day).slice(0, 3); track s.scheduleId) {
                     <button type="button" (click)="$event.stopPropagation(); open(s.scheduleId)"
-                      class="flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[11px] hover:bg-slate-100">
+                      class="flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[11px] hover:bg-slate-100"
+                      [class]="isOpen(s) ? 'border border-dashed border-sky-300' : ''">
                       <span class="h-1.5 w-1.5 shrink-0 rounded-full" [class]="colorFor(s.assignedUserId).dot"></span>
                       <span class="shrink-0 text-slate-400">{{ timeLabel(s.startUtc) }}</span>
-                      <span class="truncate font-medium text-slate-600">@if (s.isApproved) {<span class="text-emerald-600" title="Approved">✓ </span>}{{ s.title }}</span>
+                      <span class="truncate font-medium text-slate-600">@if (s.isApproved) {<span class="text-emerald-600" title="Approved">✓ </span>}@if (isOpen(s)) {<span class="font-semibold text-sky-700">Open · </span>}{{ s.title }}</span>
+                      @if (s.seriesId) { <span class="shrink-0 rounded bg-violet-100 px-1 text-[9px] font-semibold text-violet-700" [title]="s.isSeriesException ? 'From a master schedule, edited by hand' : 'From a master schedule'">{{ s.isSeriesException ? 'Edited' : 'S' }}</span> }
                     </button>
                   }
                   @if (schedulesOn(day).length > 3) {
@@ -194,6 +203,11 @@
 
         <div class="max-h-[70vh] overflow-y-auto px-6 py-5">
           <app-alert type="error" [message]="formError()" />
+          @if (formErrorDetails().length) {
+            <ul class="mb-3 list-disc space-y-0.5 rounded-xl border border-red-200 bg-red-50 py-2 pl-8 pr-3 text-xs text-red-700">
+              @for (d of formErrorDetails(); track $index) { <li>{{ d }}</li> }
+            </ul>
+          }
           <div class="space-y-4">
             <div>
               <label class="wp-label">Job title</label>
@@ -235,13 +249,28 @@
               </div>
             </div>
             <div>
-              <label class="wp-label">Assign to</label>
-              <select class="wp-input" [ngModel]="fAssignee()" (ngModelChange)="fAssignee.set($event)">
-                <option [ngValue]="null" disabled>Select a user…</option>
-                @for (u of assignableUsers(); track u.userId) {
-                  <option [ngValue]="u.userId">{{ u.fullName }} — {{ u.roleName }}</option>
-                }
-              </select>
+              <div class="flex items-center justify-between gap-2">
+                <label class="wp-label">Assign to</label>
+                <label class="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                  <input type="checkbox" [ngModel]="fOpenShift()" (ngModelChange)="setOpenShift($event)" class="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
+                  Open shift
+                </label>
+              </div>
+              <div class="flex gap-2">
+                <select class="wp-input" [ngModel]="fAssignee()" (ngModelChange)="fAssignee.set($event); schedConflicts.set(null)" [disabled]="fOpenShift()">
+                  <option [ngValue]="null" disabled>{{ fOpenShift() ? 'Nobody yet — offered to caregivers' : 'Select a user…' }}</option>
+                  @if (extraAssignee(); as x) { <option [ngValue]="x.userId">{{ x.fullName }}</option> }
+                  @for (u of assignableUsers(); track u.userId) {
+                    <option [ngValue]="u.userId">{{ u.fullName }} — {{ u.roleName }}</option>
+                  }
+                </select>
+                <button type="button" (click)="openSuggest()" [disabled]="fClientId() == null"
+                  [title]="fClientId() == null ? 'Pick a client to get suggestions' : 'Rank caregivers for this visit'"
+                  class="wp-btn-ghost shrink-0 !px-3">Suggest</button>
+              </div>
+              @if (fOpenShift()) {
+                <p class="mt-1 text-[11px] text-sky-700">The visit is saved without a caregiver and offered to every eligible caregiver (see Open shifts).</p>
+              }
             </div>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
@@ -322,10 +351,44 @@
               </div>
             }
 
-@if (!editingId()) {
+            @if (!editingId()) {
+              <div class="rounded-xl border border-slate-200 p-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <label class="wp-label !mb-0">Repeat</label>
+                  <div class="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-semibold">
+                    @for (m of ['None', 'Weekly', 'BiWeekly', 'Monthly']; track m) {
+                      <button type="button" (click)="fRepeat.set($any(m))" class="rounded-md px-2.5 py-1 transition"
+                        [class]="fRepeat() === m ? 'bg-brand-600 text-white' : 'text-slate-500 hover:text-slate-800'">{{ m === 'BiWeekly' ? 'Bi-weekly' : m }}</button>
+                    }
+                  </div>
+                </div>
+                @if (fRepeat() !== 'None') {
+                  @if (fRepeat() === 'Monthly') {
+                    <p class="mt-2 text-xs text-slate-600">Every month on day {{ repeatMonthDay() }}, {{ fStart() }}–{{ fEnd() }}.</p>
+                  } @else {
+                    <div class="mt-2 flex flex-wrap gap-1.5">
+                      @for (d of repeatDays; track d.value) {
+                        <button type="button" (click)="toggleRepeatDay(d.value)" [attr.aria-pressed]="fRepeatDays().has(d.value)"
+                          class="min-w-[44px] rounded-full px-3 py-1 text-xs font-semibold transition"
+                          [class]="fRepeatDays().has(d.value) ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50'">{{ d.label }}</button>
+                      }
+                    </div>
+                  }
+                  <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label class="wp-label">Until <span class="font-normal text-slate-400">(optional)</span></label>
+                      <input type="date" class="wp-input" [min]="fDate()" [ngModel]="fRepeatUntil()" (ngModelChange)="fRepeatUntil.set($event ?? '')" />
+                    </div>
+                  </div>
+                  <p class="mt-2 text-[11px] text-slate-400">Saves a master schedule starting on the date above and publishes the first 2 weeks; it keeps publishing 2 weeks ahead. Manage it under Master schedules.</p>
+                }
+              </div>
+            }
+
+@if (!editingId() && !isRepeating()) {
               <div>
                 <label class="wp-label">Status</label>
-                <select class="wp-input" [ngModel]="fStatus()" (ngModelChange)="fStatus.set($event)">
+                <select class="wp-input" [ngModel]="fStatus()" (ngModelChange)="fStatus.set($event)" [disabled]="fOpenShift()">
                   <option value="Scheduled">Scheduled</option>
                   <option value="Approved" [disabled]="!access()?.canApprove">Approved{{ access()?.canApprove ? '' : ' (no permission)' }}</option>
                   <option value="Cancelled">Cancelled</option>
@@ -334,7 +397,7 @@
               </div>
             }
 
-            @if (!editingId()) {
+            @if (!editingId() && !isRepeating()) {
               <div class="rounded-xl border border-slate-100 bg-slate-50 p-3">
                 <p class="text-xs font-semibold text-slate-500">Notifications</p>
                 <p class="mt-0.5 text-xs text-slate-400">The assigned user is always emailed. Optionally also notify:</p>
@@ -370,17 +433,32 @@
         @if (schedConflicts(); as list) {
           <div class="mx-6 rounded-xl border border-amber-200 bg-amber-50 p-3">
             <p class="text-sm font-bold text-amber-800">Scheduling conflict</p>
-            <p class="text-xs text-amber-700">This caregiver already has a shift at this time:</p>
-            <ul class="mt-2 space-y-1">
-              @for (c of list; track c.scheduleId) {
-                <li class="text-xs text-amber-800">
-                  <span class="font-semibold">{{ c.clientName || c.title }}</span>
-                  · {{ c.startUtc | date: 'MMM d, h:mm a' }} – {{ c.endUtc | date: 'h:mm a' }}
-                </li>
-              }
-            </ul>
+            @if (overlapConflicts().length) {
+              <p class="text-xs text-amber-700">This caregiver already has a shift at this time:</p>
+              <ul class="mt-2 space-y-1">
+                @for (c of overlapConflicts(); track $index) {
+                  <li class="text-xs text-amber-800">
+                    <span class="font-semibold">{{ c.clientName || c.title }}</span>
+                    · {{ c.startUtc | date: 'MMM d, h:mm a' }} – {{ c.endUtc | date: 'h:mm a' }}
+                  </li>
+                }
+              </ul>
+            }
+            @if (otherConflicts().length) {
+              <ul class="mt-2 space-y-1">
+                @for (c of otherConflicts(); track $index) {
+                  <li class="flex gap-1.5 text-xs" [class]="c.blocking ? 'font-semibold text-red-700' : 'text-amber-800'">
+                    <span class="shrink-0 rounded px-1 text-[10px] font-bold uppercase" [class]="c.blocking ? 'bg-red-100' : 'bg-amber-100'">{{ c.kind === 'Unavailable' ? 'Unavailable' : 'Compatibility' }}</span>
+                    <span>{{ c.message || c.code }}</span>
+                  </li>
+                }
+              </ul>
+            }
+            @if (blockingConflict()) {
+              <p class="mt-2 text-xs font-semibold text-red-700">The agency's compatibility policy blocks this caregiver for this client. Choose another caregiver or make it an open shift.</p>
+            }
             <div class="mt-3 flex gap-2">
-              <button type="button" (click)="ignoreConflictsSave()" [disabled]="formBusy()" class="wp-btn-primary !py-1.5 !px-3 text-xs">Ignore &amp; save</button>
+              <button type="button" (click)="ignoreConflictsSave()" [disabled]="formBusy() || blockingConflict()" class="wp-btn-primary !py-1.5 !px-3 text-xs">Ignore &amp; save</button>
               <button type="button" (click)="cancelConflicts()" class="wp-btn-ghost !py-1.5 !px-3 text-xs">Cancel</button>
             </div>
           </div>
@@ -389,7 +467,7 @@
         <div class="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
           <button type="button" (click)="closeForm()" class="wp-btn-ghost">Cancel</button>
           <button type="button" (click)="saveForm()" [disabled]="formBusy() || coverageBlocked()" class="wp-btn-primary">
-            @if (formBusy()) { Saving… } @else { {{ editingId() ? 'Save changes' : 'Create schedule' }} }
+            @if (formBusy()) { Saving… } @else { {{ editingId() ? 'Save changes' : isRepeating() ? 'Create & publish 2 weeks' : 'Create schedule' }} }
           </button>
         </div>
       </div>
@@ -408,6 +486,15 @@
               <h2 class="text-lg font-bold text-slate-900">{{ d.schedule.title }}</h2>
             </div>
             <span class="mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold" [class]="statusBadge(d.schedule.status)">{{ d.schedule.status }}</span>
+            @if (isOpen(d.schedule)) {
+              <span class="ml-1 mt-1 inline-block rounded-full border border-dashed border-sky-300 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700">Open shift</span>
+            }
+            @if (d.schedule.seriesId) {
+              <span class="ml-1 mt-1 inline-block rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-semibold text-violet-700" title="Published from a master schedule">Series</span>
+            }
+            @if (d.schedule.isSeriesException) {
+              <span class="ml-1 mt-1 inline-block rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700" title="Edited by hand: master schedule changes no longer apply to it">Edited</span>
+            }
             @if (d.schedule.isApproved) {
               <span class="ml-1 mt-1 inline-block rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700"
                 [title]="'Approved' + (d.schedule.approvedByName ? ' by ' + d.schedule.approvedByName : '') + (d.schedule.approvedOn ? ' on ' + (d.schedule.approvedOn | date: 'MMM d, h:mm a') : '')">✓ Approved</span>
@@ -470,7 +557,7 @@
 
             <!-- Summary -->
             <dl class="grid grid-cols-2 gap-3 text-sm">
-              <div><dt class="text-xs text-slate-400">Assigned to</dt><dd class="font-semibold text-slate-700">{{ d.schedule.assignedUserName }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Assigned to</dt><dd class="font-semibold" [class]="isOpen(d.schedule) ? 'text-sky-700' : 'text-slate-700'">{{ isOpen(d.schedule) ? 'Open shift' : d.schedule.assignedUserName }}</dd></div>
               <div><dt class="text-xs text-slate-400">Customer</dt><dd class="font-semibold text-slate-700">{{ d.schedule.customerName || '—' }}</dd></div>
               <div><dt class="text-xs text-slate-400">Start</dt><dd class="font-semibold text-slate-700">{{ d.schedule.startUtc | date:'EEE d MMM, HH:mm' }}</dd></div>
               <div><dt class="text-xs text-slate-400">End</dt><dd class="font-semibold text-slate-700">{{ d.schedule.endUtc | date:'EEE d MMM, HH:mm' }}</dd></div>
@@ -636,6 +723,10 @@
         }
       </div>
     </div>
+  }
+
+  @if (suggestOpen() && suggestRequest(); as req) {
+    <app-caregiver-suggestions [request]="req" [currentUserId]="fAssignee()" (picked)="pickSuggested($event)" (closed)="suggestOpen.set(false)" />
   }
 
   @if (sigOpen()) {

@@ -20,6 +20,7 @@ import { MeetingService } from '../../../core/services/meeting.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { UserService } from '../../../core/services/user.service';
 import { StatCard } from '../../../shared/ui/stat-card/stat-card';
+import { SchedulingAlerts } from './scheduling-alerts/scheduling-alerts';
 
 interface Stat {
   label: string;
@@ -85,7 +86,7 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 /** Modern, data-driven landing dashboard: KPIs + charts across the workspace's modules. */
 @Component({
   selector: 'app-dashboard-home',
-  imports: [StatCard, RouterLink],
+  imports: [StatCard, RouterLink, SchedulingAlerts],
   templateUrl: './home.html',
 })
 export class DashboardHome {
@@ -103,6 +104,8 @@ export class DashboardHome {
   readonly role = computed<RoleName>(() => (this.auth.roleName() ?? 'User') as RoleName);
   readonly isSuperAdmin = computed(() => this.role() === 'SuperAdmin');
   readonly isAdmin = computed(() => this.role() === 'SuperAdmin' || this.role() === 'Admin');
+  /** Pending confirmation + missed clock-in cards (the card also checks scheduling Write access). */
+  readonly showSchedulingAlerts = computed(() => this.role() === 'SuperAdmin' || this.role() === 'Admin' || this.role() === 'Manager');
   readonly firstName = computed(() => this.user()?.fullName?.split(' ')[0] ?? '');
 
   readonly headline = computed(() => {

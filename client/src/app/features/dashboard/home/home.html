@@ -36,6 +36,11 @@
     }
   </div>
 
+  <!-- Pending confirmation + missed clock-ins (managers with scheduling Write) -->
+  @if (showSchedulingAlerts()) {
+    <app-scheduling-alerts />
+  }
+
   <!-- Charts row -->
   <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
     <!-- Shifts this week (colorful bars) — whole card links to the scheduler -->
