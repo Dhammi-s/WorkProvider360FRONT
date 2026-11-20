@@ -36,8 +36,12 @@
           <div><dt class="text-xs text-slate-400">Authorization number</dt><dd class="font-medium text-slate-800">{{ a.authorizationNumber || '—' }}</dd></div>
           <div><dt class="text-xs text-slate-400">Period</dt><dd class="font-medium text-slate-800">{{ fmtDate(a.startDate) }} – {{ fmtDate(a.endDate) }}</dd></div>
           <div><dt class="text-xs text-slate-400">Allowed days</dt><dd class="font-medium text-slate-800">{{ daysLabel(a.allowedDays) }}</dd></div>
-          <div><dt class="text-xs text-slate-400">Daily / weekly limit</dt><dd class="font-medium text-slate-800">{{ fmtHours(a.maxHoursPerDay) }} / {{ fmtHours(a.maxHoursPerWeek) }}</dd></div>
-          <div><dt class="text-xs text-slate-400">Monthly / total limit</dt><dd class="font-medium text-slate-800">{{ fmtHours(a.maxHoursPerMonth) }} / {{ fmtHours(a.totalAuthorizedHours) }}</dd></div>
+          <div><dt class="text-xs text-slate-400">Daily / weekly limit</dt><dd class="font-medium text-slate-800">{{ fmtLimit(a.maxHoursPerDay, a.limitUnit) }} / {{ fmtLimit(a.maxHoursPerWeek, a.limitUnit) }}</dd></div>
+          <div><dt class="text-xs text-slate-400">Monthly / total limit</dt><dd class="font-medium text-slate-800">{{ fmtLimit(a.maxHoursPerMonth, a.limitUnit) }} / {{ fmtLimit(a.totalAuthorizedHours, a.limitUnit) }}</dd></div>
+          <div><dt class="text-xs text-slate-400">Limit unit</dt><dd class="font-medium text-slate-800">{{ a.limitUnit === 'Visits' ? 'Visits' : 'Hours' }}</dd></div>
+          @if (a.statusNote) {
+            <div><dt class="text-xs text-slate-400">Status note</dt><dd class="font-medium text-amber-700">{{ a.statusNote }}</dd></div>
+          }
           @if (a.notes) {
             <div class="col-span-2"><dt class="text-xs text-slate-400">Notes</dt><dd class="whitespace-pre-line text-slate-700">{{ a.notes }}</dd></div>
           }
@@ -54,8 +58,8 @@
                   @if (windowLabel(u)) { <span class="ml-1 text-xs text-slate-400">{{ windowLabel(u) }}</span> }
                 </div>
                 <span class="text-sm text-slate-700">
-                  {{ u.usedHours.toFixed(2) }} h
-                  @if (u.limitHours != null) { <span class="text-slate-400">/ {{ u.limitHours.toFixed(2) }} h</span> }
+                  {{ amount(u.usedHours) }}
+                  @if (u.limitHours != null) { <span class="text-slate-400">/ {{ amount(u.limitHours) }}</span> }
                   @else { <span class="text-slate-400">· No limit</span> }
                 </span>
               </div>
@@ -63,7 +67,7 @@
                 <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
                   <div class="h-full rounded-full" [class]="barClass(u)" [style.width.%]="percent(u)"></div>
                 </div>
-                <p class="mt-1 text-xs text-slate-400">{{ (u.remainingHours ?? 0).toFixed(2) }} h remaining</p>
+                <p class="mt-1 text-xs text-slate-400">{{ amount(u.remainingHours) }} remaining</p>
               } @else {
                 <div class="mt-2 h-2 rounded-full bg-slate-100"></div>
                 <p class="mt-1 text-xs text-slate-400">No limit</p>
@@ -71,6 +75,32 @@
             </div>
           } @empty {
             <p class="text-sm text-slate-400">No usage windows.</p>
+          }
+        </div>
+
+        <!-- Status history -->
+        <h3 class="mt-6 text-xs font-bold uppercase tracking-wide text-slate-400">Status history</h3>
+        <div class="mt-2">
+          @if (historyLoading()) {
+            <p class="text-sm text-slate-400">Loading…</p>
+          } @else {
+            <ol class="space-y-2">
+              @for (h of history(); track h.historyId) {
+                <li class="rounded-xl border border-slate-100 px-3 py-2 text-sm">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="font-semibold text-slate-800">
+                      @if (h.statusFrom) { {{ statusName(h.statusFrom) }} → } @else { Created as }
+                      {{ statusName(h.statusTo) }}
+                    </span>
+                    <span class="whitespace-nowrap text-xs text-slate-400">{{ h.changedOn | date: 'MMM d, y, h:mm a' }}</span>
+                  </div>
+                  @if (h.note) { <p class="mt-0.5 text-slate-600">{{ h.note }}</p> }
+                  @if (h.changedByName) { <p class="mt-0.5 text-xs text-slate-400">by {{ h.changedByName }}</p> }
+                </li>
+              } @empty {
+                <li class="text-sm text-slate-400">No status changes recorded.</li>
+              }
+            </ol>
           }
         </div>
 
