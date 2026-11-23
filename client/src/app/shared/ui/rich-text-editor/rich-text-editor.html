@@ -1,0 +1,89 @@
+<!-- WorkProvider360 - Multi-tenant SaaS platform. Do NOT change without discussing with the software engineer. -->
+<div class="wp-rte" [class.wp-rte-fullscreen]="fullscreen()" [class.wp-rte-invalid]="invalid()" [class.wp-rte-disabled]="disabled()">
+  <!-- Toolbar: ql-* controls are wired by Quill; the rest are Angular buttons -->
+  <div #toolbar class="wp-rte-toolbar" [class.wp-rte-toolbar-html]="htmlMode()">
+    <span class="ql-formats wp-rte-q">
+      <select class="ql-header" title="Text style">
+        <option value="1"></option>
+        <option value="2"></option>
+        <option value="3"></option>
+        <option selected></option>
+      </select>
+    </span>
+    <span class="ql-formats wp-rte-q">
+      <button type="button" class="ql-bold" title="Bold" aria-label="Bold"></button>
+      <button type="button" class="ql-italic" title="Italic" aria-label="Italic"></button>
+      <button type="button" class="ql-underline" title="Underline" aria-label="Underline"></button>
+      <button type="button" class="ql-strike" title="Strikethrough" aria-label="Strikethrough"></button>
+    </span>
+    <span class="ql-formats wp-rte-q">
+      <button type="button" class="ql-align" value="" title="Align left" aria-label="Align left"></button>
+      <button type="button" class="ql-align" value="center" title="Align center" aria-label="Align center"></button>
+      <button type="button" class="ql-align" value="right" title="Align right" aria-label="Align right"></button>
+      <button type="button" class="ql-align" value="justify" title="Justify" aria-label="Justify"></button>
+    </span>
+    <span class="ql-formats wp-rte-q">
+      <button type="button" class="ql-list" value="ordered" title="Numbered list" aria-label="Numbered list"></button>
+      <button type="button" class="ql-list" value="bullet" title="Bulleted list" aria-label="Bulleted list"></button>
+    </span>
+    <span class="ql-formats wp-rte-q">
+      <button type="button" class="ql-link" title="Insert link" aria-label="Insert link"></button>
+      <button type="button" class="ql-image" title="Insert image (PNG or JPEG)" aria-label="Insert image"></button>
+      <button type="button" class="ql-table" title="Insert table (3 × 3)" aria-label="Insert table"></button>
+    </span>
+    <span class="ql-formats">
+      <button type="button" class="wp-rte-btn" [class.wp-rte-active]="htmlMode()" (click)="toggleHtml()" [disabled]="!ready()"
+        [title]="htmlMode() ? 'Back to the editor' : 'Edit HTML source'" aria-label="HTML source">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6" /></svg>
+      </button>
+      <button type="button" class="wp-rte-btn" [class.wp-rte-active]="fullscreen()" (click)="toggleFullscreen()"
+        [title]="fullscreen() ? 'Exit full screen (Esc)' : 'Full screen'" aria-label="Full screen">
+        @if (fullscreen()) {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3" /></svg>
+        } @else {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3" /></svg>
+        }
+      </button>
+    </span>
+    @if (personalization()) {
+      <span class="ql-formats wp-rte-tokens">
+        <button type="button" class="wp-rte-token" (click)="insertPlaceholder('FirstName')" [disabled]="!ready()" title="Replaced with each To recipient's first name">{{ '{' }}{{ '{' }}FirstName{{ '}' }}{{ '}' }}</button>
+        <button type="button" class="wp-rte-token" (click)="insertPlaceholder('FullName')" [disabled]="!ready()" title="Replaced with each To recipient's full name">{{ '{' }}{{ '{' }}FullName{{ '}' }}{{ '}' }}</button>
+      </span>
+    }
+  </div>
+
+  @if (inTable() && !htmlMode()) {
+    <div class="wp-rte-tablebar">
+      <span class="font-semibold text-slate-500">Table:</span>
+      <button type="button" (click)="tableAction('rowBelow')">+ Row</button>
+      <button type="button" (click)="tableAction('columnRight')">+ Column</button>
+      <button type="button" (click)="tableAction('deleteRow')">Delete row</button>
+      <button type="button" (click)="tableAction('deleteColumn')">Delete column</button>
+      <button type="button" class="!text-red-600" (click)="tableAction('deleteTable')">Delete table</button>
+    </div>
+  }
+
+  <div class="wp-rte-body">
+    <div #editor class="wp-rte-editor" [hidden]="htmlMode()"></div>
+    @if (htmlMode()) {
+      <textarea class="wp-rte-source" spellcheck="false" aria-label="HTML source"
+        [value]="htmlSource()" (input)="onHtmlInput($any($event.target).value)"></textarea>
+    }
+    @if (!ready() && !loadError()) {
+      <div class="wp-rte-loading">Loading editor…</div>
+    }
+    @if (loadError()) {
+      <div class="wp-rte-loading !text-red-600">{{ loadError() }}</div>
+    }
+  </div>
+
+  <div class="wp-rte-footer">
+    @if (htmlMode()) {
+      <span class="mr-auto">HTML view — unsupported tags are dropped when you switch back.</span>
+    }
+    <span>{{ charCount() }} characters</span>
+  </div>
+
+  <input #imageInput type="file" class="hidden" accept="image/png,image/jpeg" multiple (change)="onImagePicked($event)" />
+</div>

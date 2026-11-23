@@ -225,9 +225,12 @@
             routerLinkActive="bg-brand-50 !text-brand-700"
             [title]="item.label"
             [attr.aria-label]="item.label"
-            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-900 transition hover:bg-slate-100"
+            class="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-900 transition hover:bg-slate-100"
           >
             <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path [attr.d]="item.icon" /></svg>
+            @if (item.messages === 'send' && messagesFailed()) {
+              <span class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" title="Some recent messages have failed recipients"></span>
+            }
           </a>
         }
         <app-notification-bell />
