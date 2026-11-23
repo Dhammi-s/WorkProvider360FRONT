@@ -19,12 +19,13 @@ const LIMITS = {
   dailySendLimit: { min: 1, max: 100000, label: 'Daily send limit' },
   sendRatePerSecond: { min: 1, max: 50, label: 'Send rate' },
   attachmentRetentionDays: { min: 1, max: 3650, label: 'Attachment retention' },
+  pushRatePerSecond: { min: 1, max: 100, label: 'Push send rate' },
 } as const;
 type LimitKey = keyof typeof LIMITS;
 
 /**
  * Settings ▸ Messages (ADR-0006 D1): who may send / view custom messages, external addresses,
- * reply-to choices, limits and attachment retention. SuperAdmin edits ([canEdit]); Admins /
+ * reply-to choices, limits, attachment retention and the push channel (ADR-0007). SuperAdmin edits ([canEdit]); Admins /
  * Managers with message access see it read-only.
  */
 @Component({
@@ -74,8 +75,9 @@ export class MessageSettingsTab {
     this.loadError.set('');
     this.messages.getSettings().subscribe({
       next: (s) => {
-        this.settings.set(s);
-        this.form.set({ ...s });
+        const n = withPushDefaults(s);
+        this.settings.set(n);
+        this.form.set({ ...n });
         this.loading.set(false);
       },
       error: (err) => {
@@ -109,11 +111,13 @@ export class MessageSettingsTab {
       dailySendLimit: Number(f.dailySendLimit),
       sendRatePerSecond: Number(f.sendRatePerSecond),
       attachmentRetentionDays: Number(f.attachmentRetentionDays),
+      pushRatePerSecond: Number(f.pushRatePerSecond),
     };
     this.messages.updateSettings(body).subscribe({
       next: (s) => {
-        this.settings.set(s);
-        this.form.set({ ...s });
+        const n = withPushDefaults(s);
+        this.settings.set(n);
+        this.form.set({ ...n });
         this.saving.set(false);
         this.toast.success('Message settings saved.');
         this.messages.loadAccess(true).subscribe();
@@ -125,4 +129,9 @@ export class MessageSettingsTab {
       },
     });
   }
+}
+
+/** Contract defaults (push on, 20/s) when an older API omits the push fields. */
+function withPushDefaults(s: MessageSettings): MessageSettings {
+  return { ...s, pushEnabled: s.pushEnabled ?? true, pushRatePerSecond: s.pushRatePerSecond ?? 20 };
 }
