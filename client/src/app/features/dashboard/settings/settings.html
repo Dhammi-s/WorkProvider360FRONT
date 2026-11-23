@@ -292,6 +292,11 @@
           <app-care-attributes-settings [canEdit]="canEditCareAttributes()" />
         }
 
+        <!-- ===================== Messages ===================== -->
+        @if (activeTab() === 'messages' && showMessages()) {
+          <app-message-settings [canEdit]="canEditMessages()" />
+        }
+
         <!-- ===================== Meetings ===================== -->
         @if (activeTab() === 'meetings') {
           <div class="wp-card">

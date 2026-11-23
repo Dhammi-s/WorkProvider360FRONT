@@ -35,6 +35,8 @@ import { LogoUploader } from '../branding/logo-uploader';
 import { EmailBannerUploader } from '../branding/email-banner-uploader';
 import { SchedulingAutomationCard } from './scheduling-automation/scheduling-automation';
 import { CareAttributesSettings } from './care-attributes/care-attributes';
+import { MessageSettingsTab } from './message-settings/message-settings';
+import { MessageService } from '../../../core/services/message.service';
 
 /** Workspace settings: application form (SuperAdmin) + scheduling access & defaults. */
 interface SettingsTab {
@@ -45,7 +47,7 @@ interface SettingsTab {
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, RouterLink, Alert, LogoUploader, EmailBannerUploader, SchedulingAutomationCard, CareAttributesSettings, BillingSettingsTab],
+  imports: [FormsModule, RouterLink, Alert, LogoUploader, EmailBannerUploader, SchedulingAutomationCard, CareAttributesSettings, BillingSettingsTab, MessageSettingsTab],
   templateUrl: './settings.html',
 })
 export class Settings {
@@ -71,6 +73,15 @@ export class Settings {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   readonly showBilling = computed(() => this.isSuperAdmin() || this.billingService.canView());
+
+  // ---- Messages (Settings ▸ Messages): SuperAdmin edits; Admin / Manager with message access view ----
+  private readonly messageService = inject(MessageService);
+  readonly canEditMessages = computed(() => this.isSuperAdmin() || this.messageService.canManageSettings());
+  readonly showMessages = computed(
+    () =>
+      this.canEditMessages() ||
+      ((this.auth.roleName() === 'Admin' || this.auth.roleName() === 'Manager') && this.messageService.canView()),
+  );
   /** Stripe / QuickBooks OAuth return values (?stripe= / ?qbo=). */
   readonly stripeReturn = signal<string | null>(null);
   readonly qboReturn = signal<string | null>(null);
@@ -89,6 +100,8 @@ export class Settings {
       t.push({ id: 'scheduling', label: 'Scheduling', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' });
     if (this.showMeetings())
       t.push({ id: 'meetings', label: 'Meetings', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' });
+    if (this.showMessages())
+      t.push({ id: 'messages', label: 'Messages', icon: 'M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM3 7l9 6 9-6' });
     if (this.showClients_())
       t.push({ id: 'clients', label: 'Clients & Visits', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z' });
     if (this.showClients_())
@@ -438,6 +451,8 @@ export class Settings {
 
     // Billing access decides whether the Billing tab is shown.
     if (!this.isSuperAdmin()) this.billingService.loadAccess().pipe(takeUntilDestroyed()).subscribe();
+    // Message access decides whether Admins / Managers see the (read-only) Messages tab.
+    this.messageService.loadAccess().pipe(takeUntilDestroyed()).subscribe();
     // ?tab=… opens that tab; ?stripe= / ?qbo= come back from the Stripe / QuickBooks connect flows.
     const q = this.route.snapshot.queryParamMap;
     this.pendingTab.set(q.get('tab'));
