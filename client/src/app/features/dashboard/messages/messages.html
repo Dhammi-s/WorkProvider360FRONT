@@ -3,7 +3,7 @@
   <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
     <div>
       <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Messages</h1>
-      <p class="mt-1 text-sm text-slate-500">Custom emails sent from the app, with delivery status per recipient.</p>
+      <p class="mt-1 text-sm text-slate-500">Custom emails and push notifications sent from the app, with delivery status per recipient.</p>
     </div>
     @if (access()?.canView) {
       <div class="flex gap-2 self-start sm:self-auto">
@@ -33,11 +33,20 @@
   } @else {
     <!-- Filters -->
     <div class="wp-card mt-6 !p-4">
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_170px_150px_150px_auto] lg:items-end">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_130px_170px_150px_150px_auto] lg:items-end">
         <div>
           <label class="wp-label !text-xs" for="msg-search">Search</label>
-          <input id="msg-search" type="search" class="wp-input !py-2" placeholder="Subject or sender"
+          <input id="msg-search" type="search" class="wp-input !py-2" placeholder="Subject, title or sender"
             [ngModel]="search()" (ngModelChange)="onSearch($event)" />
+        </div>
+        <div>
+          <label class="wp-label !text-xs" for="msg-channel">Channel</label>
+          <select id="msg-channel" class="wp-input !py-2" [ngModel]="channel()" (ngModelChange)="channel.set($event); applyFilters()">
+            <option value="">All channels</option>
+            @for (c of channels; track c) {
+              <option [value]="c">{{ c === 'Push' ? 'Push' : 'Email' }}</option>
+            }
+          </select>
         </div>
         <div>
           <label class="wp-label !text-xs" for="msg-status">Status</label>
@@ -91,10 +100,11 @@
               <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
                 <tr>
                   <th class="px-5 py-3">Date</th>
+                  <th class="px-3 py-3 text-center">Channel</th>
                   <th class="px-5 py-3">Subject</th>
                   <th class="px-5 py-3">Sender</th>
                   <th class="px-5 py-3 text-right">Recipients</th>
-                  <th class="px-5 py-3 text-right">Sent / Failed</th>
+                  <th class="px-5 py-3 text-right" title="Delivered includes push recipients who got it in the app only (bell)">Delivered / Failed</th>
                   <th class="px-5 py-3">Status</th>
                 </tr>
               </thead>
@@ -102,6 +112,19 @@
                 @for (m of items(); track m.messageId) {
                   <tr class="cursor-pointer hover:bg-slate-50/60" (click)="open(m)">
                     <td class="whitespace-nowrap px-5 py-3 text-slate-500">{{ utc(m.createdOn) | date: 'MMM d, y, h:mm a' }}</td>
+                    <td class="px-3 py-3 text-center">
+                      @if (channelOf(m) === 'Push') {
+                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600" title="Push notification">
+                          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" /></svg>
+                          <span class="sr-only">Push notification</span>
+                        </span>
+                      } @else {
+                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-sky-50 text-sky-600" title="Email">
+                          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v12H4zM4 6l8 6 8-6" /></svg>
+                          <span class="sr-only">Email</span>
+                        </span>
+                      }
+                    </td>
                     <td class="max-w-[320px] px-5 py-3">
                       <a [routerLink]="['/dashboard/messages', m.messageId]" (click)="$event.stopPropagation()" class="block truncate font-semibold text-slate-800 hover:text-brand-700">{{ m.subject }}</a>
                       @if (m.attachmentCount) {
@@ -111,7 +134,7 @@
                     <td class="whitespace-nowrap px-5 py-3 text-slate-600">{{ m.senderName }}</td>
                     <td class="px-5 py-3 text-right font-semibold text-slate-700">{{ m.recipientCount }}</td>
                     <td class="whitespace-nowrap px-5 py-3 text-right">
-                      <span class="font-semibold text-emerald-700">{{ m.sentCount }}</span>
+                      <span class="font-semibold text-emerald-700" title="Delivered">{{ m.sentCount }}</span>
                       <span class="text-slate-300"> / </span>
                       <span class="font-semibold" [class]="m.failedCount ? 'text-red-600' : 'text-slate-400'">{{ m.failedCount }}</span>
                     </td>

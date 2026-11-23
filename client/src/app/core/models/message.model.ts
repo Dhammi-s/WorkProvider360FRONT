@@ -14,13 +14,22 @@ export type MessageAccessLevel = 'None' | 'Read' | 'Write';
 export type MessageScope = 'All' | 'Office' | 'Self';
 export type ReplyToMode = 'NoReply' | 'Sender' | 'Agency' | 'Custom';
 export type MessageStatus = 'Queued' | 'Sending' | 'Sent' | 'PartiallyFailed' | 'Failed' | 'Deferred';
-export type RecipientStatus = 'Pending' | 'Sent' | 'Failed' | 'Skipped';
+/** `InAppOnly` (push): no phone registered, the message is in the person's bell only. */
+export type RecipientStatus = 'Pending' | 'Sent' | 'Failed' | 'Skipped' | 'InAppOnly';
 export type RecipientField = 'To' | 'Cc' | 'Bcc' | 'Self';
 export type ChipType = 'User' | 'Client' | 'Group' | 'External';
 export type GroupType = 'AllStaff' | 'Role' | 'Office' | 'AllClients' | 'OfficeClients';
-export type SkipReason = 'NoEmail' | 'Inactive' | 'OutOfScope' | 'Invalid' | 'Duplicate' | 'ExternalNotAllowed' | 'NotFound';
+export type SkipReason =
+  | 'NoEmail' | 'Inactive' | 'OutOfScope' | 'Invalid' | 'Duplicate' | 'ExternalNotAllowed' | 'NotFound' | 'NoAppAccount';
+/** Delivery channel (ADR-0007): the same compose page, history and settings serve both. */
+export type MessageChannel = 'Email' | 'Push';
+export type PushUnavailableReason = 'PushDisabled' | 'PushMasterOff' | 'PushEventOff' | 'FirebaseNotConfigured' | 'NoPermission';
 
 export const MESSAGE_STATUSES: MessageStatus[] = ['Queued', 'Sending', 'Sent', 'PartiallyFailed', 'Failed', 'Deferred'];
+export const MESSAGE_CHANNELS: MessageChannel[] = ['Email', 'Push'];
+/** Contract §4.4 defaults, used until / unless the access call says otherwise. */
+export const PUSH_MAX_TITLE = 100;
+export const PUSH_MAX_MESSAGE = 500;
 
 export interface ReplyToOption {
   mode: ReplyToMode;
@@ -42,6 +51,11 @@ export interface MessageAccess {
   allowedExtensions: string[];
   replyToOptions: ReplyToOption[];
   hasRecentFailures: boolean;
+  /** Push channel (ADR-0007): false ⇒ the Push tab is disabled with `pushUnavailableReason`. */
+  pushAvailable?: boolean;
+  pushUnavailableReason?: PushUnavailableReason | string | null;
+  pushMaxTitle?: number;
+  pushMaxMessage?: number;
 }
 
 /** A recipient chip as sent to the API (request side). */
@@ -73,7 +87,10 @@ export interface ResolveRequest {
   to: RecipientChip[];
   cc: RecipientChip[];
   bcc: RecipientChip[];
+  /** Push: "send to my devices too". */
   sendCopyToSender: boolean;
+  /** Default Email. Push: cc / bcc must be empty. */
+  channel?: MessageChannel;
 }
 
 export interface FieldSample {
@@ -108,21 +125,41 @@ export interface ResolveResult {
   overLimit: boolean;
   skipped: SkippedRecipient[];
   duplicatesRemoved: number;
+  channel?: MessageChannel;
+  /** Push: people with at least one registered phone. */
+  withApp?: number;
+  /** Push: people without a registered phone (bell only). */
+  inAppOnly?: number;
 }
 
 export interface PreviewRequest {
+  /** Push: the title. */
   subject: string;
+  /** Push: the plain-text message. */
   html: string;
   replyToMode: ReplyToMode;
   replyToAddress?: string | null;
   to: RecipientChip[];
+  channel?: MessageChannel;
 }
 
 export interface PreviewResult {
   subject: string;
-  html: string;
+  /** Null for Push. */
+  html: string | null;
+  /** Push: the message personalized for the first To recipient. */
+  text?: string | null;
   fromDisplayName: string;
   replyTo?: string | null;
+}
+
+/** `POST api/messages/push` (JSON). */
+export interface SendPushRequest {
+  title: string;
+  message: string;
+  /** "Send to my devices too". */
+  sendCopyToSender: boolean;
+  to: RecipientChip[];
 }
 
 export interface SendMessageRequest {
@@ -152,6 +189,7 @@ export interface MessageListQuery {
   to?: string | null;
   search?: string | null;
   mine?: boolean;
+  channel?: MessageChannel | '' | null;
 }
 
 /** `PagedResult<T>` of this API (`totalCount`, unlike the older `PagedResult.total`). */
@@ -175,6 +213,8 @@ export interface MessageListItem {
   createdOn: string;
   completedOn?: string | null;
   nextAttemptOn?: string | null;
+  /** Missing ⇒ Email (older API). */
+  channel?: MessageChannel;
 }
 
 export interface MessageAttachment {
@@ -197,12 +237,23 @@ export interface MessageRecipient {
   error?: string | null;
   attempts: number;
   sentOn?: string | null;
+  /** Push: the app login of the person. */
+  userId?: number | null;
+  /** Push: devices that accepted / rejected the push. */
+  devicesSent?: number | null;
+  devicesFailed?: number | null;
 }
 
 export interface MessageDetail {
   messageId: number;
+  /** Push: the title. */
   subject: string;
+  /** Push: the plain-text message — show as text, never as HTML. */
   bodyHtml: string;
+  /** Missing ⇒ Email (older API). */
+  channel?: MessageChannel;
+  /** Push: recipients without a registered phone (bell only). */
+  inAppOnlyCount?: number;
   senderUserId: number;
   senderName: string;
   senderEmail?: string | null;
@@ -247,12 +298,37 @@ export interface MessageSettings {
   allowReplyToSender: boolean;
   allowReplyToAgency: boolean;
   allowCustomReplyTo: boolean;
+  /** Push channel on/off for the agency (default on). */
+  pushEnabled: boolean;
+  /** 1–100 (default 20). */
+  pushRatePerSecond: number;
   updatedOn?: string | null;
+}
+
+/** Channel of a list item / detail; older API responses have none ⇒ Email. */
+export function messageChannel(m: { channel?: MessageChannel | string | null } | null | undefined): MessageChannel {
+  return m?.channel === 'Push' ? 'Push' : 'Email';
+}
+
+/** Readable sentence for `MessageAccess.pushUnavailableReason`. */
+export function pushUnavailableText(reason: string | null | undefined): string {
+  switch (reason) {
+    case 'PushDisabled': return 'Push notifications are turned off for your agency (Settings → Messages → “Allow push notifications”).';
+    case 'PushMasterOff': return 'Push notifications are switched off for your agency (Settings → SMS & Push).';
+    case 'PushEventOff': return 'The “Custom push notifications” event is turned off (Settings → SMS & Push).';
+    case 'FirebaseNotConfigured': return 'Push isn’t set up on the server yet (Firebase key missing).';
+    case 'NoPermission': return 'Your role isn’t allowed to send push notifications.';
+    default: return 'Push notifications aren’t available right now.';
+  }
 }
 
 /** Human label for a status pill. */
 export function messageStatusLabel(status: string): string {
-  return status === 'PartiallyFailed' ? 'Partially failed' : status;
+  switch (status) {
+    case 'PartiallyFailed': return 'Partially failed';
+    case 'InAppOnly': return 'In app only';
+    default: return status;
+  }
 }
 
 /** Tailwind classes for a message / recipient status pill. */
@@ -268,6 +344,8 @@ export function messageStatusClass(status: string): string {
       return 'bg-sky-50 text-sky-700 ring-sky-200';
     case 'Deferred':
       return 'bg-violet-50 text-violet-700 ring-violet-200';
+    case 'InAppOnly':
+      return 'bg-indigo-50 text-indigo-700 ring-indigo-200';
     case 'Skipped':
       return 'bg-slate-100 text-slate-500 ring-slate-200';
     default: // Queued / Pending
@@ -285,6 +363,7 @@ export function skipReasonLabel(reason: string): string {
     case 'Duplicate': return 'duplicate';
     case 'ExternalNotAllowed': return 'external addresses are not allowed';
     case 'NotFound': return 'not found';
+    case 'NoAppAccount': return 'no app account';
     default: return reason;
   }
 }

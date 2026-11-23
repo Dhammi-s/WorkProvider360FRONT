@@ -49,7 +49,9 @@ interface Section {
 /**
  * Recipient chips with typeahead (ADR-0006 D2): groups, staff and clients from
  * `GET messages/recipients/search`, plus typed addresses as External chips (Enter / comma),
- * blocked with a hint when external addresses are not allowed. Keyboard: ↑ ↓ Enter Esc Backspace.
+ * blocked with a hint when external addresses are not allowed. `[allowTyped]="false"` (push, ADR-0007)
+ * offers no typed addresses at all; External chips already present are shown struck through (the
+ * server skips them). Keyboard: ↑ ↓ Enter Esc Backspace.
  */
 @Component({
   selector: 'app-recipient-picker',
@@ -62,6 +64,8 @@ export class RecipientPicker {
   readonly chips = model<PickerChip[]>([]);
   readonly placeholder = input('Add people, groups or email addresses…');
   readonly allowExternal = input(true);
+  /** False (push): typed addresses are not offered at all — only people and groups from the list. */
+  readonly allowTyped = input(true);
   readonly invalid = input(false);
   readonly inputId = input<string | null>(null);
   readonly ariaLabel = input('Recipients');
@@ -96,8 +100,9 @@ export class RecipientPicker {
     return [make('Groups', 'Group'), make('Staff', 'User'), make('Clients', 'Client')].filter((s) => s.options.length);
   });
 
-  /** The typed text is an address that can become an External chip. */
+  /** The typed text is an address that can become an External chip (never when typing is off). */
   readonly typedEmail = computed(() => {
+    if (!this.allowTyped()) return null;
     const q = this.query().trim();
     return EMAIL_RE.test(q) ? q : null;
   });
@@ -136,7 +141,7 @@ export class RecipientPicker {
 
   onInput(value: string): void {
     // Pasted / typed separators: turn complete addresses into chips.
-    if (/[,;\n]/.test(value)) {
+    if (this.allowTyped() && /[,;\n]/.test(value)) {
       const parts = value.split(/[,;\n]+/);
       const rest = parts.pop() ?? '';
       for (const p of parts) this.addText(p);
@@ -166,12 +171,14 @@ export class RecipientPicker {
         const email = this.typedEmail();
         if (email) this.addEmail(email);
         else if (this.open() && count) this.select(this.available()[Math.min(this.active(), count - 1)]);
-        else if (this.query().trim()) this.hint.set('Pick someone from the list or type a full email address.');
+        else if (this.query().trim())
+          this.hint.set(this.allowTyped() ? 'Pick someone from the list or type a full email address.' : 'Pick people or groups from the list.');
         break;
       }
       case ',':
       case ';':
       case 'Tab':
+        if (!this.allowTyped()) break;
         if (this.typedEmail()) {
           if (event.key !== 'Tab') event.preventDefault();
           this.addEmail(this.typedEmail()!);

@@ -12,7 +12,9 @@
           : chip.type === 'External' ? 'bg-amber-50 text-amber-800 ring-amber-200'
           : chip.type === 'Client' ? 'bg-portal-50 text-portal-800 ring-portal-200'
           : 'bg-white text-slate-700 ring-slate-200'"
-        [title]="chip.type === 'External' ? 'External address' : (chip.email || chip.label || '')"
+        [class.line-through]="chip.type === 'External' && !allowTyped()"
+        [class.opacity-60]="chip.type === 'External' && !allowTyped()"
+        [title]="chip.type === 'External' ? (allowTyped() ? 'External address' : 'Typed addresses are skipped here') : (chip.email || chip.label || '')"
       >
         @switch (chip.type) {
           @case ('Group') {
@@ -124,8 +126,8 @@
       }
       @if (!loading() && !sections().length && !typedEmail()) {
         <p class="px-3 py-3 text-sm text-slate-400">
-          @if (query().trim()) { No matches. } @else { Start typing a name, group or email. }
-          @if (allowExternal()) { You can also type a full email address. }
+          @if (query().trim()) { No matches. } @else { Start typing a name{{ allowTyped() ? ', group or email' : ' or group' }}. }
+          @if (allowExternal() && allowTyped()) { You can also type a full email address. }
         </p>
       }
       @if (loading() && !sections().length) {

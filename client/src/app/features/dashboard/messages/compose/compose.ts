@@ -10,16 +10,22 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { catchError, debounceTime, of, switchMap } from 'rxjs';
+import { catchError, debounceTime, map, of, switchMap } from 'rxjs';
 import { apiErrorLines } from '../../../../core/models/api-response.model';
 import {
+  MessageChannel,
+  PUSH_MAX_MESSAGE,
+  PUSH_MAX_TITLE,
   PreviewResult,
   ReplyToMode,
   ReplyToOption,
   ResolveRequest,
   ResolveResult,
   SendMessageRequest,
+  SendPushRequest,
   formatBytes,
+  messageChannel,
+  pushUnavailableText,
   skipReasonLabel,
 } from '../../../../core/models/message.model';
 import { MessageService } from '../../../../core/services/message.service';
@@ -37,11 +43,17 @@ const DEFAULT_MAX_FILES = 5;
 const EMAIL_RE = /^[^\s@,;<>()]+@[^\s@,;<>()]+\.[^\s@,;<>()]{2,}$/;
 
 const FALLBACK_REPLY_TO: ReplyToOption[] = [{ mode: 'NoReply', label: 'No reply' }];
+/** Phones show about this many title characters (ADR-0007 D4). */
+const PUSH_TITLE_VISIBLE = 65;
 
 /**
  * Send Custom Message (ADR-0006 D8): recipients summary (live `resolve`), To / CC / BCC chips,
  * Reply-To, subject, rich-text body, attachments, "send a copy to me", Preview, Send and Cancel.
  * `?from=<id>` prefills subject and body from an earlier message (Duplicate).
+ *
+ * Push (ADR-0007 D1): an "Email | Push notification" switch at the top. Push uses the To chips only
+ * (no typed addresses, CC/BCC kept but not sent), a Title + plain-text Message, "Send to my devices
+ * too", a phone-card preview and `POST messages/push`. `?channel=push` opens on Push.
  */
 @Component({
   selector: 'app-message-compose',
@@ -74,6 +86,23 @@ export class MessageCompose {
   readonly toTouched = signal(false);
   readonly fileError = signal('');
   readonly prefillNote = signal('');
+
+  // ---- Channel (ADR-0007) ----
+  readonly channel = signal<MessageChannel>('Email');
+  readonly isPush = computed(() => this.channel() === 'Push');
+  readonly pushAvailable = computed(() => !!this.access()?.pushAvailable);
+  readonly pushReason = computed(() => (this.pushAvailable() ? '' : pushUnavailableText(this.access()?.pushUnavailableReason)));
+  readonly channelNote = signal('');
+  readonly pushTitle = signal('');
+  readonly pushMessage = signal('');
+  readonly pushCopy = signal(false);
+  readonly pushTitleVisible = PUSH_TITLE_VISIBLE;
+  readonly maxTitle = computed(() => this.access()?.pushMaxTitle || PUSH_MAX_TITLE);
+  readonly maxMessage = computed(() => this.access()?.pushMaxMessage || PUSH_MAX_MESSAGE);
+  readonly placeholders = ['{{FirstName}}', '{{FullName}}'];
+  /** CC / BCC chips are kept while on Push (not sent) so switching back loses nothing. */
+  readonly hiddenCopyChips = computed(() => this.ccChips().length + this.bccChips().length);
+  readonly externalToChips = computed(() => this.toChips().filter((c) => c.type === 'External').length);
 
   // ---- Summary / dialogs ----
   readonly summary = signal<ResolveResult | null>(null);
@@ -135,16 +164,47 @@ export class MessageCompose {
       : '',
   );
 
+  // ---- Push validation ----
+  readonly pushTitleError = computed(() => {
+    const t = this.pushTitle().trim();
+    if (!t) return 'Title is required.';
+    if (t.length > this.maxTitle()) return `Title can be at most ${this.maxTitle()} characters.`;
+    return '';
+  });
+  readonly pushMessageError = computed(() => {
+    const m = this.pushMessage().trim();
+    if (!m) return 'Message is required.';
+    if (m.length > this.maxMessage()) return `Message can be at most ${this.maxMessage()} characters.`;
+    return '';
+  });
+
   readonly dirty = computed(
-    () => this.hasRecipients() || !!this.subject().trim() || !!this.body().trim() || this.files().length > 0,
+    () =>
+      this.hasRecipients() ||
+      !!this.subject().trim() ||
+      !!this.body().trim() ||
+      this.files().length > 0 ||
+      !!this.pushTitle().trim() ||
+      !!this.pushMessage().trim(),
   );
 
-  private readonly resolveRequest = computed<ResolveRequest>(() => ({
-    to: this.toChips().map(toApiChip),
-    cc: this.ccChips().map(toApiChip),
-    bcc: this.bccChips().map(toApiChip),
-    sendCopyToSender: this.sendCopy(),
-  }));
+  private readonly resolveRequest = computed<ResolveRequest>(() =>
+    this.isPush()
+      ? {
+          channel: 'Push',
+          to: this.toChips().map(toApiChip),
+          cc: [],
+          bcc: [],
+          sendCopyToSender: this.pushCopy(),
+        }
+      : {
+          channel: 'Email',
+          to: this.toChips().map(toApiChip),
+          cc: this.ccChips().map(toApiChip),
+          bcc: this.bccChips().map(toApiChip),
+          sendCopyToSender: this.sendCopy(),
+        },
+  );
 
   constructor() {
     this.messages
@@ -155,7 +215,10 @@ export class MessageCompose {
         if (a?.replyToOptions?.length && !a.replyToOptions.some((o) => o.mode === this.replyMode())) {
           this.replyMode.set(a.replyToOptions[0].mode);
         }
-        if (a?.canSend) this.prefillFromQuery();
+        if (a?.canSend) {
+          this.channelFromQuery();
+          this.prefillFromQuery();
+        }
       });
 
     // Live recipients summary: resolve 400 ms after the chips (or "copy to me") change.
@@ -163,30 +226,49 @@ export class MessageCompose {
       .pipe(
         debounceTime(400),
         switchMap((req) => {
-          if (!req.to.length && !req.cc.length && !req.bcc.length) return of(null);
+          if (!req.to.length && !req.cc.length && !req.bcc.length) return of({ r: null, channel: req.channel });
           this.resolving.set(true);
           this.resolveError.set('');
           return this.messages.resolve(req).pipe(
+            map((r): { r: ResolveResult | null; channel: MessageChannel | undefined } => ({ r, channel: req.channel })),
             catchError((err) => {
               this.resolveError.set(apiErrorLines(err, 'Could not count the recipients.').message);
-              return of(null);
+              return of({ r: null, channel: req.channel });
             }),
           );
         }),
         takeUntilDestroyed(),
       )
-      .subscribe((r) => {
-        this.summary.set(r);
+      .subscribe(({ r, channel }) => {
         this.resolving.set(false);
+        // A late answer for the other channel (switched during the debounce) is dropped.
+        if (channel !== this.channel()) return;
+        this.summary.set(r);
       });
   }
 
-  /** Duplicate: `?from=<id>` loads that message's subject, body and reply-to. */
+  /** `?channel=push` opens the page on Push (when push can be used). */
+  private channelFromQuery(): void {
+    if ((this.route.snapshot.queryParamMap.get('channel') ?? '').toLowerCase() !== 'push') return;
+    if (this.pushAvailable()) this.channel.set('Push');
+    else this.channelNote.set(`Push notification isn’t available: ${this.pushReason()}`);
+  }
+
+  /** Duplicate: `?from=<id>` loads that message's subject, body and reply-to (Push: title and message). */
   private prefillFromQuery(): void {
     const from = Number(this.route.snapshot.queryParamMap.get('from'));
     if (!from) return;
     this.messages.detail(from, { recipientPageSize: 1 }).subscribe({
       next: (m) => {
+        if (messageChannel(m) === 'Push') {
+          // Plain text: never parsed as HTML.
+          this.pushTitle.set(m.subject ?? '');
+          this.pushMessage.set(m.bodyHtml ?? '');
+          if (this.pushAvailable()) this.setChannel('Push');
+          else this.channelNote.set(`Push notification isn’t available: ${this.pushReason()}`);
+          this.prefillNote.set(`Copied from the push “${m.subject}”. Add the recipients again.`);
+          return;
+        }
         this.subject.set(m.subject);
         // Inline images were stored as cid: attachments of the old message — they cannot be resent.
         const { html, removed } = stripCidImages(m.bodyHtml ?? '');
@@ -202,6 +284,66 @@ export class MessageCompose {
       },
       error: (err) => this.toast.error(apiErrorLines(err, 'Could not load the message to duplicate.').message),
     });
+  }
+
+  // ------------------------------------------------------------------ Channel
+
+  /** Switches Email ⇄ Push. Chips and the text of both channels are kept. */
+  setChannel(channel: MessageChannel): void {
+    if (channel === this.channel()) return;
+    if (channel === 'Push' && !this.pushAvailable()) {
+      this.toast.error(this.pushReason());
+      return;
+    }
+    this.channel.set(channel);
+    this.channelNote.set('');
+    // The other channel's summary has different counts — drop it until the new resolve arrives.
+    this.summary.set(null);
+    this.showAllSkipped.set(false);
+    this.submitted.set(false);
+  }
+
+  /** Radio-group keyboard support for the segmented switch (← → Home End). */
+  onChannelKey(event: KeyboardEvent, email: HTMLElement, push: HTMLElement): void {
+    let next: MessageChannel | null = null;
+    switch (event.key) {
+      case 'ArrowLeft':
+      case 'ArrowUp':
+      case 'Home':
+        next = 'Email';
+        break;
+      case 'ArrowRight':
+      case 'ArrowDown':
+      case 'End':
+        next = 'Push';
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    if (next === 'Push' && !this.pushAvailable()) {
+      push.focus();
+      return;
+    }
+    this.setChannel(next);
+    (next === 'Push' ? push : email).focus();
+  }
+
+  /** Inserts `{{FirstName}}` / `{{FullName}}` at the cursor of the push message. */
+  insertPlaceholder(textarea: HTMLTextAreaElement, token: string): void {
+    const value = this.pushMessage();
+    const start = textarea.selectionStart ?? value.length;
+    const end = textarea.selectionEnd ?? value.length;
+    const next = value.slice(0, start) + token + value.slice(end);
+    if (next.length > this.maxMessage()) {
+      this.toast.error(`The message can be at most ${this.maxMessage()} characters.`);
+      return;
+    }
+    this.pushMessage.set(next);
+    textarea.value = next;
+    const caret = start + token.length;
+    textarea.focus();
+    textarea.setSelectionRange(caret, caret);
   }
 
   // ------------------------------------------------------------------ Reply-To
@@ -270,6 +412,10 @@ export class MessageCompose {
 
   openPreview(): void {
     this.submitted.set(true);
+    if (this.isPush()) {
+      this.openPushPreview();
+      return;
+    }
     if (this.subjectError() || this.bodyError() || this.replyError()) {
       this.toast.error('Fill in the subject and the message to preview it.');
       return;
@@ -287,7 +433,7 @@ export class MessageCompose {
         next: (p) => {
           this.preview.set(p);
           // Server-sanitized HTML, shown in a sandbox="" iframe (no scripts, unique origin).
-          this.previewDoc.set(this.sanitizer.bypassSecurityTrustHtml(emailDocument(p.html)));
+          this.previewDoc.set(this.sanitizer.bypassSecurityTrustHtml(emailDocument(p.html ?? '')));
           this.previewing.set(false);
         },
         error: (err) => {
@@ -295,6 +441,44 @@ export class MessageCompose {
           this.toast.error(apiErrorLines(err, 'Could not build the preview.').message);
         },
       });
+  }
+
+  /** Push preview: the server personalizes the text for the first To; shown as a phone card (text only). */
+  private openPushPreview(): void {
+    if (this.pushTitleError() || this.pushMessageError()) {
+      this.toast.error('Fill in the title and the message to preview the push.');
+      return;
+    }
+    this.previewing.set(true);
+    this.messages
+      .preview({
+        channel: 'Push',
+        subject: this.pushTitle().trim(),
+        html: this.pushMessage().trim(),
+        replyToMode: 'NoReply',
+        replyToAddress: null,
+        to: this.toChips().map(toApiChip),
+      })
+      .subscribe({
+        next: (p) => {
+          this.preview.set(p);
+          this.previewDoc.set(null);
+          this.previewing.set(false);
+        },
+        error: (err) => {
+          this.previewing.set(false);
+          this.toast.error(apiErrorLines(err, 'Could not build the preview.').message);
+        },
+      });
+  }
+
+  /** Push preview card text: the server's personalized text, else the typed message. */
+  pushPreviewTitle(p: PreviewResult): string {
+    return p.subject || this.pushTitle().trim();
+  }
+
+  pushPreviewText(p: PreviewResult): string {
+    return p.text ?? this.pushMessage().trim();
   }
 
   closePreview(): void {
@@ -308,6 +492,10 @@ export class MessageCompose {
   requestSend(): void {
     this.submitted.set(true);
     this.toTouched.set(true);
+    if (this.isPush()) {
+      this.requestSendPush();
+      return;
+    }
     const problem = this.toError() || this.subjectError() || this.bodyError() || this.replyError() || this.sizeError();
     if (problem) {
       this.toast.error(problem);
@@ -333,9 +521,62 @@ export class MessageCompose {
     });
   }
 
+  private requestSendPush(): void {
+    if (!this.pushAvailable()) {
+      this.toast.error(this.pushReason());
+      return;
+    }
+    const problem = this.toError() || this.pushTitleError() || this.pushMessageError();
+    if (problem) {
+      this.toast.error(problem);
+      return;
+    }
+    this.resolving.set(true);
+    this.messages.resolve(this.resolveRequest()).subscribe({
+      next: (r) => {
+        this.summary.set(r);
+        this.resolving.set(false);
+        if (r.overLimit) {
+          this.toast.error(`This push has ${r.totalRecipients} recipients; the limit is ${r.maxRecipients}. Remove some recipients or groups.`);
+        } else if (r.to.count === 0) {
+          this.toast.error('None of the To recipients can receive a push. Check the skipped list in the summary.');
+        } else {
+          this.confirmSend.set(true);
+        }
+      },
+      error: (err) => {
+        this.resolving.set(false);
+        this.toast.error(apiErrorLines(err, 'Could not count the recipients.').message);
+      },
+    });
+  }
+
+  /** "Send push to N people?" */
+  confirmTitle(): string {
+    if (!this.isPush()) return 'Send this message?';
+    const n = this.summary()?.to.count ?? 0;
+    return `Send push to ${n} ${n === 1 ? 'person' : 'people'}?`;
+  }
+
+  confirmMessage(): string {
+    const s = this.summary();
+    if (this.isPush()) {
+      return 'Everyone gets it in their notification bell; people with the app on a phone also get a push. It can’t be recalled once sent.';
+    }
+    const emails = s?.totalEmails ?? 0;
+    const people = s?.totalRecipients ?? 0;
+    return `This will send ${emails} email${emails === 1 ? '' : 's'} to ${people} recipient${people === 1 ? '' : 's'}.`;
+  }
+
   confirmDetails(): string[] {
     const s = this.summary();
     if (!s) return [];
+    if (this.isPush()) {
+      const lines = [`With the app on a phone: ${s.withApp ?? 0}`, `In app only (bell): ${s.inAppOnly ?? 0}`];
+      if (s.self) lines.push('Also sent to your own devices');
+      if (s.skipped.length) lines.push(`${s.skipped.length} recipient(s) will be skipped`);
+      return lines;
+    }
     const lines = [`To: ${s.to.count} (each gets their own email)`];
     if (s.cc.count) lines.push(`CC: ${s.cc.count} (one shared copy)`);
     if (s.bcc.count) lines.push(`BCC: ${s.bcc.count} (one hidden copy)`);
@@ -347,6 +588,10 @@ export class MessageCompose {
 
   send(): void {
     this.confirmSend.set(false);
+    if (this.isPush()) {
+      this.sendPush();
+      return;
+    }
     const request: SendMessageRequest = {
       subject: this.subject().trim(),
       html: this.body(),
@@ -369,6 +614,29 @@ export class MessageCompose {
       error: (err) => {
         this.sending.set(false);
         const { message, errors } = apiErrorLines(err, 'The message could not be sent.');
+        this.toast.error([message, ...errors].filter(Boolean).join(' '));
+      },
+    });
+  }
+
+  private sendPush(): void {
+    const request: SendPushRequest = {
+      title: this.pushTitle().trim(),
+      message: this.pushMessage().trim(),
+      sendCopyToSender: this.pushCopy(),
+      to: this.toChips().map(toApiChip),
+    };
+    this.sending.set(true);
+    this.messages.sendPush(request).subscribe({
+      next: (res) => {
+        this.sending.set(false);
+        this.toast.success(`Push queued for ${res.recipientCount} ${res.recipientCount === 1 ? 'person' : 'people'}.`);
+        this.messages.loadAccess(true).subscribe();
+        this.router.navigate(['/dashboard/messages', res.messageId]);
+      },
+      error: (err) => {
+        this.sending.set(false);
+        const { message, errors } = apiErrorLines(err, 'The push notification could not be sent.');
         this.toast.error([message, ...errors].filter(Boolean).join(' '));
       },
     });
