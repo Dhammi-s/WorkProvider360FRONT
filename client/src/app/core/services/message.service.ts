@@ -26,11 +26,12 @@ import {
   ResolveResult,
   SendMessageRequest,
   SendMessageResult,
+  SendPushRequest,
 } from '../models/message.model';
 import { AuthService } from './auth.service';
 import { queryParams, unwrapData } from './billing-http';
 
-/** Send Custom Message (ADR-0006): access, recipients, preview, send, history and settings. */
+/** Send Custom Message (ADR-0006) and Push (ADR-0007): access, recipients, preview, send, history and settings. */
 @Injectable({ providedIn: 'root' })
 export class MessageService {
   private readonly http = inject(HttpClient);
@@ -45,6 +46,7 @@ export class MessageService {
   readonly canView = computed(() => !!this.access()?.canView);
   readonly canManageSettings = computed(() => !!this.access()?.canManageSettings);
   readonly hasRecentFailures = computed(() => !!this.access()?.hasRecentFailures);
+  readonly pushAvailable = computed(() => !!this.access()?.pushAvailable);
   private access$: Observable<MessageAccess | null> | null = null;
   private accessUserId: number | null = null;
 
@@ -76,19 +78,27 @@ export class MessageService {
       .pipe(map((r) => r.data ?? []));
   }
 
-  /** Live recipients summary (counts per field, skipped, duplicates, total emails). */
+  /** Live recipients summary (counts per field, skipped, duplicates, total emails; Push: with app / in app only). */
   resolve(request: ResolveRequest): Observable<ResolveResult> {
     return this.http
-      .post<ApiResponse<ResolveResult>>(`${this.base}/resolve`, request)
+      .post<ApiResponse<ResolveResult>>(`${this.base}/resolve`, { ...request, channel: request.channel ?? 'Email' })
       .pipe(map((r) => unwrapData(r)));
   }
 
   // ------------------------------------------------------------------ Compose
 
-  /** Server-rendered preview (sanitized, banner, personalization from the first To). */
+  /** Server-rendered preview (sanitized, banner, personalization from the first To).
+   *  Push: `subject` = title, `html` = plain text; the result carries `text` and `html: null`. */
   preview(request: PreviewRequest): Observable<PreviewResult> {
     return this.http
-      .post<ApiResponse<PreviewResult>>(`${this.base}/preview`, request)
+      .post<ApiResponse<PreviewResult>>(`${this.base}/preview`, { ...request, channel: request.channel ?? 'Email' })
+      .pipe(map((r) => unwrapData(r)));
+  }
+
+  /** Queues a custom push notification (JSON, 202). */
+  sendPush(request: SendPushRequest): Observable<SendMessageResult> {
+    return this.http
+      .post<ApiResponse<SendMessageResult>>(`${this.base}/push`, request)
       .pipe(map((r) => unwrapData(r)));
   }
 
@@ -114,6 +124,7 @@ export class MessageService {
       to: q.to,
       search: q.search?.trim(),
       mine: q.mine ? 'true' : null,
+      channel: q.channel || null,
     });
     return this.http
       .get<ApiResponse<MessagePage<MessageListItem>>>(this.base, { params })

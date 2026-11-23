@@ -26,6 +26,12 @@
     <div class="mt-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
         <div class="flex flex-wrap items-center gap-3">
+          @if (isPush()) {
+            <span class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200">
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" /></svg>
+              Push
+            </span>
+          }
           <h1 class="break-words text-2xl font-extrabold tracking-tight text-slate-900">{{ m.subject }}</h1>
           <span class="rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset" [class]="statusClass(m.status)">{{ statusLabel(m.status) }}</span>
           @if (live()) {
@@ -66,6 +72,48 @@
       </div>
     }
 
+    @if (isPush()) {
+    <!-- Push counts: Sent (to a phone) / In app only / Failed / Pending -->
+    <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">People</p>
+        <p class="mt-1 text-2xl font-extrabold text-slate-900">{{ m.recipientCount }}</p>
+        @if (m.sendCopyToSender) { <p class="text-xs text-slate-400">incl. sender's devices</p> }
+      </div>
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Sent</p>
+        <p class="mt-1 text-2xl font-extrabold text-emerald-600">{{ pushedCount() }}</p>
+        <p class="text-xs text-slate-400">to a phone@if (m.completedOn) { · done {{ utc(m.completedOn) | date: 'MMM d, h:mm a' }} }</p>
+      </div>
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">In app only</p>
+        <p class="mt-1 text-2xl font-extrabold text-indigo-600">{{ m.inAppOnlyCount ?? 0 }}</p>
+        <p class="text-xs text-slate-400">bell only, no phone</p>
+      </div>
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Failed</p>
+        <p class="mt-1 text-2xl font-extrabold" [class]="m.failedCount ? 'text-red-600' : 'text-slate-300'">{{ m.failedCount }}</p>
+      </div>
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Pending</p>
+        <p class="mt-1 text-2xl font-extrabold text-slate-700">{{ m.pendingCount }}</p>
+        @if (live() || m.pendingCount) {
+          <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <div class="h-full rounded-full bg-brand-500 transition-all" [style.width.%]="progress()"></div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Push content: plain text interpolation only (never innerHTML / iframe). -->
+    <div class="wp-card mt-5 !p-5">
+      <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Title</h2>
+      <p class="mt-1 break-words text-base font-bold text-slate-900">{{ m.subject }}</p>
+      <h2 class="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Message</h2>
+      <p class="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">{{ m.bodyHtml }}</p>
+      <p class="mt-4 text-xs text-slate-400">Shown as written; personal placeholders were filled in for each person. Everyone also has it in their notification bell.</p>
+    </div>
+    } @else {
     <!-- Counts -->
     <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
       <div class="wp-card !p-4">
@@ -136,6 +184,7 @@
         }
       </div>
     </div>
+    }
 
     <!-- Recipients -->
     <div class="wp-card mt-5 overflow-hidden !p-0">
@@ -144,8 +193,8 @@
         <select class="wp-input !w-auto !py-1.5 text-sm" aria-label="Filter recipients by status"
           [ngModel]="recipientStatus()" (ngModelChange)="setRecipientStatus($event)">
           <option value="">All statuses</option>
-          @for (s of recipientStatuses; track s) {
-            <option [value]="s">{{ s }}</option>
+          @for (s of recipientStatuses(); track s) {
+            <option [value]="s">{{ statusLabel(s) }}</option>
           }
         </select>
       </div>
@@ -160,6 +209,9 @@
                 <th class="px-5 py-3">Recipient</th>
                 <th class="px-5 py-3">Via</th>
                 <th class="px-5 py-3">Status</th>
+                @if (isPush()) {
+                  <th class="px-5 py-3 text-right" title="Phones that accepted / rejected the push">Devices</th>
+                }
                 <th class="px-5 py-3">Sent</th>
                 <th class="px-5 py-3">Error</th>
               </tr>
@@ -170,15 +222,27 @@
                   <td class="whitespace-nowrap px-5 py-3 text-xs font-semibold text-slate-500">{{ fieldLabel(r.field) }}</td>
                   <td class="px-5 py-3">
                     <p class="font-semibold text-slate-800">{{ r.displayName || r.email }}</p>
-                    @if (r.displayName) { <p class="text-xs text-slate-400">{{ r.email }}</p> }
+                    @if (r.displayName && r.email) { <p class="text-xs text-slate-400">{{ r.email }}</p> }
                   </td>
                   <td class="px-5 py-3 text-xs text-slate-500">
                     {{ r.groupLabel || (r.sourceType === 'External' ? 'Typed address' : r.sourceType === 'Client' ? 'Client' : 'Staff') }}
                   </td>
                   <td class="whitespace-nowrap px-5 py-3">
-                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset" [class]="statusClass(r.status)">{{ r.status }}</span>
+                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset" [class]="statusClass(r.status)">{{ statusLabel(r.status) }}</span>
                     @if (r.attempts > 1) { <span class="ml-1 text-xs text-slate-400">×{{ r.attempts }}</span> }
                   </td>
+                  @if (isPush()) {
+                    <td class="whitespace-nowrap px-5 py-3 text-right text-xs">
+                      @if (r.devicesSent == null && r.devicesFailed == null) {
+                        <span class="text-slate-300">—</span>
+                      } @else {
+                        <span class="font-semibold text-emerald-700" title="Devices sent">{{ r.devicesSent ?? 0 }} sent</span>
+                        @if (r.devicesFailed) {
+                          <span class="text-slate-300"> · </span><span class="font-semibold text-red-600" title="Devices failed">{{ r.devicesFailed }} failed</span>
+                        }
+                      }
+                    </td>
+                  }
                   <td class="whitespace-nowrap px-5 py-3 text-slate-500">{{ r.sentOn ? (utc(r.sentOn) | date: 'MMM d, h:mm a') : '—' }}</td>
                   <td class="max-w-[320px] px-5 py-3 text-xs text-red-600">{{ r.error || '' }}</td>
                 </tr>

@@ -13,9 +13,12 @@ import { Router, RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
 import { apiErrorLines } from '../../../core/models/api-response.model';
 import {
+  MESSAGE_CHANNELS,
   MESSAGE_STATUSES,
+  MessageChannel,
   MessageListItem,
   MessageStatus,
+  messageChannel,
   messageStatusClass,
   messageStatusLabel,
   utc,
@@ -24,7 +27,8 @@ import { AuthService } from '../../../core/services/auth.service';
 import { MessageService } from '../../../core/services/message.service';
 import { Paginator } from '../../../shared/ui/paginator/paginator';
 
-/** Sent messages (ADR-0006 D8): list with status / date / search filters and "Mine only". */
+/** Sent messages (ADR-0006 D8): list with channel / status / date / search filters and "Mine only".
+ *  ADR-0007: Channel column (email / push) and filter. */
 @Component({
   selector: 'app-messages',
   imports: [DatePipe, FormsModule, RouterLink, Paginator],
@@ -38,6 +42,8 @@ export class Messages {
   readonly access = this.messages.access;
   readonly accessLoaded = signal(false);
   readonly statuses = MESSAGE_STATUSES;
+  readonly channels = MESSAGE_CHANNELS;
+  readonly channelOf = messageChannel;
   readonly statusLabel = messageStatusLabel;
   readonly statusClass = messageStatusClass;
   readonly utc = utc;
@@ -52,6 +58,7 @@ export class Messages {
   readonly error = signal('');
 
   readonly status = signal<MessageStatus | ''>('');
+  readonly channel = signal<MessageChannel | ''>('');
   readonly from = signal('');
   readonly to = signal('');
   readonly search = signal('');
@@ -82,6 +89,7 @@ export class Messages {
         to: this.to() || null,
         search: this.search() || null,
         mine: this.mine(),
+        channel: this.channel() || null,
       })
       .subscribe({
         next: (r) => {
@@ -108,6 +116,7 @@ export class Messages {
 
   clearFilters(): void {
     this.status.set('');
+    this.channel.set('');
     this.from.set('');
     this.to.set('');
     this.search.set('');
@@ -115,7 +124,7 @@ export class Messages {
     this.applyFilters();
   }
 
-  readonly hasFilters = computed(() => !!(this.status() || this.from() || this.to() || this.search() || this.mine()));
+  readonly hasFilters = computed(() => !!(this.status() || this.channel() || this.from() || this.to() || this.search() || this.mine()));
 
   goPage(p: number): void {
     this.page.set(p);

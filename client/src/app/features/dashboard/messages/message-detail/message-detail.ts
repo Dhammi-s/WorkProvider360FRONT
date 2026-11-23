@@ -17,6 +17,7 @@ import {
   MessageDetail as MessageDetailDto,
   RecipientStatus,
   formatBytes,
+  messageChannel,
   messageStatusClass,
   messageStatusLabel,
   utc,
@@ -32,7 +33,9 @@ const LIVE_STATUSES = ['Queued', 'Sending'];
 const REFRESH_MS = 5000;
 
 /** One sent message: header, body (sandboxed iframe), attachments, recipients with status,
- *  Retry failed and Duplicate. Refreshes every 5 s while the message is queued or sending. */
+ *  Retry failed and Duplicate. Refreshes every 5 s while the message is queued or sending.
+ *  Push (ADR-0007): title + message as plain text (never HTML / iframe), Sent / In app only / Failed,
+ *  devices per recipient; Duplicate opens the composer on Push. */
 @Component({
   selector: 'app-message-detail',
   imports: [DatePipe, FormsModule, RouterLink, ConfirmDialog, Paginator],
@@ -51,7 +54,8 @@ export class MessageDetail implements OnDestroy {
   readonly statusClass = messageStatusClass;
   readonly formatBytes = formatBytes;
   readonly utc = utc;
-  readonly recipientStatuses: RecipientStatus[] = ['Pending', 'Sent', 'Failed', 'Skipped'];
+  private readonly emailStatuses: RecipientStatus[] = ['Pending', 'Sent', 'Failed', 'Skipped'];
+  private readonly pushStatuses: RecipientStatus[] = ['Pending', 'Sent', 'InAppOnly', 'Failed'];
 
   readonly id = signal(0);
   readonly message = signal<MessageDetailDto | null>(null);
@@ -66,6 +70,13 @@ export class MessageDetail implements OnDestroy {
   readonly downloading = signal<number | null>(null);
 
   readonly live = computed(() => LIVE_STATUSES.includes(this.message()?.status ?? ''));
+  readonly isPush = computed(() => messageChannel(this.message()) === 'Push');
+  readonly recipientStatuses = computed(() => (this.isPush() ? this.pushStatuses : this.emailStatuses));
+  /** Push: `sentCount` = delivered (Sent + InAppOnly, contract §4.5); this is the part pushed to a phone. */
+  readonly pushedCount = computed(() => {
+    const m = this.message();
+    return m ? Math.max(0, m.sentCount - (m.inAppOnlyCount ?? 0)) : 0;
+  });
   readonly files = computed(() => (this.message()?.attachments ?? []).filter((a) => !a.isInline));
   readonly inlineCount = computed(() => (this.message()?.attachments ?? []).filter((a) => a.isInline).length);
   /** Body kept in its own signal (string equality) so refreshes while sending never reload the iframe. */
@@ -125,7 +136,8 @@ export class MessageDetail implements OnDestroy {
       .subscribe({
         next: (m) => {
           this.message.set(m);
-          this.bodyHtml.set(m.bodyHtml ?? '');
+          // Push bodies are plain text: never fed to the HTML iframe.
+          this.bodyHtml.set(messageChannel(m) === 'Push' ? null : (m.bodyHtml ?? ''));
           this.loading.set(false);
           this.notFound.set(false);
           this.scheduleRefresh();
@@ -202,7 +214,9 @@ export class MessageDetail implements OnDestroy {
   }
 
   duplicate(): void {
-    this.router.navigate(['/dashboard/messages/compose'], { queryParams: { from: this.id() } });
+    const queryParams: Record<string, string | number> = { from: this.id() };
+    if (this.isPush()) queryParams['channel'] = 'push';
+    this.router.navigate(['/dashboard/messages/compose'], { queryParams });
   }
 
   replyToLabel(m: MessageDetailDto): string {
@@ -216,7 +230,7 @@ export class MessageDetail implements OnDestroy {
 
   fieldLabel(field: string): string {
     switch (field) {
-      case 'Self': return 'Copy to sender';
+      case 'Self': return this.isPush() ? 'Sender’s devices' : 'Copy to sender';
       case 'Cc': return 'CC';
       case 'Bcc': return 'BCC';
       default: return field;
