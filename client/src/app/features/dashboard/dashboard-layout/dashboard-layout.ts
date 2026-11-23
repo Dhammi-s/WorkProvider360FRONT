@@ -28,6 +28,7 @@ import { ShortcutService } from '../../../core/services/shortcut.service';
 import { UserService } from '../../../core/services/user.service';
 import { AuthorizationService } from '../../../core/services/authorization.service';
 import { BillingService } from '../../../core/services/billing.service';
+import { MessageService } from '../../../core/services/message.service';
 import { MonitoringAuthService } from '../../monitoring/auth/monitoring-auth.service';
 
 interface NavItem {
@@ -48,6 +49,8 @@ interface NavItem {
   authorizations?: boolean;
   /** Hidden when the role's billing access is None. */
   billing?: boolean;
+  /** Custom messages (ADR-0006): 'send' needs canSend, 'view' needs canView. */
+  messages?: 'send' | 'view';
   /** A group: shown as one sidebar row whose pages open in a hover flyout
    *  (desktop) or expand inline (mobile drawer). No path of its own. */
   children?: NavItem[];
@@ -79,6 +82,7 @@ export class DashboardLayout {
   private readonly analysis = inject(AnalysisService);
   private readonly authorizationService = inject(AuthorizationService);
   private readonly billingService = inject(BillingService);
+  private readonly messageService = inject(MessageService);
   /** Separate Development Monitoring session (never mixed with the main-app auth). */
   private readonly monitoringAuth = inject(MonitoringAuthService);
 
@@ -99,6 +103,11 @@ export class DashboardLayout {
     const a = this.billingService.access();
     return !!a && a.accessLevel !== 'None' && a.canView;
   });
+
+  /** Custom messages: top-bar envelope (canSend), sidebar Messages (canView), red dot on recent failures. */
+  readonly messagesCanSend = this.messageService.canSend;
+  readonly messagesCanView = this.messageService.canView;
+  readonly messagesFailed = this.messageService.hasRecentFailures;
 
   readonly user = this.auth.user;
   readonly logo = this.branding.logo;
@@ -139,6 +148,8 @@ export class DashboardLayout {
       this.authorizationService.loadAccess().subscribe();
       this.billingService.loadAccess().subscribe();
     }
+    // Message access (send / view / recent failures) for every staff role; force a fresh read per sign-in.
+    this.messageService.loadAccess(true).subscribe();
     this.users.getMe().subscribe({
       next: (me) => {
         this.avatarUrl.set(me.avatarUrl ?? null);
@@ -208,9 +219,10 @@ export class DashboardLayout {
       ],
     },
     {
-      label: 'Communication', hint: 'Meetings, announcements and email history', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z',
+      label: 'Communication', hint: 'Meetings, messages, announcements and email history', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z',
       children: [
         { label: 'Meetings', hint: 'Schedule and join team meetings', path: '/dashboard/meetings', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+        { label: 'Messages', hint: 'Custom emails sent from the app and their delivery', path: '/dashboard/messages', icon: 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z', roles: ['SuperAdmin', 'Admin', 'Manager', 'User'], messages: 'view' },
         { label: 'Announcements', hint: 'Broadcast news to your team', path: '/dashboard/announcements', icon: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 11-5.8-1.6' },
         { label: 'Email Logs', hint: 'History of emails sent', path: '/dashboard/logs', icon: 'M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2M4 6l8 6 8-6', roles: ['SuperAdmin', 'Admin', 'Manager'] },
       ],
@@ -232,6 +244,7 @@ export class DashboardLayout {
   // not in the sidebar.
   private readonly allTopNav: NavItem[] = [
     { label: 'Security', path: '/dashboard/security', icon: 'M12 3l7 3v5c0 4.4-3 7.3-7 8.5-4-1.2-7-4.1-7-8.5V6l7-3zM9.5 11.8l1.8 1.8 3.2-3.6', roles: ['SuperAdmin'] },
+    { label: 'Send message', path: '/dashboard/messages/compose', icon: 'M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM3 7l9 6 9-6', messages: 'send' },
     { label: 'Settings', path: '/dashboard/settings', icon: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
     { label: 'Help Center', path: '/dashboard/help', icon: 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.8 9.3a2.3 2.3 0 114 1.6c-.7.8-1.8 1.1-1.8 2.3M12 17h.01' },
     { label: 'Support', path: '/dashboard/support', icon: 'M20 15a2 2 0 01-2 2H8l-4 3V6a2 2 0 012-2h12a2 2 0 012 2v9zM9 9h6M9 12.5h4' },
@@ -245,11 +258,13 @@ export class DashboardLayout {
     const monitoringOk = this.monitoringAuth.isAuthenticated();
     const authorizationsOk = this.authorizationsAllowed();
     const billingOk = this.billingAllowed();
+    const messagesOk = this.messagesCanView();
     const visible = (item: NavItem) =>
       (!item.roles || (role && item.roles.includes(role))) &&
       (!item.analysis || analysisOk) &&
       (!item.authorizations || authorizationsOk) &&
       (!item.billing || billingOk) &&
+      (!item.messages || messagesOk) &&
       (!item.monitoring || monitoringOk) &&
       (!item.training || trainingOk);
 
@@ -399,7 +414,10 @@ export class DashboardLayout {
 
   readonly topNav = computed<NavItem[]>(() => {
     const role = this.auth.roleName();
-    return this.allTopNav.filter((item) => !item.roles || (role && item.roles.includes(role)));
+    const canSend = this.messagesCanSend();
+    return this.allTopNav.filter(
+      (item) => (!item.roles || (role && item.roles.includes(role))) && (item.messages !== 'send' || canSend),
+    );
   });
 
   readonly initials = computed(() => {

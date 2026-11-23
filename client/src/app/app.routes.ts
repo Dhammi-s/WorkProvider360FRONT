@@ -268,6 +268,30 @@ export const routes: Routes = [
         title: 'Meetings · WorkProvider360',
       },
       {
+        // Send custom message (ADR-0006); the pages also check the message access (canView / canSend).
+        path: 'messages',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },
+        loadComponent: () => import('./features/dashboard/messages/messages').then((m) => m.Messages),
+        title: 'Messages · WorkProvider360',
+      },
+      {
+        path: 'messages/compose',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },
+        loadComponent: () =>
+          import('./features/dashboard/messages/compose/compose').then((m) => m.MessageCompose),
+        title: 'Send message · WorkProvider360',
+      },
+      {
+        path: 'messages/:id',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },
+        loadComponent: () =>
+          import('./features/dashboard/messages/message-detail/message-detail').then((m) => m.MessageDetail),
+        title: 'Message · WorkProvider360',
+      },
+      {
         path: 'reports',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },

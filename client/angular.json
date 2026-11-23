@@ -24,7 +24,7 @@
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
-            "allowedCommonJsDependencies": ["html2pdf.js", "html2canvas", "leaflet"],
+            "allowedCommonJsDependencies": ["html2pdf.js", "html2canvas", "leaflet", "quill-delta"],
             "assets": [
               {
                 "glob": "**/*",
@@ -33,7 +33,12 @@
             ],
             "styles": [
               "node_modules/leaflet/dist/leaflet.css",
-              "src/styles.scss"
+              "src/styles.scss",
+              {
+                "input": "node_modules/quill/dist/quill.snow.css",
+                "bundleName": "quill-snow",
+                "inject": false
+              }
             ]
           },
           "configurations": {

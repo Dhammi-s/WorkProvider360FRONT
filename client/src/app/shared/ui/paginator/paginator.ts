@@ -25,7 +25,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
             Show
             <select class="wp-input !w-auto !py-1.5 text-sm" [value]="pageSize()" (change)="onSize($event)">
               @for (opt of pageSizeOptions(); track opt) {
-                <option [value]="opt">{{ opt }}</option>
+                <option [value]="opt" [selected]="opt === pageSize()">{{ opt }}</option>
               }
             </select>
           </label>
