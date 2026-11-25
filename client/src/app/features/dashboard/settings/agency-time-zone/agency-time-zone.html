@@ -20,8 +20,15 @@
       <label for="agencyTz" class="wp-label">Time zone</label>
       <select id="agencyTz" class="wp-input" [ngModel]="selectedId()" (ngModelChange)="selectedId.set($event)" [disabled]="saving()">
         <option [ngValue]="null">Not set — use each office's time zone</option>
-        @for (tz of timezones(); track tz.timezoneId) {
+        @for (tz of groups().named; track tz.timezoneId) {
           <option [ngValue]="tz.timezoneId">{{ label(tz) }}</option>
+        }
+        @if (groups().fixed.length) {
+          <optgroup label="Fixed GMT offsets (no daylight saving)">
+            @for (tz of groups().fixed; track tz.timezoneId) {
+              <option [ngValue]="tz.timezoneId">{{ label(tz) }}</option>
+            }
+          </optgroup>
         }
       </select>
 
