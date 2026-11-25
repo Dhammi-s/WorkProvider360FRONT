@@ -12,6 +12,7 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
 import {
+  AgencyTimeZone,
   CreateOfficeRequest,
   Office,
   OfficeMember,
@@ -23,11 +24,26 @@ import {
 export class OfficeService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiBaseUrl}/offices`;
+  private readonly settingsUrl = `${environment.apiBaseUrl}/settings`;
 
   timezones(): Observable<Timezone[]> {
     return this.http
       .get<ApiResponse<Timezone[]>>(`${this.baseUrl}/timezones`)
       .pipe(map((r) => r.data ?? []));
+  }
+
+  /** Agency time zone used in emails, push and SMS (ADR-0008). */
+  getAgencyTimeZone(): Observable<AgencyTimeZone> {
+    return this.http
+      .get<ApiResponse<AgencyTimeZone>>(`${this.settingsUrl}/time-zone`)
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  /** null clears the agency time zone (each office's own zone is used, else UTC). */
+  setAgencyTimeZone(timezoneId: string | null): Observable<AgencyTimeZone> {
+    return this.http
+      .put<ApiResponse<AgencyTimeZone>>(`${this.settingsUrl}/time-zone`, { timezoneId })
+      .pipe(map((r) => this.unwrap(r)));
   }
 
   list(): Observable<Office[]> {
