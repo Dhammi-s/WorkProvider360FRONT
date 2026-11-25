@@ -122,8 +122,15 @@
           <label for="timezoneId" class="wp-label">Timezone</label>
           <select id="timezoneId" formControlName="timezoneId" class="wp-input">
             <option value="">— Select timezone —</option>
-            @for (tz of timezones(); track tz.timezoneId) {
+            @for (tz of timezoneGroups().named; track tz.timezoneId) {
               <option [value]="tz.timezoneId">{{ tz.description || tz.timezoneName }}</option>
+            }
+            @if (timezoneGroups().fixed.length) {
+              <optgroup label="Fixed GMT offsets (no daylight saving)">
+                @for (tz of timezoneGroups().fixed; track tz.timezoneId) {
+                  <option [value]="tz.timezoneId">{{ tz.description || tz.timezoneName }}</option>
+                }
+              </optgroup>
             }
           </select>
         </div>

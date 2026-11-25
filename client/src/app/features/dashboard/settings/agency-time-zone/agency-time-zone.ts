@@ -11,6 +11,7 @@ import { forkJoin } from 'rxjs';
 import { Timezone } from '../../../../core/models/office.model';
 import { OfficeService } from '../../../../core/services/office.service';
 import { ToastService } from '../../../../core/services/toast.service';
+import { groupTimezones } from '../../../../core/utils/timezones';
 import { Alert } from '../../../../shared/ui/alert/alert';
 
 /**
@@ -40,6 +41,9 @@ export class AgencyTimeZoneCard {
     const id = this.selectedId();
     return id ? this.timezones().find((t) => t.timezoneId === id) ?? null : null;
   });
+
+  /** Picker groups: named zones, then fixed GMT offsets — each sorted by offset (ADR-0009). */
+  readonly groups = computed(() => groupTimezones(this.timezones()));
 
   readonly dirty = computed(() => this.selectedId() !== this.savedId());
 

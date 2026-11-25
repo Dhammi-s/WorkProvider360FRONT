@@ -11,6 +11,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Office, OfficeMember, Timezone } from '../../../core/models/office.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { OfficeService } from '../../../core/services/office.service';
+import { groupTimezones } from '../../../core/utils/timezones';
 import { Alert } from '../../../shared/ui/alert/alert';
 
 @Component({
@@ -27,6 +28,8 @@ export class Offices {
 
   readonly offices = signal<Office[]>([]);
   readonly timezones = signal<Timezone[]>([]);
+  /** Picker groups: named zones, then fixed GMT offsets — each sorted by offset (ADR-0009). */
+  readonly timezoneGroups = computed(() => groupTimezones(this.timezones()));
   readonly loading = signal(true);
   readonly listError = signal('');
   readonly notice = signal('');
