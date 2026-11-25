@@ -33,6 +33,7 @@ import { AnalysisAccessLevel, AnalysisModule } from '../../../core/models/analys
 import { Alert } from '../../../shared/ui/alert/alert';
 import { LogoUploader } from '../branding/logo-uploader';
 import { EmailBannerUploader } from '../branding/email-banner-uploader';
+import { AgencyTimeZoneCard } from './agency-time-zone/agency-time-zone';
 import { SchedulingAutomationCard } from './scheduling-automation/scheduling-automation';
 import { CareAttributesSettings } from './care-attributes/care-attributes';
 import { MessageSettingsTab } from './message-settings/message-settings';
@@ -47,7 +48,7 @@ interface SettingsTab {
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, RouterLink, Alert, LogoUploader, EmailBannerUploader, SchedulingAutomationCard, CareAttributesSettings, BillingSettingsTab, MessageSettingsTab],
+  imports: [FormsModule, RouterLink, Alert, LogoUploader, AgencyTimeZoneCard, EmailBannerUploader, SchedulingAutomationCard, CareAttributesSettings, BillingSettingsTab, MessageSettingsTab],
   templateUrl: './settings.html',
 })
 export class Settings {
