@@ -48,6 +48,7 @@ export const HELP_TOPICS = [
   'Security & logs',
   'Settings',
   'My profile & shortcuts',
+  'Mobile app',
   'Help & support',
 ] as const;
 
@@ -255,6 +256,12 @@ export const HELP_FAQS: HelpFaq[] = [
   // ---------------------------------------------------------------- My profile & shortcuts
   { topic: 'My profile & shortcuts', q: 'How do I update my profile and password?', a: 'Open My Profile to change your photo (camera icon, crop and save), personal details, and your password (current and new password). Your upcoming shifts are under “My schedule”.' },
   { topic: 'My profile & shortcuts', q: 'How do keyboard shortcuts work?', a: 'Open the shortcuts panel, click “+ Add shortcut”, press the key combination and choose the page it opens. If two shortcuts use the same keys, only the first runs.' },
+
+  // ---------------------------------------------------------------- Mobile app
+  { topic: 'Mobile app', q: 'What can I do in the Android app?', a: 'Sign in with your Agency ID, email and password. Caregivers see their schedule (clock in/out with GPS and signature), Open Shifts (say Interested or Not interested), Meetings (reply Accept / Tentative / Decline), Announcements, their Training (watch videos, open documents, take quizzes), Help, Support and About. Managers and admins also get Team, Clients, Payers, Authorizations, Skills & Services, Master Schedules (with publish), Missed Clock-ins, the Live Map and Applications, each only when your role and access settings allow it. Anyone allowed to send messages gets the envelope to send an email or push and the Messages list with delivery status. Clients get their own portal: home, calendar, visits (with signatures and star ratings), invoices (PDF and Pay online), services and profile. Billing runs, Accounting, Point of Sale, Reports, AI Analysis, Settings, Security and training management stay on the web.' },
+  { topic: 'Mobile app', q: 'How does Pay online work in the app?', a: 'Tap Pay online on an invoice: the secure Stripe payment page opens in your phone’s browser. After paying, come back to the app — the invoice is refreshed automatically. The payment is recorded when Stripe confirms it, which can take a minute, so pull down to refresh if it still shows a balance.' },
+  { topic: 'Mobile app', q: 'Why don’t I see a page in the app menu?', a: 'The app menu hides pages your role or your agency’s access settings don’t allow (for example Missed Clock-ins and Master Schedules need scheduling Write access, Authorizations needs authorization access, Training needs the training portal to be enabled for you). Pull down on the menu to reload your access after an administrator changes it.' },
+  { topic: 'Mobile app', q: 'Why did a notification open a different screen?', a: 'Tapping a notification opens the screen it is about: a custom push opens that notification, an open-shift offer opens Open Shifts, a missed clock-in opens Missed Clock-ins for managers (or the visit for the caregiver), and an expiring authorization opens that authorization. If your role can’t see that screen, the app just opens.' },
 
   // ---------------------------------------------------------------- Help & support
   { topic: 'Help & support', q: 'How do I contact support?', a: 'Open Support, describe the problem and send — it is emailed to the support team. The About page describes the software and its provider.' },
