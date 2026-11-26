@@ -1,0 +1,156 @@
+<!-- WorkProvider360 - Multi-tenant SaaS platform. Do NOT change without discussing with the software engineer. -->
+<section>
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Messages</h1>
+      <p class="mt-1 text-sm text-slate-500">Custom emails and push notifications sent from the app, with delivery status per recipient.</p>
+    </div>
+    @if (access()?.canView) {
+      <div class="flex gap-2 self-start sm:self-auto">
+        <button type="button" (click)="load()" class="wp-btn-ghost !py-2">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>
+          Refresh
+        </button>
+        @if (access()?.canSend) {
+          <a routerLink="/dashboard/messages/compose" class="wp-btn-primary !py-2">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+            New message
+          </a>
+        }
+      </div>
+    }
+  </div>
+
+  @if (!accessLoaded()) {
+    <div class="wp-card mt-6 flex items-center justify-center py-16 text-slate-400">
+      <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+    </div>
+  } @else if (!access()?.canView) {
+    <div class="wp-card mt-6 py-16 text-center">
+      <p class="text-sm font-semibold text-slate-700">You don't have access to messages.</p>
+      <p class="mt-1 text-sm text-slate-400">Ask a Super Admin to enable message access for your role in Settings → Messages.</p>
+    </div>
+  } @else {
+    <!-- Filters -->
+    <div class="wp-card mt-6 !p-4">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_130px_170px_150px_150px_auto] lg:items-end">
+        <div>
+          <label class="wp-label !text-xs" for="msg-search">Search</label>
+          <input id="msg-search" type="search" class="wp-input !py-2" placeholder="Subject, title or sender"
+            [ngModel]="search()" (ngModelChange)="onSearch($event)" />
+        </div>
+        <div>
+          <label class="wp-label !text-xs" for="msg-channel">Channel</label>
+          <select id="msg-channel" class="wp-input !py-2" [ngModel]="channel()" (ngModelChange)="channel.set($event); applyFilters()">
+            <option value="">All channels</option>
+            @for (c of channels; track c) {
+              <option [value]="c">{{ c === 'Push' ? 'Push' : 'Email' }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="wp-label !text-xs" for="msg-status">Status</label>
+          <select id="msg-status" class="wp-input !py-2" [ngModel]="status()" (ngModelChange)="status.set($event); applyFilters()">
+            <option value="">All statuses</option>
+            @for (s of statuses; track s) {
+              <option [value]="s">{{ statusLabel(s) }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="wp-label !text-xs" for="msg-from">From</label>
+          <input id="msg-from" type="date" class="wp-input !py-2" [ngModel]="from()" (ngModelChange)="from.set($event); applyFilters()" />
+        </div>
+        <div>
+          <label class="wp-label !text-xs" for="msg-to">To</label>
+          <input id="msg-to" type="date" class="wp-input !py-2" [ngModel]="to()" (ngModelChange)="to.set($event); applyFilters()" />
+        </div>
+        <div class="flex items-center gap-3 lg:pb-2">
+          @if (showMineToggle()) {
+            <label class="inline-flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-slate-700">
+              <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                [ngModel]="mine()" (ngModelChange)="mine.set($event); applyFilters()" />
+              Mine only
+            </label>
+          }
+          @if (hasFilters()) {
+            <button type="button" (click)="clearFilters()" class="whitespace-nowrap text-sm wp-link">Clear</button>
+          }
+        </div>
+      </div>
+    </div>
+
+    @if (error()) {
+      <div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error() }}</div>
+    }
+
+    <div class="mt-4">
+      @if (loading() && !items().length) {
+        <div class="wp-card flex items-center justify-center py-16 text-slate-400">
+          <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+        </div>
+      } @else if (!items().length) {
+        <div class="wp-card py-16 text-center text-sm text-slate-500">
+          {{ hasFilters() ? 'No messages match these filters.' : 'No messages have been sent yet.' }}
+        </div>
+      } @else {
+        <div class="wp-card overflow-hidden !p-0" [class.opacity-60]="loading()">
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-100 text-sm">
+              <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th class="px-5 py-3">Date</th>
+                  <th class="px-3 py-3 text-center">Channel</th>
+                  <th class="px-5 py-3">Subject</th>
+                  <th class="px-5 py-3">Sender</th>
+                  <th class="px-5 py-3 text-right">Recipients</th>
+                  <th class="px-5 py-3 text-right" title="Delivered includes push recipients who got it in the app only (bell)">Delivered / Failed</th>
+                  <th class="px-5 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                @for (m of items(); track m.messageId) {
+                  <tr class="cursor-pointer hover:bg-slate-50/60" (click)="open(m)">
+                    <td class="whitespace-nowrap px-5 py-3 text-slate-500">{{ utc(m.createdOn) | date: 'MMM d, y, h:mm a' }}</td>
+                    <td class="px-3 py-3 text-center">
+                      @if (channelOf(m) === 'Push') {
+                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600" title="Push notification">
+                          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" /></svg>
+                          <span class="sr-only">Push notification</span>
+                        </span>
+                      } @else {
+                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-sky-50 text-sky-600" title="Email">
+                          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v12H4zM4 6l8 6 8-6" /></svg>
+                          <span class="sr-only">Email</span>
+                        </span>
+                      }
+                    </td>
+                    <td class="max-w-[320px] px-5 py-3">
+                      <a [routerLink]="['/dashboard/messages', m.messageId]" (click)="$event.stopPropagation()" class="block truncate font-semibold text-slate-800 hover:text-brand-700">{{ m.subject }}</a>
+                      @if (m.attachmentCount) {
+                        <span class="text-xs text-slate-400">{{ m.attachmentCount }} attachment{{ m.attachmentCount === 1 ? '' : 's' }}</span>
+                      }
+                    </td>
+                    <td class="whitespace-nowrap px-5 py-3 text-slate-600">{{ m.senderName }}</td>
+                    <td class="px-5 py-3 text-right font-semibold text-slate-700">{{ m.recipientCount }}</td>
+                    <td class="whitespace-nowrap px-5 py-3 text-right">
+                      <span class="font-semibold text-emerald-700" title="Delivered">{{ m.sentCount }}</span>
+                      <span class="text-slate-300"> / </span>
+                      <span class="font-semibold" [class]="m.failedCount ? 'text-red-600' : 'text-slate-400'">{{ m.failedCount }}</span>
+                    </td>
+                    <td class="whitespace-nowrap px-5 py-3">
+                      <span class="rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset" [class]="statusClass(m.status)"
+                        [title]="m.status === 'Deferred' && m.nextAttemptOn ? 'Resumes ' + (utc(m.nextAttemptOn) | date: 'medium') : ''">{{ statusLabel(m.status) }}</span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <app-paginator [total]="total()" [page]="page()" [pageSize]="pageSize()" [pageSizeOptions]="[10, 25, 50, 100]"
+            (pageChange)="goPage($event)" (pageSizeChange)="setPageSize($event)" />
+        </div>
+      }
+    </div>
+  }
+</section>

@@ -1,0 +1,157 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     ============================================================================= -->
+<section>
+  <div>
+    <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Missed clock-ins</h1>
+    <p class="mt-1 text-sm text-slate-500">Visits where the caregiver did not clock in or out in time. Late clock-ins resolve themselves; handle the rest here.</p>
+  </div>
+
+  <app-alert type="error" [message]="error()" />
+
+  <div class="wp-card mt-4 overflow-hidden !p-0">
+    <div class="flex flex-wrap items-end gap-3 border-b border-slate-100 px-6 py-4">
+      <div>
+        <label class="wp-label">Status</label>
+        <select class="wp-input !py-2 !w-auto" [ngModel]="status()" (ngModelChange)="status.set($event); applyFilters()">
+          <option value="Open">Open</option>
+          <option value="Resolved">Resolved</option>
+          <option value="Dismissed">Dismissed</option>
+          <option value="All">All</option>
+        </select>
+      </div>
+      <div>
+        <label class="wp-label">Type</label>
+        <select class="wp-input !py-2 !w-auto" [ngModel]="type()" (ngModelChange)="type.set($event); applyFilters()">
+          <option value="">All types</option>
+          <option value="MissedClockIn">Missed clock-in</option>
+          <option value="MissedClockOut">Missed clock-out</option>
+        </select>
+      </div>
+      <div>
+        <label class="wp-label">Visit from</label>
+        <input type="date" class="wp-input !py-2" [ngModel]="from()" (ngModelChange)="from.set($event ?? ''); applyFilters()" />
+      </div>
+      <div>
+        <label class="wp-label">to</label>
+        <input type="date" class="wp-input !py-2" [min]="from()" [ngModel]="to()" (ngModelChange)="to.set($event ?? ''); applyFilters()" />
+      </div>
+    </div>
+
+    @if (loading()) {
+      <div class="py-16 text-center text-sm text-slate-400">Loading…</div>
+    } @else if (items().length === 0) {
+      <div class="py-16 text-center text-sm text-slate-500">{{ status() === 'Open' ? 'No open missed clock-ins.' : 'Nothing matches the filters.' }}</div>
+    } @else {
+      <div class="max-h-[64vh] overflow-auto">
+        <table class="min-w-full divide-y divide-slate-100 text-sm">
+          <thead class="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <tr>
+              <th class="px-4 py-3">Visit</th>
+              <th class="px-4 py-3">Caregiver</th>
+              <th class="px-4 py-3">Type</th>
+              <th class="px-4 py-3">Detected</th>
+              <th class="px-4 py-3">Status</th>
+              <th class="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (e of items(); track e.exceptionId) {
+              <tr class="hover:bg-slate-50/60">
+                <td class="px-4 py-3">
+                  <div class="font-semibold text-slate-800">{{ e.title }}</div>
+                  <div class="text-xs text-slate-500">
+                    {{ wallRange(e.startUtc, e.endUtc) }}
+                    @if (e.clientId) { · <a [routerLink]="['/dashboard/clients', e.clientId]" class="hover:text-brand-700">{{ e.clientName }}</a> }
+                    · {{ e.scheduleStatus }}
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="text-slate-700">{{ e.caregiverName || '—' }}</div>
+                  @if (e.caregiverPhone) { <a [href]="'tel:' + e.caregiverPhone" class="text-xs text-brand-700">{{ e.caregiverPhone }}</a> }
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="e.exceptionType === 'MissedClockIn' ? 'bg-amber-50 text-amber-700' : 'bg-orange-50 text-orange-700'">{{ typeLabel(e.exceptionType) }}</span>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-xs text-slate-500">{{ e.detectedOn | date: 'MMM d, h:mm a' }}</td>
+                <td class="px-4 py-3">
+                  <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusClass(e.status)">{{ e.status }}</span>
+                  @if (e.status !== 'Open') {
+                    <div class="mt-1 text-xs text-slate-500">
+                      {{ resolutionLabel(e.resolution) }}{{ e.lateMinutes ? ' (' + e.lateMinutes + ' min late)' : '' }}
+                      @if (e.resolvedByName) { · {{ e.resolvedByName }} }
+                    </div>
+                    @if (e.note) { <div class="max-w-[220px] truncate text-xs text-slate-400" [title]="e.note">{{ e.note }}</div> }
+                  }
+                </td>
+                <td class="px-4 py-3 text-right whitespace-nowrap">
+                  @if (e.status === 'Open') {
+                    <div class="inline-flex gap-1.5">
+                      <button type="button" (click)="open(e, 'AddTime')" class="wp-btn-primary !py-1.5 !px-3 text-xs">Add time</button>
+                      @if (e.exceptionType === 'MissedClockIn') {
+                        <button type="button" (click)="open(e, 'NoShow')" class="wp-btn-ghost !py-1.5 !px-3 text-xs !text-red-600">No-show</button>
+                      }
+                      <button type="button" (click)="open(e, 'Dismiss')" class="wp-btn-ghost !py-1.5 !px-3 text-xs">Dismiss</button>
+                    </div>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <app-paginator [total]="total()" [page]="page()" [pageSize]="pageSize()" (pageChange)="onPage($event)" (pageSizeChange)="onPageSize($event)" />
+    }
+  </div>
+
+  @if (resolving(); as r) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-slate-900/50" (click)="resolving.set(null)"></div>
+      <div class="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <h3 class="text-lg font-bold text-slate-900">
+          @switch (r.action) {
+            @case ('AddTime') { Add time }
+            @case ('NoShow') { Mark as a no-show? }
+            @default { Dismiss }
+          }
+        </h3>
+        <p class="mt-1 text-sm text-slate-500">{{ r.ex.title }} · {{ wallRange(r.ex.startUtc, r.ex.endUtc) }} · {{ r.ex.caregiverName }}</p>
+        <app-alert type="error" [message]="dialogError()" />
+
+        @if (r.action === 'AddTime') {
+          <div class="mt-4 space-y-3">
+            @if (needsClockIn(r.ex)) {
+              <div class="grid grid-cols-2 gap-3">
+                <div><label class="wp-label">Clock-in date</label><input type="date" class="wp-input" [ngModel]="inDate()" (ngModelChange)="inDate.set($event ?? '')" /></div>
+                <div><label class="wp-label">Clock-in time</label><input type="time" class="wp-input" [ngModel]="inTime()" (ngModelChange)="inTime.set($event ?? '')" /></div>
+              </div>
+            }
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="wp-label">Clock-out date</label><input type="date" class="wp-input" [ngModel]="outDate()" (ngModelChange)="outDate.set($event ?? '')" /></div>
+              <div><label class="wp-label">Clock-out time</label><input type="time" class="wp-input" [ngModel]="outTime()" (ngModelChange)="outTime.set($event ?? '')" /></div>
+            </div>
+            <p class="text-[11px] text-slate-400">Times are the visit's local (office) time. The visit is marked Completed.</p>
+          </div>
+        } @else if (r.action === 'NoShow') {
+          <p class="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">The visit is cancelled and recorded as a no-show. This cannot be undone here.</p>
+        }
+
+        <label class="wp-label mt-4">{{ r.action === 'AddTime' ? 'Reason *' : 'Note (optional)' }}</label>
+        <textarea rows="2" maxlength="500" class="wp-input" [ngModel]="note()" (ngModelChange)="note.set($event)" [placeholder]="r.action === 'AddTime' ? 'e.g. Forgot phone' : ''"></textarea>
+
+        <div class="mt-5 flex justify-end gap-2">
+          <button type="button" (click)="resolving.set(null)" class="wp-btn-ghost">Cancel</button>
+          <button type="button" (click)="submit()" [disabled]="busy()"
+            [class]="r.action === 'NoShow' ? 'wp-btn-primary !bg-red-600 hover:!bg-red-700' : 'wp-btn-primary'">
+            @switch (r.action) {
+              @case ('AddTime') { Save time }
+              @case ('NoShow') { Mark no-show }
+              @default { Dismiss }
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</section>

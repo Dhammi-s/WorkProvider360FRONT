@@ -5,271 +5,357 @@
    SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
    ============================================================================= */
 
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
-import { Client } from '../../../core/models/client.model';
 import {
-  ClientInvoice,
-  ClientInvoicePreview,
-  ClientInvoiceStatus,
-} from '../../../core/models/client-invoice.model';
-import { ClientService } from '../../../core/services/client.service';
-import { ClientInvoiceService } from '../../../core/services/client-invoice.service';
-import { ApprovalPrompt, buildApprovalPrompt } from '../../util/approval-prompt.util';
-import { downloadClientInvoicePdf } from '../../util/client-invoice-pdf.util';
+  BillToType,
+  INVOICE_STATUSES,
+  InvoiceListRow,
+  InvoiceStatus,
+  PaymentCreated,
+  fmtDate,
+  invoiceNumberLabel,
+  invoiceStatusClass,
+  invoiceStatusLabel,
+  money,
+  periodLabel,
+  todayYmd,
+} from '../../../core/models/billing.model';
+import { BillingService } from '../../../core/services/billing.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { Alert } from '../alert/alert';
-import { ConfirmDialog } from '../confirm-dialog/confirm-dialog';
+import { ClientPicker, PayerSelect, PickedClient } from '../billing/billing-pickers';
+import { InvoiceDialogKind, InvoiceDialogRequest, InvoiceDialogs } from '../billing/invoice-dialogs/invoice-dialogs';
+import { InvoiceDrawer } from '../billing/invoice-drawer/invoice-drawer';
+import { InvoicePdf } from '../billing/invoice-pdf';
+import { RecordPayment } from '../billing/record-payment/record-payment';
+import { Paginator } from '../paginator/paginator';
 
-function pad(n: number): string {
-  return String(n).padStart(2, '0');
+interface PaymentTarget {
+  invoice: InvoiceListRow;
+  client: PickedClient;
 }
-
-function ymd(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
 /**
- * Client invoices: preview a period's schedules, create the invoice (approved
- * schedules only unless the caller's role may include unapproved ones, with a
- * popup either way), list invoices, download the PDF, mark paid / void.
- * With [clientId] it is locked to that client (Billing & Invoice tab); without
- * it shows a client picker and lists every client's invoices (Accounting).
+ * Invoices list (Billing ▸ Invoices, client profile Billing tab, Accounting ▸ Client
+ * invoices, aging drill-down). Filters, totals, status pills and actions per status:
+ * finalize, send, PDF, record payment, adjust, void (reason), delete draft; the detail
+ * drawer has the lines, payments and adjustments. New invoices are made by invoice runs.
+ *
+ * mode 'full' shows every filter; 'compact' is for embedding ([clientId] / [payerId] fixed).
  */
 @Component({
   selector: 'app-client-invoices',
   standalone: true,
-  imports: [CurrencyPipe, DatePipe, DecimalPipe, FormsModule, Alert, ConfirmDialog],
+  imports: [FormsModule, Alert, Paginator, ClientPicker, PayerSelect, InvoiceDialogs, InvoiceDrawer, RecordPayment],
   templateUrl: './client-invoices.html',
 })
 export class ClientInvoices {
-  private readonly service = inject(ClientInvoiceService);
-  private readonly clients = inject(ClientService);
+  private readonly billing = inject(BillingService);
+  private readonly pdf = inject(InvoicePdf);
+  private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
+  /** Show only this client's invoices (client profile). */
   readonly clientId = input<number | null>(null);
+  /** Client name, used for the "New invoices" shortcut. */
+  readonly clientName = input<string | null>(null);
+  /** Show only this payer's invoices (aging drill-down). */
+  readonly payerId = input<number | null>(null);
+  /** The host's own permission (e.g. client Write); billing Write is also required. */
   readonly canManage = input(false);
+  readonly mode = input<'full' | 'compact'>('compact');
+  /** Start with "Has balance" on. */
+  readonly onlyOpen = input(false);
 
-  // Client picker (Accounting only).
-  readonly pickedClient = signal<Client | null>(null);
-  readonly clientQuery = signal('');
-  readonly clientOptions = signal<Client[]>([]);
-  private readonly clientSearch$ = new Subject<string>();
-
-  readonly selectedClientId = computed(() => this.clientId() ?? this.pickedClient()?.clientId ?? null);
+  readonly access = this.billing.access;
+  readonly writable = computed(() => this.canManage() && this.billing.canManage());
+  readonly full = computed(() => this.mode() === 'full');
   readonly showClientColumn = computed(() => this.clientId() == null);
+  /** Billing access is known to be None: the list is not available. */
+  readonly noAccess = computed(() => {
+    const a = this.access();
+    return !!a && (a.accessLevel === 'None' || !a.canView);
+  });
 
-  readonly from = signal(ymd(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
-  readonly to = signal(ymd(new Date()));
-  readonly notes = signal('');
+  readonly statuses = INVOICE_STATUSES;
+  readonly money = money;
+  readonly fmtDate = fmtDate;
+  readonly periodLabel = periodLabel;
+  readonly statusClass = invoiceStatusClass;
+  readonly statusLabel = invoiceStatusLabel;
+  readonly numberLabel = invoiceNumberLabel;
+  readonly today = todayYmd();
 
-  readonly preview = signal<ClientInvoicePreview | null>(null);
-  readonly previewLoading = signal(false);
-  readonly creating = signal(false);
+  // Filters
+  readonly status = signal<InvoiceStatus | ''>('');
+  readonly billToType = signal<BillToType | ''>('');
+  readonly payerFilter = signal<number | null>(null);
+  readonly clientFilter = signal<PickedClient | null>(null);
+  readonly fromDate = signal('');
+  readonly toDate = signal('');
+  readonly hasBalance = signal(false);
+  readonly overdueOnly = signal(false);
+  readonly search = signal('');
+  private readonly search$ = new Subject<string>();
 
-  readonly invoices = signal<ClientInvoice[]>([]);
-  readonly invoicesLoading = signal(false);
+  // Data
+  readonly items = signal<InvoiceListRow[]>([]);
+  readonly total = signal(0);
+  readonly totalAmount = signal(0);
+  readonly totalBalance = signal(0);
+  readonly page = signal(1);
+  readonly pageSize = signal(20);
+  readonly loading = signal(false);
+  readonly error = signal('');
   readonly busyId = signal<number | null>(null);
 
-  readonly notice = signal('');
-  readonly error = signal('');
+  // Selection (drafts → finalize selected)
+  readonly selected = signal<Set<number>>(new Set());
+  readonly selectedDrafts = computed(() =>
+    this.items().filter((i) => i.status === 'Draft' && this.selected().has(i.clientInvoiceId)),
+  );
+  readonly draftsOnPage = computed(() => this.items().filter((i) => i.status === 'Draft'));
+  readonly finalizing = signal(false);
 
-  /** Unapproved-schedules popup. */
-  readonly prompt = signal<ApprovalPrompt | null>(null);
-  /** Void confirmation popup. */
-  readonly voidTarget = signal<ClientInvoice | null>(null);
+  // Overlays
+  readonly dialog = signal<InvoiceDialogRequest | null>(null);
+  readonly drawerId = signal<number | null>(null);
+  readonly payment = signal<PaymentTarget | null>(null);
+  readonly menuFor = signal<number | null>(null);
+  private readonly menuPos = signal<{ top: number; left: number }>({ top: 0, left: 0 });
+  readonly menuTarget = computed(() => {
+    const id = this.menuFor();
+    const inv = id == null ? undefined : this.items().find((i) => i.clientInvoiceId === id);
+    return inv ? { inv, ...this.menuPos() } : null;
+  });
 
   constructor() {
-    this.clientSearch$.pipe(debounceTime(300)).subscribe((q) => {
-      if (!q.trim()) {
-        this.clientOptions.set([]);
-        return;
-      }
-      this.clients.list(1, 8, { search: q.trim() }).subscribe({
-        next: (res) => this.clientOptions.set(res.items),
-        error: () => this.clientOptions.set([]),
-      });
-    });
+    this.search$.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => this.applyFilters());
+    this.billing.loadAccess().pipe(takeUntilDestroyed()).subscribe();
 
-    // (Re)load the list whenever the locked client changes.
+    // (Re)load whenever the host fixes a different client / payer.
     effect(() => {
       this.clientId();
-      untracked(() => this.loadInvoices());
+      this.payerId();
+      const open = this.onlyOpen();
+      untracked(() => {
+        this.hasBalance.set(open);
+        this.page.set(1);
+        this.load();
+      });
     });
   }
 
-  // ---------------------------------------------------------- Client picker
-
-  searchClients(q: string): void {
-    this.clientQuery.set(q);
-    this.clientSearch$.next(q);
-  }
-
-  pickClient(c: Client): void {
-    this.pickedClient.set(c);
-    this.clientQuery.set('');
-    this.clientOptions.set([]);
-    this.preview.set(null);
-  }
-
-  clearClient(): void {
-    this.pickedClient.set(null);
-    this.preview.set(null);
-  }
-
-  // ---------------------------------------------------------------- Data
-
-  loadInvoices(): void {
-    this.invoicesLoading.set(true);
-    this.service.list(this.clientId() ?? undefined).subscribe({
-      next: (list) => {
-        this.invoices.set(list);
-        this.invoicesLoading.set(false);
-      },
-      error: (err: Error) => {
-        this.error.set(err.message || 'Could not load invoices.');
-        this.invoicesLoading.set(false);
-      },
-    });
-  }
-
-  private period(): { fromUtc: string; toUtc: string } | null {
-    if (!this.from() || !this.to() || this.to() < this.from()) {
-      this.error.set('Pick a valid period: the end date must be on or after the start date.');
-      return null;
-    }
-    // Schedules are stored as the times typed in the scheduler, so no time-zone shift here.
-    return { fromUtc: `${this.from()}T00:00:00`, toUtc: `${this.to()}T23:59:59` };
-  }
-
-  loadPreview(): void {
+  load(): void {
+    this.loading.set(true);
     this.error.set('');
-    this.notice.set('');
-    const cid = this.selectedClientId();
-    if (cid == null) {
-      this.error.set('Choose a client first.');
-      return;
-    }
-    const p = this.period();
-    if (!p) return;
-    this.previewLoading.set(true);
-    this.service.preview(cid, p.fromUtc, p.toUtc).subscribe({
-      next: (r) => {
-        this.preview.set(r);
-        this.previewLoading.set(false);
-      },
-      error: (err: Error) => {
-        this.error.set(err.message || 'Could not load the schedules to invoice.');
-        this.previewLoading.set(false);
-      },
-    });
-  }
-
-  // --------------------------------------------------------------- Create
-
-  /** Create from the preview; unapproved schedules open the approval popup first. */
-  createInvoice(): void {
-    const pv = this.preview();
-    if (!pv || pv.lines.length === 0) return;
-    const prompt = buildApprovalPrompt({
-      approved: pv.approvedCount,
-      unapproved: pv.unapprovedCount,
-      canInvoiceUnapproved: pv.canInvoiceUnapproved,
-      approvedAmount: usd.format(pv.approvedAmount),
-      totalAmount: usd.format(pv.totalAmount),
-    });
-    if (prompt) {
-      this.prompt.set(prompt);
-      return;
-    }
-    this.doCreate(false);
-  }
-
-  promptInvoiceAll(): void {
-    this.prompt.set(null);
-    this.doCreate(true);
-  }
-
-  promptApprovedOnly(): void {
-    this.prompt.set(null);
-    this.doCreate(false);
-  }
-
-  private doCreate(includeUnapproved: boolean): void {
-    const pv = this.preview();
-    if (!pv) return;
-    this.creating.set(true);
-    this.error.set('');
-    this.service
-      .create({
-        clientId: pv.clientId,
-        fromUtc: pv.fromUtc,
-        toUtc: pv.toUtc,
-        includeUnapproved,
-        notes: this.notes().trim() || null,
+    this.billing
+      .invoices({
+        page: this.page(),
+        pageSize: this.pageSize(),
+        status: this.status(),
+        clientId: this.clientId() ?? this.clientFilter()?.clientId ?? null,
+        payerId: this.payerId() ?? this.payerFilter(),
+        billToType: this.billToType(),
+        fromDate: this.fromDate() || null,
+        toDate: this.toDate() || null,
+        onlyOpen: this.hasBalance(),
+        overdueAsOf: this.overdueOnly() ? this.today : null,
+        search: this.search().trim() || null,
       })
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (inv) => {
-          this.creating.set(false);
-          this.notice.set(`Invoice ${inv.invoiceNumber} created for ${usd.format(inv.amount)}.`);
-          this.preview.set(null);
-          this.notes.set('');
-          this.loadInvoices();
+        next: (r) => {
+          this.items.set(r.items);
+          this.total.set(r.total);
+          this.totalAmount.set(r.totalAmount);
+          this.totalBalance.set(r.totalBalance);
+          this.selected.set(new Set());
+          this.loading.set(false);
         },
         error: (err: Error) => {
-          this.creating.set(false);
-          this.error.set(err.message || 'Could not create the invoice.');
+          this.error.set(err.message || 'Could not load invoices.');
+          this.loading.set(false);
         },
       });
+  }
+
+  applyFilters(): void {
+    this.page.set(1);
+    this.load();
+  }
+
+  onSearch(q: string): void {
+    this.search.set(q);
+    this.search$.next(q);
+  }
+
+  resetFilters(): void {
+    this.status.set('');
+    this.billToType.set('');
+    this.payerFilter.set(null);
+    this.clientFilter.set(null);
+    this.fromDate.set('');
+    this.toDate.set('');
+    this.hasBalance.set(this.onlyOpen());
+    this.overdueOnly.set(false);
+    this.search.set('');
+    this.applyFilters();
+  }
+
+  onPage(p: number): void {
+    this.page.set(p);
+    this.load();
+  }
+
+  onPageSize(n: number): void {
+    this.pageSize.set(n);
+    this.applyFilters();
+  }
+
+  isOverdue(inv: InvoiceListRow): boolean {
+    return inv.balance > 0 && !!inv.dueDate && inv.dueDate.slice(0, 10) < this.today && inv.status !== 'Void';
+  }
+
+  // ------------------------------------------------------------- Selection
+
+  toggle(inv: InvoiceListRow): void {
+    this.selected.update((s) => {
+      const n = new Set(s);
+      if (n.has(inv.clientInvoiceId)) n.delete(inv.clientInvoiceId);
+      else n.add(inv.clientInvoiceId);
+      return n;
+    });
+  }
+
+  toggleAllDrafts(on: boolean): void {
+    this.selected.set(on ? new Set(this.draftsOnPage().map((i) => i.clientInvoiceId)) : new Set());
+  }
+
+  finalizeSelected(): void {
+    const ids = this.selectedDrafts().map((i) => i.clientInvoiceId);
+    if (!ids.length) return;
+    this.finalizing.set(true);
+    this.billing.finalizeMany(ids).subscribe({
+      next: (r) => {
+        this.finalizing.set(false);
+        let msg = `${r.invoices.length} invoice${r.invoices.length === 1 ? '' : 's'} finalized.`;
+        if (r.claimsCreated) msg += ` ${r.claimsCreated} claim(s) created.`;
+        this.toast.success(msg);
+        if (r.warnings.length) this.toast.error(r.warnings.join(' '));
+        this.load();
+      },
+      error: (err: Error) => {
+        this.finalizing.set(false);
+        this.toast.error(err.message || 'Could not finalize the invoices.');
+      },
+    });
   }
 
   // ------------------------------------------------------------- Actions
 
-  downloadPdf(inv: ClientInvoice): void {
-    this.busyId.set(inv.clientInvoiceId);
-    this.service.get(inv.clientInvoiceId).subscribe({
-      next: async (detail) => {
-        try {
-          await downloadClientInvoicePdf(detail);
-        } catch {
-          this.error.set('Could not generate the invoice PDF.');
-        }
-        this.busyId.set(null);
-      },
-      error: (err: Error) => {
-        this.busyId.set(null);
-        this.error.set(err.message || 'Could not load the invoice.');
-      },
-    });
-  }
-
-  setStatus(inv: ClientInvoice, status: ClientInvoiceStatus): void {
-    this.voidTarget.set(null);
-    this.busyId.set(inv.clientInvoiceId);
-    this.error.set('');
-    this.service.setStatus(inv.clientInvoiceId, status).subscribe({
-      next: (updated) => {
-        this.busyId.set(null);
-        this.notice.set(`Invoice ${updated.invoiceNumber} marked ${updated.status.toLowerCase()}.`);
-        this.loadInvoices();
-      },
-      error: (err: Error) => {
-        this.busyId.set(null);
-        this.error.set(err.message || 'Could not update the invoice.');
-      },
-    });
-  }
-
-  statusBadge(status: string): string {
-    switch (status) {
-      case 'Paid':
-        return 'bg-emerald-50 text-emerald-700';
-      case 'Void':
-        return 'bg-slate-100 text-slate-500 line-through';
-      default:
-        return 'bg-indigo-50 text-indigo-700';
+  toggleMenu(inv: InvoiceListRow, event: MouseEvent): void {
+    if (this.menuFor() === inv.clientInvoiceId) {
+      this.menuFor.set(null);
+      return;
     }
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const menuWidth = 192;
+    const menuHeight = 260;
+    const below = rect.bottom + 4 + menuHeight <= window.innerHeight;
+    this.menuPos.set({
+      top: below ? rect.bottom + 4 : Math.max(8, rect.top - 4 - menuHeight),
+      left: Math.max(8, rect.right - menuWidth),
+    });
+    this.menuFor.set(inv.clientInvoiceId);
+  }
+
+  open(inv: InvoiceListRow): void {
+    this.menuFor.set(null);
+    this.drawerId.set(inv.clientInvoiceId);
+  }
+
+  ask(kind: InvoiceDialogKind, inv: InvoiceListRow): void {
+    this.menuFor.set(null);
+    if (kind === 'adjust') {
+      // Load the lines so the user can pick one.
+      this.busyId.set(inv.clientInvoiceId);
+      this.billing.invoice(inv.clientInvoiceId).subscribe({
+        next: (d) => {
+          this.busyId.set(null);
+          this.dialog.set({ kind, invoice: inv, lines: d.lines });
+        },
+        error: () => {
+          this.busyId.set(null);
+          this.dialog.set({ kind, invoice: inv });
+        },
+      });
+      return;
+    }
+    this.dialog.set({ kind, invoice: inv });
+  }
+
+  onDialogDone(message: string): void {
+    this.dialog.set(null);
+    this.toast.success(message);
+    this.load();
+  }
+
+  recordPayment(inv: InvoiceListRow): void {
+    this.menuFor.set(null);
+    this.payment.set({ invoice: inv, client: { clientId: inv.clientId, fullName: inv.clientName ?? '' } });
+  }
+
+  onPaymentSaved(r: PaymentCreated): void {
+    this.payment.set(null);
+    this.toast.success(
+      r.isDuplicate
+        ? 'This payment was already recorded.'
+        : `Payment recorded: ${money(r.appliedAmount)} applied${r.unappliedAmount > 0 ? `, ${money(r.unappliedAmount)} kept as credit` : ''}.`,
+    );
+    this.load();
+  }
+
+  async downloadPdf(inv: InvoiceListRow): Promise<void> {
+    this.menuFor.set(null);
+    this.busyId.set(inv.clientInvoiceId);
+    try {
+      await this.pdf.open(inv);
+    } catch (err) {
+      this.toast.error((err as Error)?.message || 'Could not open the invoice PDF.');
+    }
+    this.busyId.set(null);
+  }
+
+  /** New invoices are created by invoice runs (optionally for this client only). */
+  newInvoices(): void {
+    const cid = this.clientId();
+    const queryParams: Record<string, string> = { tab: 'runs', new: '1' };
+    if (cid != null) {
+      queryParams['clientId'] = String(cid);
+      if (this.clientName()) queryParams['clientName'] = this.clientName()!;
+    }
+    this.router.navigate(['/dashboard/billing'], { queryParams });
+  }
+
+  canFinalize(i: InvoiceListRow): boolean {
+    return this.writable() && i.status === 'Draft';
+  }
+  canSend(i: InvoiceListRow): boolean {
+    return this.writable() && (i.status === 'Issued' || i.status === 'PartiallyPaid' || i.status === 'Paid');
+  }
+  canPay(i: InvoiceListRow): boolean {
+    return this.writable() && (i.status === 'Issued' || i.status === 'PartiallyPaid') && i.balance > 0;
+  }
+  canAdjust(i: InvoiceListRow): boolean {
+    return this.writable() && (i.status === 'Issued' || i.status === 'PartiallyPaid' || i.status === 'Paid');
+  }
+  canVoid(i: InvoiceListRow): boolean {
+    return this.writable() && (i.status === 'Issued' || i.status === 'PartiallyPaid' || i.status === 'Paid');
   }
 }

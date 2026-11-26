@@ -24,6 +24,11 @@ const AUTH_BYPASS = ['/auth/login', '/auth/refresh-token', '/auth/forgot-passwor
  * request; if that fails it clears the session and redirects to /login.
  */
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
+  // Development Monitoring errors are handled by the monitoring interceptor/services; never
+  // trigger the main-app refresh, logout or tenant-status handling for them.
+  if (req.url.includes('/monitoring/')) {
+    return next(req);
+  }
   const auth = inject(AuthService);
   const storage = inject(TokenStorageService);
   const router = inject(Router);
@@ -87,6 +92,21 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
 /** Pull the friendliest message out of the API envelope or HTTP error. */
 function normalise(error: unknown): Error {
+  const result = normaliseMessage(error);
+  // Keep the raw envelope parts too (status, message, errors[]) for screens that show both.
+  if (error instanceof HttpErrorResponse) {
+    const body = error.error && typeof error.error === 'object' ? error.error : null;
+    const errors = (body as { errors?: unknown } | null)?.errors;
+    Object.assign(result, {
+      status: error.status,
+      apiMessage: (body as { message?: string } | null)?.message ?? null,
+      apiErrors: Array.isArray(errors) ? errors.filter((e): e is string => typeof e === 'string') : [],
+    });
+  }
+  return result;
+}
+
+function normaliseMessage(error: unknown): Error {
   if (error instanceof HttpErrorResponse) {
     const body = error.error;
     if (body && typeof body === 'object') {

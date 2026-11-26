@@ -115,6 +115,11 @@
           }
         }
 
+        <!-- COMPATIBILITY -->
+        @if (section() === 'compatibility') {
+          <app-client-compatibility [clientId]="clientId" [canManage]="canManage()" />
+        }
+
         <!-- PAYERS -->
         @if (section() === 'payers') {
           <app-client-payers [clientId]="clientId" [canManage]="canManage()" (changed)="onPayersChanged($event)" />
@@ -206,8 +211,8 @@
               </ol>
             </div>
 
-            <!-- Invoices billed to this client -->
-            <app-client-invoices [clientId]="clientId" [canManage]="canManage()" />
+            <!-- Diagnoses, eligibility, statement and invoices of this client -->
+            <app-client-billing [clientId]="clientId" [clientName]="client()?.fullName ?? null" [payers]="payers()" [canManage]="canManage()" />
           </div>
         }
 

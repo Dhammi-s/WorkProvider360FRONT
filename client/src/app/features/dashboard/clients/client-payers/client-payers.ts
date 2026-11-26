@@ -28,6 +28,7 @@ import { PayerService } from '../../../../core/services/payer.service';
 import { Alert } from '../../../../shared/ui/alert/alert';
 import { ConfirmDialog } from '../../../../shared/ui/confirm-dialog/confirm-dialog';
 import { PayerForm } from '../../../../shared/ui/payer-form/payer-form';
+import { Authorizations } from '../../authorizations/authorizations';
 
 type Mode = 'list' | 'pick' | 'create' | 'link' | 'edit';
 
@@ -91,7 +92,7 @@ function fromLink(p: ClientPayer | null, defaultDistribution: PaymentDistributio
 @Component({
   selector: 'app-client-payers',
   standalone: true,
-  imports: [DatePipe, FormsModule, RouterLink, Alert, ConfirmDialog, PayerForm],
+  imports: [DatePipe, FormsModule, RouterLink, Alert, ConfirmDialog, PayerForm, Authorizations],
   templateUrl: './client-payers.html',
 })
 export class ClientPayers {
@@ -135,6 +136,23 @@ export class ClientPayers {
   readonly distributionHint = computed(
     () => this.distributions.find((d) => d.value === this.form().paymentDistribution)?.hint ?? '',
   );
+
+  /**
+   * The Remainder payer stays locked while another active payer is not an Authorization payer
+   * (that payer must take the Remainder first). When every other active payer is an
+   * Authorization payer, it may switch to Authorization or be deactivated: the client then
+   * pays the hours no authorization covers. Mirrors usp_ClientPayer_Update / _SetActive.
+   */
+  remainderLocked(p: ClientPayer | null): boolean {
+    if (!p || p.paymentDistribution !== 'Remainder') return false;
+    return this.active().some((o) => o.clientPayerId !== p.clientPayerId && o.paymentDistribution !== 'Authorization');
+  }
+
+  /** Editing the Remainder payer while it may only switch to Authorization. */
+  readonly remainderToAuthorizationOnly = computed(() => {
+    const p = this.editing();
+    return this.mode() === 'edit' && p?.paymentDistribution === 'Remainder' && !this.remainderLocked(p);
+  });
   readonly splitTotal = computed(() =>
     this.active()
       .filter((p) => p.paymentDistribution === 'Split' && p.clientPayerId !== this.editing()?.clientPayerId)

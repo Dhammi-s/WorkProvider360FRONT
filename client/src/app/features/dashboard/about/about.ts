@@ -17,7 +17,7 @@ export class About {
   readonly appName = 'WorkProvider360';
   readonly version = '1.0.0';
   readonly year = 2026;
-  readonly developer = 'Jasmeet Singh';
+  readonly developer = 'Harmanjeet Singh';
   readonly role = 'Full Stack Software Engineer';
   readonly contactEmail = 'support@workprovider360.com';
 

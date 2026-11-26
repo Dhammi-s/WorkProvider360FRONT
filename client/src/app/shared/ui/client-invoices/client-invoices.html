@@ -2,221 +2,259 @@
      WorkProvider360 - Multi-tenant SaaS platform
      Developed by : Jasmeet Singh  (Full Stack Software Engineer)
      ============================================================================= -->
+@if (noAccess()) {
+  <div class="wp-card py-10 text-center">
+    <p class="text-sm text-slate-500">You do not have access to billing. Ask a SuperAdmin to grant access in Settings → Billing.</p>
+  </div>
+} @else {
 <div class="space-y-4">
-  <app-alert type="success" [message]="notice()" />
   <app-alert type="error" [message]="error()" />
 
-  <!-- New invoice -->
-  @if (canManage()) {
-    <div class="wp-card">
-      <h3 class="text-base font-bold text-slate-900">New client invoice</h3>
-      <p class="mt-1 text-sm text-slate-500">
-        Bills the client's uninvoiced schedules in the period at each schedule's bill rate (worked hours, or scheduled hours when nobody clocked).
-        Only approved schedules are invoiced unless Settings allow your role to include unapproved ones.
-      </p>
+  <!-- Totals -->
+  @if (full()) {
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div class="wp-card">
+        <p class="text-sm font-medium text-slate-500">Invoices</p>
+        <p class="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">{{ total() }}</p>
+        <p class="mt-1 text-xs text-slate-400">Matching the filters</p>
+      </div>
+      <div class="wp-card">
+        <p class="text-sm font-medium text-slate-500">Billed</p>
+        <p class="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">{{ money(totalAmount()) }}</p>
+        <p class="mt-1 text-xs text-slate-400">Invoice amounts</p>
+      </div>
+      <div class="wp-card">
+        <p class="text-sm font-medium text-slate-500">Open balance</p>
+        <p class="mt-2 text-3xl font-extrabold tracking-tight" [class]="totalBalance() > 0 ? 'text-indigo-700' : 'text-slate-900'">{{ money(totalBalance()) }}</p>
+        <p class="mt-1 text-xs text-slate-400">Still owed</p>
+      </div>
+    </div>
+  }
 
-      <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
-        @if (clientId() == null) {
-          <div class="relative">
-            <label class="wp-label">Client</label>
-            @if (pickedClient(); as pc) {
-              <div class="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
-                <span class="text-sm font-semibold text-slate-700">{{ pc.fullName }}</span>
-                <button type="button" (click)="clearClient()" class="text-xs font-semibold text-red-600">Change</button>
-              </div>
-            } @else {
-              <input class="wp-input !py-2" placeholder="Search clients…" [ngModel]="clientQuery()" (ngModelChange)="searchClients($event)" />
-              @if (clientOptions().length) {
-                <div class="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-slate-100 bg-white shadow-card">
-                  @for (c of clientOptions(); track c.clientId) {
-                    <button type="button" (click)="pickClient(c)" class="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50">
-                      {{ c.fullName }} <span class="text-slate-400">· {{ c.city || '' }}</span>
-                    </button>
-                  }
-                </div>
-              }
-            }
+  <div class="wp-card overflow-hidden !p-0">
+    <div class="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
+      <div>
+        <h3 class="text-base font-bold text-slate-900">{{ full() ? 'Invoices' : 'Invoices' }}</h3>
+        @if (!full()) {
+          <p class="text-xs text-slate-500">{{ total() }} invoice{{ total() === 1 ? '' : 's' }} · billed {{ money(totalAmount()) }} · open {{ money(totalBalance()) }}</p>
+        }
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        @if (selectedDrafts().length) {
+          <button type="button" (click)="finalizeSelected()" [disabled]="finalizing()" class="wp-btn-primary !py-1.5 !px-3 text-sm">
+            {{ finalizing() ? 'Finalizing…' : 'Finalize ' + selectedDrafts().length + ' selected' }}
+          </button>
+        }
+        @if (writable()) {
+          <button type="button" (click)="newInvoices()" class="wp-btn-ghost !py-1.5 !px-3 text-sm ring-1 ring-inset ring-slate-200">+ New invoices (invoice run)</button>
+        }
+        <button type="button" (click)="load()" class="wp-link text-sm">Refresh</button>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex flex-wrap items-end gap-3 border-b border-slate-100 px-5 py-4">
+      @if (full()) {
+        <div class="min-w-[200px] flex-1">
+          <label class="wp-label">Search</label>
+          <input type="text" class="wp-input !py-2" placeholder="Invoice #, client, bill-to…" [ngModel]="search()" (ngModelChange)="onSearch($event)" (keyup.enter)="applyFilters()" />
+        </div>
+      }
+      <div>
+        <label class="wp-label">Status</label>
+        <select class="wp-input !py-2 !w-auto" [ngModel]="status()" (ngModelChange)="status.set($event); applyFilters()">
+          <option value="">All statuses</option>
+          @for (s of statuses; track s.value) { <option [value]="s.value">{{ s.label }}</option> }
+        </select>
+      </div>
+      @if (full()) {
+        <div>
+          <label class="wp-label">Bill to</label>
+          <select class="wp-input !py-2 !w-auto" [ngModel]="billToType()" (ngModelChange)="billToType.set($event); applyFilters()">
+            <option value="">Payers &amp; clients</option>
+            <option value="Payer">Payers</option>
+            <option value="Client">Clients (private pay)</option>
+          </select>
+        </div>
+        @if (payerId() == null) {
+          <div>
+            <app-payer-select label="Payer" [value]="payerFilter()" (valueChange)="payerFilter.set($event); applyFilters()" />
           </div>
-        } @else {
-          <div></div>
+        }
+        @if (clientId() == null) {
+          <div class="w-56">
+            <app-client-picker label="Client" placeholder="All clients" clearLabel="Clear" [client]="clientFilter()" (clientChange)="clientFilter.set($event); applyFilters()" />
+          </div>
         }
         <div>
-          <label class="wp-label">From</label>
-          <input type="date" class="wp-input !py-2" [ngModel]="from()" (ngModelChange)="from.set($event); preview.set(null)" />
+          <label class="wp-label">Period from</label>
+          <input type="date" class="wp-input !py-2" [ngModel]="fromDate()" (ngModelChange)="fromDate.set($event ?? ''); applyFilters()" />
         </div>
         <div>
-          <label class="wp-label">To</label>
-          <input type="date" class="wp-input !py-2" [ngModel]="to()" (ngModelChange)="to.set($event); preview.set(null)" />
+          <label class="wp-label">to</label>
+          <input type="date" class="wp-input !py-2" [ngModel]="toDate()" (ngModelChange)="toDate.set($event ?? ''); applyFilters()" />
         </div>
-        <button type="button" (click)="loadPreview()" [disabled]="previewLoading() || selectedClientId() == null" class="wp-btn-primary">
-          @if (previewLoading()) { Loading… } @else { Preview }
-        </button>
+      }
+      <label class="flex items-center gap-2 pb-2 text-sm text-slate-600">
+        <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" [ngModel]="hasBalance()" (ngModelChange)="hasBalance.set($event); applyFilters()" />
+        Has balance
+      </label>
+      <label class="flex items-center gap-2 pb-2 text-sm text-slate-600">
+        <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" [ngModel]="overdueOnly()" (ngModelChange)="overdueOnly.set($event); applyFilters()" />
+        Overdue
+      </label>
+      <button type="button" (click)="resetFilters()" class="wp-link pb-2 text-sm">Reset</button>
+    </div>
+
+    @if (loading()) {
+      <div class="flex items-center justify-center py-14 text-slate-400"><span class="text-sm">Loading invoices…</span></div>
+    } @else if (items().length === 0) {
+      <div class="py-14 text-center">
+        <p class="text-sm text-slate-500">No invoices match the filters.</p>
+        @if (writable()) {
+          <button type="button" (click)="newInvoices()" class="wp-link mt-2 text-sm">+ Bill visits with an invoice run</button>
+        }
       </div>
-
-      @if (preview(); as pv) {
-        <div class="mt-5">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <p class="text-sm text-slate-600">
-              Bill to <span class="font-semibold text-slate-800">{{ pv.billToName }}</span>{{ pv.billToEmail ? ' · ' + pv.billToEmail : '' }}
-            </p>
-            <div class="flex flex-wrap gap-2 text-xs font-semibold">
-              <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{{ pv.approvedCount }} approved</span>
-              @if (pv.unapprovedCount) {
-                <span class="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">{{ pv.unapprovedCount }} not approved</span>
+    } @else {
+      <div class="max-h-[65vh] overflow-auto">
+        <table class="min-w-full divide-y divide-slate-100 text-sm">
+          <thead class="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <tr>
+              @if (writable() && draftsOnPage().length) {
+                <th class="w-8 px-3 py-3">
+                  <input type="checkbox" title="Select all drafts" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    [checked]="selectedDrafts().length === draftsOnPage().length" (change)="toggleAllDrafts($any($event.target).checked)" />
+                </th>
               }
-            </div>
-          </div>
-
-          @if (pv.lines.length === 0) {
-            <p class="mt-3 rounded-xl bg-slate-50 px-3 py-4 text-sm text-slate-400">No uninvoiced schedules for this client in this period.</p>
-          } @else {
-            <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
-              <table class="w-full text-left text-sm">
-                <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
-                  <tr>
-                    <th class="px-3 py-2">Date</th>
-                    <th class="px-3 py-2">Service</th>
-                    <th class="px-3 py-2">Caregiver</th>
-                    <th class="px-3 py-2 text-right">Hours</th>
-                    <th class="px-3 py-2 text-right">Rate</th>
-                    <th class="px-3 py-2 text-right">Amount</th>
-                    <th class="px-3 py-2">Approval</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                  @for (l of pv.lines; track l.scheduleId) {
-                    <tr [class.bg-amber-50/40]="!l.isApproved">
-                      <td class="px-3 py-2 whitespace-nowrap text-slate-600">{{ l.serviceStartUtc | date: 'MMM d, h:mm a' }}</td>
-                      <td class="px-3 py-2 text-slate-800">{{ l.description }}</td>
-                      <td class="px-3 py-2 text-slate-600">{{ l.caregiverName || '—' }}</td>
-                      <td class="px-3 py-2 text-right">{{ l.hours | number: '1.2-2' }}</td>
-                      <td class="px-3 py-2 text-right" [class.text-amber-700]="l.billRatePerHour <= 0">{{ l.billRatePerHour | currency: 'USD' }}</td>
-                      <td class="px-3 py-2 text-right font-semibold">{{ l.amount | currency: 'USD' }}</td>
-                      <td class="px-3 py-2">
-                        @if (l.isApproved) {
-                          <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Approved</span>
-                        } @else {
-                          <span class="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Not approved</span>
-                        }
-                      </td>
-                    </tr>
+              <th class="px-4 py-3">Invoice</th>
+              <th class="px-4 py-3">Bill to</th>
+              @if (showClientColumn()) { <th class="px-4 py-3">Client</th> }
+              <th class="px-4 py-3">Period</th>
+              <th class="px-4 py-3 text-right">Amount</th>
+              <th class="px-4 py-3 text-right">Paid</th>
+              <th class="px-4 py-3 text-right">Balance</th>
+              <th class="px-4 py-3">Due</th>
+              <th class="px-4 py-3">Status</th>
+              <th class="px-4 py-3 text-right"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (inv of items(); track inv.clientInvoiceId) {
+              <tr class="hover:bg-slate-50/60">
+                @if (writable() && draftsOnPage().length) {
+                  <td class="px-3 py-3">
+                    @if (inv.status === 'Draft') {
+                      <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                        [checked]="selected().has(inv.clientInvoiceId)" (change)="toggle(inv)" />
+                    }
+                  </td>
+                }
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <button type="button" (click)="open(inv)" class="font-mono text-xs font-semibold text-slate-700 hover:text-brand-700">{{ numberLabel(inv) }}</button>
+                  @if (inv.includesUnapproved) {
+                    <span class="ml-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700" title="Includes visits that were not approved">unapproved</span>
                   }
-                </tbody>
-              </table>
-            </div>
-
-            @if (pv.missingRateCount) {
-              <p class="mt-2 text-xs text-amber-700">{{ pv.missingRateCount }} schedule(s) have no bill rate and will bill {{ 0 | currency: 'USD' }}. Set rates on the schedule, client or payers first.</p>
+                  @if (inv.claimFormat === 'Claim837P') {
+                    <span class="ml-1 rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700" title="Billed by electronic claim (837P)">837P</span>
+                  }
+                  <div class="text-[11px] text-slate-400">{{ inv.invoiceDate ? fmtDate(inv.invoiceDate) : 'Created ' + fmtDate(inv.createdOn) }}</div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="text-slate-800">{{ inv.billToName || '—' }}</div>
+                  <div class="text-[11px] text-slate-400">{{ inv.billToType === 'Payer' ? (inv.payerType || 'Payer') : 'Private pay' }}{{ inv.sentOn ? ' · sent ' + fmtDate(inv.sentOn) : '' }}</div>
+                </td>
+                @if (showClientColumn()) {
+                  <td class="px-4 py-3 whitespace-nowrap text-slate-700">{{ inv.clientName }}</td>
+                }
+                <td class="px-4 py-3 whitespace-nowrap text-slate-600">{{ periodLabel(inv.periodFromUtc, inv.periodToUtc) }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-right font-semibold text-slate-900">{{ money(inv.amount) }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-right text-slate-600">{{ money(inv.amountPaid) }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-right font-semibold" [class]="inv.balance > 0 && inv.status !== 'Draft' ? 'text-indigo-700' : 'text-slate-400'">{{ inv.status === 'Draft' ? '—' : money(inv.balance) }}</td>
+                <td class="px-4 py-3 whitespace-nowrap" [class]="isOverdue(inv) ? 'font-semibold text-red-600' : 'text-slate-600'">
+                  {{ inv.dueDate ? fmtDate(inv.dueDate) : '—' }}
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusClass(inv.status)" [title]="inv.voidReason || ''">{{ statusLabel(inv.status) }}</span>
+                  @if (isOverdue(inv)) { <div class="mt-1 text-[11px] font-semibold text-red-600">Overdue</div> }
+                </td>
+                <td class="px-4 py-3 text-right whitespace-nowrap">
+                  @if (busyId() === inv.clientInvoiceId) {
+                    <span class="text-xs text-slate-400">Working…</span>
+                  } @else {
+                    <div class="inline-flex items-center gap-1">
+                      @if (canFinalize(inv)) {
+                        <button type="button" (click)="ask('finalize', inv)" class="rounded-lg px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50">Finalize</button>
+                      }
+                      @if (canPay(inv)) {
+                        <button type="button" (click)="recordPayment(inv)" class="rounded-lg px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">Record payment</button>
+                      }
+                      @if (inv.status !== 'Draft') {
+                        <button type="button" (click)="downloadPdf(inv)" class="rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100">PDF</button>
+                      }
+                      <button type="button" (click)="toggleMenu(inv, $event)" title="More actions" aria-label="More actions"
+                        class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M4 10a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zm4.5 0a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zm4.5 0a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" /></svg>
+                      </button>
+                    </div>
+                  }
+                </td>
+              </tr>
             }
+          </tbody>
+        </table>
+      </div>
+      <app-paginator [total]="total()" [page]="page()" [pageSize]="pageSize()" (pageChange)="onPage($event)" (pageSizeChange)="onPageSize($event)" />
+    }
+  </div>
 
-            <div class="mt-4 flex flex-wrap items-end justify-between gap-3">
-              <div class="min-w-[240px] flex-1">
-                <label class="wp-label">Notes (optional)</label>
-                <input class="wp-input !py-2" maxlength="1000" [ngModel]="notes()" (ngModelChange)="notes.set($event)" />
-              </div>
-              <div class="text-right text-sm">
-                <div class="text-slate-500">Approved: {{ pv.approvedHours | number: '1.2-2' }} h · <span class="font-semibold text-slate-800">{{ pv.approvedAmount | currency: 'USD' }}</span></div>
-                <div class="text-slate-500">All: {{ pv.totalHours | number: '1.2-2' }} h · <span class="font-semibold text-slate-800">{{ pv.totalAmount | currency: 'USD' }}</span></div>
-              </div>
-              <button type="button" (click)="createInvoice()" [disabled]="creating()" class="wp-btn-primary">
-                @if (creating()) { Creating… } @else { Create invoice }
-              </button>
-            </div>
-          }
-        </div>
+  <!-- Row "⋯" menu (fixed so the scrolling table never clips it). -->
+  @if (menuTarget(); as m) {
+    <div class="fixed inset-0 z-40" (click)="menuFor.set(null)"></div>
+    <div class="fixed z-50 w-48 overflow-hidden rounded-xl border border-slate-100 bg-white text-left shadow-card" [style.top.px]="m.top" [style.left.px]="m.left">
+      <button type="button" (click)="open(m.inv)" class="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">View details</button>
+      @if (m.inv.status !== 'Draft') {
+        <button type="button" (click)="downloadPdf(m.inv)" class="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Open PDF</button>
+      }
+      @if (canFinalize(m.inv)) {
+        <button type="button" (click)="ask('finalize', m.inv)" class="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Finalize</button>
+      }
+      @if (canSend(m.inv)) {
+        <button type="button" (click)="ask('send', m.inv)" class="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">{{ m.inv.sentOn ? 'Send again' : 'Send' }}</button>
+      }
+      @if (canPay(m.inv)) {
+        <button type="button" (click)="recordPayment(m.inv)" class="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Record payment</button>
+      }
+      @if (canAdjust(m.inv)) {
+        <button type="button" (click)="ask('adjust', m.inv)" class="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Adjust…</button>
+      }
+      @if (canVoid(m.inv)) {
+        <div class="border-t border-slate-100"></div>
+        <button type="button" (click)="ask('void', m.inv)" class="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">Void…</button>
+      }
+      @if (canFinalize(m.inv)) {
+        <div class="border-t border-slate-100"></div>
+        <button type="button" (click)="ask('delete', m.inv)" class="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">Delete draft</button>
       }
     </div>
   }
 
-  <!-- Invoices -->
-  <div class="wp-card overflow-hidden !p-0">
-    <div class="flex items-center justify-between px-5 py-4">
-      <h3 class="text-base font-bold text-slate-900">Client invoices</h3>
-      <button type="button" (click)="loadInvoices()" class="text-sm wp-link">Refresh</button>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-slate-100 text-sm">
-        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-          <tr>
-            <th class="px-5 py-3">Invoice #</th>
-            @if (showClientColumn()) {
-              <th class="px-5 py-3">Client</th>
-            }
-            <th class="px-5 py-3">Bill to</th>
-            <th class="px-5 py-3">Period</th>
-            <th class="px-5 py-3 text-right">Hours</th>
-            <th class="px-5 py-3 text-right">Amount</th>
-            <th class="px-5 py-3">Status</th>
-            <th class="px-5 py-3 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          @if (invoicesLoading()) {
-            <tr><td colspan="8" class="px-5 py-8 text-center text-sm text-slate-400">Loading…</td></tr>
-          } @else {
-            @for (inv of invoices(); track inv.clientInvoiceId) {
-              <tr class="hover:bg-slate-50/60">
-                <td class="px-5 py-3 font-mono text-xs text-slate-600">
-                  {{ inv.invoiceNumber }}
-                  @if (inv.includesUnapproved) {
-                    <span class="ml-1 rounded-full bg-amber-50 px-1.5 py-0.5 font-sans text-[10px] font-semibold text-amber-700" title="Includes schedules that were not approved">unapproved</span>
-                  }
-                </td>
-                @if (showClientColumn()) {
-                  <td class="px-5 py-3 font-semibold text-slate-800">{{ inv.clientName }}</td>
-                }
-                <td class="px-5 py-3">
-                  <div class="text-slate-800">{{ inv.billToName }}</div>
-                  <div class="text-xs text-slate-500">{{ inv.billToEmail || '' }}</div>
-                </td>
-                <td class="px-5 py-3 whitespace-nowrap text-slate-600">{{ inv.periodFromUtc | date: 'MMM d' }} – {{ inv.periodToUtc | date: 'MMM d, y' }}</td>
-                <td class="px-5 py-3 text-right text-slate-600">{{ inv.totalHours | number: '1.2-2' }}</td>
-                <td class="px-5 py-3 text-right font-semibold text-slate-900">{{ inv.amount | currency: 'USD' }}</td>
-                <td class="px-5 py-3">
-                  <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusBadge(inv.status)">{{ inv.status }}</span>
-                </td>
-                <td class="px-5 py-3 text-right whitespace-nowrap">
-                  @if (busyId() === inv.clientInvoiceId) {
-                    <span class="text-xs text-slate-400">Working…</span>
-                  } @else {
-                    <button type="button" (click)="downloadPdf(inv)" class="text-sm wp-link">PDF</button>
-                    @if (canManage() && inv.status === 'Issued') {
-                      <button type="button" (click)="setStatus(inv, 'Paid')" class="ml-3 text-sm font-semibold text-emerald-700 hover:underline">Mark paid</button>
-                    }
-                    @if (canManage() && inv.status !== 'Void') {
-                      <button type="button" (click)="voidTarget.set(inv)" class="ml-3 text-sm font-semibold text-red-600 hover:underline">Void</button>
-                    }
-                  }
-                </td>
-              </tr>
-            } @empty {
-              <tr><td colspan="8" class="px-5 py-10 text-center text-sm text-slate-400">No client invoices yet.</td></tr>
-            }
-          }
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  @if (prompt(); as p) {
-    <app-confirm-dialog
-      [title]="p.title"
-      [message]="p.message"
-      [details]="p.details"
-      [confirmLabel]="p.confirmLabel"
-      [altLabel]="p.altLabel"
-      (confirmed)="promptInvoiceAll()"
-      (alt)="promptApprovedOnly()"
-      (cancelled)="prompt.set(null)" />
+  @if (dialog(); as d) {
+    <app-invoice-dialogs [request]="d" (done)="onDialogDone($event)" (closed)="dialog.set(null)" />
   }
 
-  @if (voidTarget(); as v) {
-    <app-confirm-dialog
-      tone="danger"
-      title="Void this invoice?"
-      [message]="'Invoice ' + v.invoiceNumber + ' will be marked void and its schedules can be invoiced again. This cannot be undone.'"
-      confirmLabel="Void invoice"
-      (confirmed)="setStatus(v, 'Void')"
-      (cancelled)="voidTarget.set(null)" />
+  @if (drawerId(); as id) {
+    <app-invoice-drawer [invoiceId]="id" [canManage]="writable()" (changed)="load()" (closed)="drawerId.set(null)" />
+  }
+
+  @if (payment(); as p) {
+    <app-record-payment
+      [sourceType]="p.invoice.billToType === 'Payer' ? 'Payer' : 'Client'"
+      [payerId]="p.invoice.billToType === 'Payer' ? p.invoice.payerId : null"
+      [client]="p.client"
+      [invoiceId]="p.invoice.clientInvoiceId"
+      [lockParty]="true"
+      (saved)="onPaymentSaved($event)"
+      (closed)="payment.set(null)" />
   }
 </div>
+}

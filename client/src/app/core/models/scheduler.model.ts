@@ -49,7 +49,33 @@ export interface SchedulingSettings {
   superAdminCanInvoiceUnapproved: boolean;
   adminCanInvoiceUnapproved: boolean;
   managerCanInvoiceUnapproved: boolean;
+  /** What happens when a visit exceeds a payer authorization (SuperAdmin edits). */
+  authorizationLimitPolicy?: 'Allow' | 'Warn' | 'Block';
+  // ---- Scheduling automation (SuperAdmin edits via PUT settings/automation) ----
+  missedClockInGraceMinutes?: number;
+  missedClockOutGraceMinutes?: number;
+  notifyCaregiverOnMissedClock?: boolean;
+  notifyOfficeOnMissedClock?: boolean;
+  openShiftAssignmentMode?: OpenShiftAssignmentMode;
+  confirmationReminderHours?: number;
+  compatibilityPolicy?: CompatibilityPolicy;
+  authorizationExpiryNoticeDays?: number;
   updatedOn: string;
+}
+
+export type OpenShiftAssignmentMode = 'AdminPicks' | 'FirstToAccept';
+export type CompatibilityPolicy = 'Allow' | 'Warn' | 'Block';
+
+/** PUT /api/scheduling/settings/automation (SuperAdmin only). */
+export interface UpdateSchedulingAutomation {
+  missedClockInGraceMinutes: number;
+  missedClockOutGraceMinutes: number;
+  notifyCaregiverOnMissedClock: boolean;
+  notifyOfficeOnMissedClock: boolean;
+  openShiftAssignmentMode: OpenShiftAssignmentMode;
+  confirmationReminderHours: number;
+  compatibilityPolicy: CompatibilityPolicy;
+  authorizationExpiryNoticeDays: number;
 }
 
 /** Who approves schedules, and which roles may invoice unapproved ones (SuperAdmin only). */
@@ -87,8 +113,17 @@ export interface Schedule {
   clientName?: string | null;
   serviceTypeId?: number | null;
   serviceTypeName?: string | null;
-  assignedUserId: number;
+  /** null = open shift (not assigned yet). */
+  assignedUserId: number | null;
+  /** "" for open shifts. */
   assignedUserName: string;
+  isOpenShift?: boolean;
+  /** Set when the visit was published from a master schedule (series). */
+  seriesId?: number | null;
+  seriesSlotId?: number | null;
+  occurrenceDate?: string | null;
+  /** True once a series visit was edited by hand. */
+  isSeriesException?: boolean;
   startUtc: string;
   endUtc: string;
   payRatePerHour: number;
@@ -147,7 +182,11 @@ export interface CreateScheduleRequest {
   location?: string | null;
   clientId?: number | null;
   serviceTypeId?: number | null;
-  assignedUserId: number;
+  /** Optional when isOpenShift is true (then ignored). */
+  assignedUserId?: number | null;
+  isOpenShift?: boolean;
+  /** Create only; null / [] = every eligible caregiver. */
+  offerToUserIds?: number[] | null;
   startUtc: string;
   endUtc: string;
   payRatePerHour: number;
@@ -165,7 +204,8 @@ export interface UpdateScheduleRequest {
   location?: string | null;
   clientId?: number | null;
   serviceTypeId?: number | null;
-  assignedUserId: number;
+  assignedUserId?: number | null;
+  isOpenShift?: boolean;
   startUtc: string;
   endUtc: string;
   payRatePerHour: number;
@@ -296,4 +336,164 @@ export interface ScheduleConflict {
   startUtc: string;
   endUtc: string;
   status: string;
+  /** Overlap (another visit; the fields above describe it) | Unavailable | Compatibility. */
+  kind?: ScheduleConflictKind;
+  /** Unavailable | Blocked | MissingRequired | HasAvoided | GenderMismatch. */
+  code?: string | null;
+  /** Text for Unavailable / Compatibility rows. */
+  message?: string | null;
+  /** Compatibility rows: true when the policy is Block (saving will be refused). */
+  blocking?: boolean;
+}
+
+export type ScheduleConflictKind = 'Overlap' | 'Unavailable' | 'Compatibility';
+
+// ---- Open shifts / offers / suggestions (Scheduling suite) ----
+
+export type ShiftOfferStatus = 'Offered' | 'Interested' | 'Declined' | 'Assigned' | 'Withdrawn' | 'Expired';
+
+export interface ShiftOffer {
+  offerId: number;
+  scheduleId: number;
+  userId: number;
+  fullName?: string | null;
+  status: ShiftOfferStatus;
+  offeredOn?: string | null;
+  respondedOn?: string | null;
+  note?: string | null;
+  /** GET/POST {id}/offers only (null when the visit has no client). */
+  score?: number | null;
+  email?: string | null;
+  phone?: string | null;
+  avatarUrl?: string | null;
+  offeredByName?: string | null;
+}
+
+export interface OpenShift {
+  scheduleId: number;
+  title: string;
+  clientId?: number | null;
+  clientName?: string | null;
+  customerName?: string | null;
+  location?: string | null;
+  serviceTypeId?: number | null;
+  serviceTypeName?: string | null;
+  startUtc: string;
+  endUtc: string;
+  payRatePerHour?: number | null;
+  seriesId?: number | null;
+  createdOn?: string | null;
+  offerCount: number;
+  interestedCount: number;
+  declinedCount: number;
+  /** Caregiver view only, else null. */
+  myOffer?: ShiftOffer | null;
+  offers?: ShiftOffer[];
+}
+
+export interface OfferResponseRequest {
+  interested: boolean;
+  note?: string | null;
+}
+
+export interface SuggestionFactor {
+  name: string;
+  points: number;
+  max: number;
+  reason?: string | null;
+}
+
+export interface CaregiverSuggestion {
+  userId: number;
+  fullName: string;
+  score: number;
+  excluded: boolean;
+  excludedReasons: string[];
+  factors: SuggestionFactor[];
+  warnings: string[];
+  distanceKm?: number | null;
+}
+
+export interface SuggestionRequest {
+  clientId: number;
+  serviceTypeId?: number | null;
+  startUtc: string;
+  endUtc: string;
+  scheduleId?: number | null;
+}
+
+export interface FillProposal {
+  scheduleId: number;
+  title: string;
+  clientName?: string | null;
+  startUtc: string;
+  endUtc: string;
+  userId?: number | null;
+  fullName?: string | null;
+  score?: number | null;
+  reason?: string | null;
+}
+
+export interface FillApplyResult {
+  assigned: number;
+  failed: { scheduleId: number; userId: number; message: string }[];
+}
+
+export interface PendingConfirmation {
+  scheduleId: number;
+  title: string;
+  clientId?: number | null;
+  clientName?: string | null;
+  location?: string | null;
+  serviceTypeName?: string | null;
+  startUtc: string;
+  endUtc: string;
+  assignedUserId: number;
+  caregiverName: string;
+  caregiverPhone?: string | null;
+  caregiverEmail?: string | null;
+  confirmationReminderSentOn?: string | null;
+}
+
+export interface RemindResult {
+  sent: number;
+  skipped: number[];
+}
+
+/** "2026-12-07T09:00:00" → "9:00 AM" without any time zone conversion. */
+export function wallTime(value: string | null | undefined): string {
+  const m = /T(\d{2}):(\d{2})/.exec(value ?? '');
+  if (!m) return '';
+  const h = Number(m[1]);
+  return `${h % 12 === 0 ? 12 : h % 12}:${m[2]} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+/** "2026-12-07T09:00:00" or "2026-12-07" → "Mon, Dec 7" without any time zone conversion. */
+export function wallDate(value: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? '');
+  if (!m) return '';
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+/** "Mon, Dec 7 · 9:00 AM – 11:00 AM" for a wall-clock visit. */
+export function wallRange(start: string | null | undefined, end: string | null | undefined): string {
+  return `${wallDate(start)} · ${wallTime(start)} – ${wallTime(end)}`;
+}
+
+/** Today (+ offset days) in the browser's local time as 'yyyy-MM-dd'. */
+export function localDateOnly(offsetDays = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Adds days to a 'yyyy-MM-dd' string (no time zones involved). */
+export function addDaysDateOnly(date: string, days: number): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
+  if (!m) return date;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + days);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }

@@ -19,9 +19,12 @@ export interface AppNotification {
   isRead: boolean;
   createdByName?: string | null;
   createdOn: string;
+  /** Set when the notification came from a custom push message (ADR-0007). */
+  customMessageId?: number | null;
+  readOn?: string | null;
 }
 
-/** In-app notifications: send (admin) + read own bell. */
+/** In-app notifications: send (admin) + read own bell (list, one item, per-item / all read). */
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
   private readonly http = inject(HttpClient);
@@ -43,6 +46,18 @@ export class NotificationService {
     return this.http
       .get<ApiResponse<number>>(`${this.baseUrl}/unread-count`)
       .pipe(map((r) => r.data ?? 0));
+  }
+
+  /** One of the caller's own notifications (404 when it isn't theirs). */
+  getById(id: number): Observable<AppNotification> {
+    return this.http
+      .get<ApiResponse<AppNotification>>(`${this.baseUrl}/${id}`)
+      .pipe(map((r) => r.data as AppNotification));
+  }
+
+  /** Marks one of the caller's own notifications read. */
+  markRead(id: number): Observable<void> {
+    return this.http.post<ApiResponse<unknown>>(`${this.baseUrl}/${id}/read`, {}).pipe(map(() => undefined));
   }
 
   markAllRead(): Observable<void> {

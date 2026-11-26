@@ -12,10 +12,11 @@ import { PwaService } from './core/services/pwa.service';
 import { TenantStatusService } from './core/services/tenant-status.service';
 import { MaintenancePage } from './features/system/maintenance-page';
 import { NotConnectedPage } from './features/system/not-connected-page';
+import { Toast } from './shared/ui/toast/toast';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, MaintenancePage, NotConnectedPage],
+  imports: [RouterOutlet, MaintenancePage, NotConnectedPage, Toast],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })

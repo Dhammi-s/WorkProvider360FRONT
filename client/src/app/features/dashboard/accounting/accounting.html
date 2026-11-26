@@ -156,7 +156,11 @@
 
   <!-- ===================== Client Invoices ===================== -->
   @if (tab() === 'clientInvoices') {
-    <app-client-invoices [canManage]="true" />
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800">
+      <span>Client invoices now live in <span class="font-semibold">Billing</span>: invoice runs, payments, aging, statements and claims.</span>
+      <a routerLink="/dashboard/billing" [queryParams]="{ tab: 'invoices' }" class="wp-btn-primary !py-1.5 !px-3 text-sm">Open Billing ▸ Invoices</a>
+    </div>
+    <app-client-invoices [canManage]="true" mode="full" />
   }
 
   <!-- ===================== Paid Invoices ===================== -->

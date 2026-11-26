@@ -6,12 +6,16 @@
    SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
    ============================================================================= */
 
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { BillingService } from '../../../core/services/billing.service';
+import { BillingSettingsTab } from './billing-settings/billing-settings';
 import { Question } from '../../../core/models/application.model';
 import { DEFAULT_LOGIN_CONTENT, LoginContent } from '../../../core/models/login-content.model';
 import { AccessLevel, SchedulingAccess } from '../../../core/models/scheduler.model';
+import { AUTHORIZATION_POLICIES, AuthorizationLimitPolicy } from '../../../core/models/authorization.model';
 import { MeetingAccessLevel, MeetingAccess, MeetingSettings } from '../../../core/models/meeting.model';
 import { ApplicationService } from '../../../core/services/application.service';
 import { ClientService } from '../../../core/services/client.service';
@@ -23,9 +27,17 @@ import { LogService } from '../../../core/services/log.service';
 import { SchedulerService } from '../../../core/services/scheduler.service';
 import { MeetingService } from '../../../core/services/meeting.service';
 import { AnalysisService } from '../../../core/services/analysis.service';
+import { PushService } from '../../../core/services/push.service';
+import { PushEvent } from '../../../core/models/push.model';
 import { AnalysisAccessLevel, AnalysisModule } from '../../../core/models/analysis.model';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { LogoUploader } from '../branding/logo-uploader';
+import { EmailBannerUploader } from '../branding/email-banner-uploader';
+import { AgencyTimeZoneCard } from './agency-time-zone/agency-time-zone';
+import { SchedulingAutomationCard } from './scheduling-automation/scheduling-automation';
+import { CareAttributesSettings } from './care-attributes/care-attributes';
+import { MessageSettingsTab } from './message-settings/message-settings';
+import { MessageService } from '../../../core/services/message.service';
 
 /** Workspace settings: application form (SuperAdmin) + scheduling access & defaults. */
 interface SettingsTab {
@@ -36,7 +48,7 @@ interface SettingsTab {
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, RouterLink, Alert, LogoUploader],
+  imports: [FormsModule, RouterLink, Alert, LogoUploader, AgencyTimeZoneCard, EmailBannerUploader, SchedulingAutomationCard, CareAttributesSettings, BillingSettingsTab, MessageSettingsTab],
   templateUrl: './settings.html',
 })
 export class Settings {
@@ -49,12 +61,33 @@ export class Settings {
   private readonly branding = inject(BrandingService);
   private readonly clients = inject(ClientService);
   private readonly analysis = inject(AnalysisService);
+  private readonly push = inject(PushService);
 
   readonly user = this.auth.user;
   readonly isSuperAdmin = computed(() => this.auth.roleName() === 'SuperAdmin');
   readonly isAdmin = computed(() => this.auth.roleName() === 'Admin');
 
   readonly activeTab = signal<string>('profile');
+
+  // ---- Billing (Settings ▸ Billing): SuperAdmin edits; billing Read can view ----
+  private readonly billingService = inject(BillingService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  readonly showBilling = computed(() => this.isSuperAdmin() || this.billingService.canView());
+
+  // ---- Messages (Settings ▸ Messages): SuperAdmin edits; Admin / Manager with message access view ----
+  private readonly messageService = inject(MessageService);
+  readonly canEditMessages = computed(() => this.isSuperAdmin() || this.messageService.canManageSettings());
+  readonly showMessages = computed(
+    () =>
+      this.canEditMessages() ||
+      ((this.auth.roleName() === 'Admin' || this.auth.roleName() === 'Manager') && this.messageService.canView()),
+  );
+  /** Stripe / QuickBooks OAuth return values (?stripe= / ?qbo=). */
+  readonly stripeReturn = signal<string | null>(null);
+  readonly qboReturn = signal<string | null>(null);
+  /** ?tab= requested before its tab became visible (e.g. billing access still loading). */
+  private readonly pendingTab = signal<string | null>(null);
 
   readonly tabs = computed<SettingsTab[]>(() => {
     const t: SettingsTab[] = [
@@ -68,8 +101,14 @@ export class Settings {
       t.push({ id: 'scheduling', label: 'Scheduling', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' });
     if (this.showMeetings())
       t.push({ id: 'meetings', label: 'Meetings', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' });
+    if (this.showMessages())
+      t.push({ id: 'messages', label: 'Messages', icon: 'M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM3 7l9 6 9-6' });
     if (this.showClients_())
       t.push({ id: 'clients', label: 'Clients & Visits', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z' });
+    if (this.showClients_())
+      t.push({ id: 'care-attributes', label: 'Care attributes', icon: 'M7 7h.01M7 3h5a2 2 0 011.4.6l7 7a2 2 0 010 2.8l-7 7a2 2 0 01-2.8 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' });
+    if (this.showBilling())
+      t.push({ id: 'billing', label: 'Billing', icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z' });
     if (this.isSuperAdmin())
       t.push({ id: 'application', label: 'Application Form', icon: 'M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2z' });
     if (this.isSuperAdmin())
@@ -78,6 +117,8 @@ export class Settings {
       t.push({ id: 'announcements', label: 'Announcements', icon: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 11-5.8-1.6' });
     if (this.isSuperAdmin())
       t.push({ id: 'analysis', label: 'AI Analysis', icon: 'M9.5 2a2.5 2.5 0 00-2.45 2A3 3 0 004 7a3 3 0 00.5 5.5A3 3 0 007 17a2.5 2.5 0 005 0V4.5A2.5 2.5 0 009.5 2zM14.5 2a2.5 2.5 0 012.45 2A3 3 0 0120 7a3 3 0 01-.5 5.5A3 3 0 0117 17a2.5 2.5 0 01-5 0' });
+    if (this.isSuperAdmin())
+      t.push({ id: 'sms', label: 'SMS & Push', icon: 'M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0a3 3 0 11-6 0' });
     if (this.isSuperAdmin())
       t.push({ id: 'login', label: 'Login Page', icon: 'M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3' });
     return t;
@@ -167,6 +208,84 @@ export class Settings {
     });
   }
 
+  // ---- SMS & Push notifications (SuperAdmin) ----
+  readonly pushEnabled = signal(true);
+  readonly pushServerConfigured = signal(true);
+  readonly pushEvents = signal<PushEvent[]>([]);
+  readonly pushSaving = signal(false);
+  readonly pushTesting = signal(false);
+  readonly pushNotice = signal('');
+  readonly pushError = signal('');
+
+  /** Events grouped by category, in catalog order. */
+  readonly pushGroups = computed(() => {
+    const groups: { category: string; events: PushEvent[] }[] = [];
+    for (const e of this.pushEvents()) {
+      let g = groups.find((x) => x.category === e.category);
+      if (!g) groups.push((g = { category: e.category, events: [] }));
+      g.events.push(e);
+    }
+    return groups;
+  });
+
+  readonly pushEnabledCount = computed(() => this.pushEvents().filter((e) => e.enabled).length);
+
+  loadPushSettings(): void {
+    this.push.getSettings().subscribe({
+      next: (s) => {
+        this.pushEnabled.set(s.enabled);
+        this.pushServerConfigured.set(s.serverConfigured);
+        this.pushEvents.set(s.events);
+      },
+      error: (err: Error) => this.pushError.set(err.message || 'Could not load push settings.'),
+    });
+  }
+
+  toggleCategory(category: string, on: boolean): void {
+    this.pushEvents.update((list) => list.map((e) => (e.category === category ? { ...e, enabled: on } : e)));
+  }
+
+  setPushEvent(key: string, on: boolean): void {
+    this.pushEvents.update((list) => list.map((e) => (e.key === key ? { ...e, enabled: on } : e)));
+  }
+
+  savePushSettings(): void {
+    this.pushSaving.set(true);
+    this.pushNotice.set('');
+    this.pushError.set('');
+    const events: Record<string, boolean> = {};
+    for (const e of this.pushEvents()) events[e.key] = e.enabled;
+    this.push.updateSettings({ enabled: this.pushEnabled(), events }).subscribe({
+      next: (s) => {
+        this.pushSaving.set(false);
+        this.pushEnabled.set(s.enabled);
+        this.pushServerConfigured.set(s.serverConfigured);
+        this.pushEvents.set(s.events);
+        this.pushNotice.set('Push notification settings saved.');
+      },
+      error: (err: Error) => {
+        this.pushSaving.set(false);
+        this.pushError.set(err.message || 'Could not save push settings.');
+      },
+    });
+  }
+
+  sendTestPush(): void {
+    this.pushTesting.set(true);
+    this.pushNotice.set('');
+    this.pushError.set('');
+    this.push.sendTest().subscribe({
+      next: (msg) => {
+        this.pushTesting.set(false);
+        this.pushNotice.set(msg);
+      },
+      error: (err: Error) => {
+        this.pushTesting.set(false);
+        this.pushError.set(err.message || 'Could not send the test push.');
+      },
+    });
+  }
+
   // ---- Login page content (SuperAdmin) ----
   readonly loginContent = signal<LoginContent>({ ...DEFAULT_LOGIN_CONTENT });
   readonly loginSaving = signal(false);
@@ -245,6 +364,11 @@ export class Settings {
   readonly superAdminInvoiceUnapproved = signal(false);
   readonly adminInvoiceUnapproved = signal(false);
   readonly managerInvoiceUnapproved = signal(false);
+  // Over-authorization policy (SuperAdmin edits).
+  readonly authorizationPolicies = AUTHORIZATION_POLICIES;
+  readonly authPolicy = signal<AuthorizationLimitPolicy>('Warn');
+  readonly authPolicySaving = signal(false);
+  readonly authPolicyNotice = signal('');
   readonly approvalSaving = signal(false);
   readonly approvalNotice = signal('');
   readonly schedError = signal('');
@@ -297,6 +421,8 @@ export class Settings {
   readonly clientNotice = signal('');
   readonly clientError = signal('');
   readonly canEditClients = computed(() => !!this.clientAccess()?.canManageSettings);
+  /** Client-Write (SuperAdmin always): manage the care attribute list. */
+  readonly canEditCareAttributes = computed(() => this.isSuperAdmin() || !!this.clientAccess()?.canManage);
   readonly showClients_ = computed(() => {
     const a = this.clientAccess();
     return this.isSuperAdmin() || (!!a && a.accessLevel !== 'None');
@@ -316,12 +442,33 @@ export class Settings {
       this.loadAnnouncementSettings();
       this.loadLoginContent();
       this.loadAnalysisSettings();
+      this.loadPushSettings();
     } else {
       this.loading.set(false);
     }
     this.loadScheduling();
     this.loadClientData();
     this.loadMeetingData();
+
+    // Billing access decides whether the Billing tab is shown.
+    if (!this.isSuperAdmin()) this.billingService.loadAccess().pipe(takeUntilDestroyed()).subscribe();
+    // Message access decides whether Admins / Managers see the (read-only) Messages tab.
+    this.messageService.loadAccess().pipe(takeUntilDestroyed()).subscribe();
+    // ?tab=… opens that tab; ?stripe= / ?qbo= come back from the Stripe / QuickBooks connect flows.
+    const q = this.route.snapshot.queryParamMap;
+    this.pendingTab.set(q.get('tab'));
+    this.stripeReturn.set(q.get('stripe'));
+    this.qboReturn.set(q.get('qbo'));
+    if (q.get('stripe') || q.get('qbo')) {
+      this.router.navigate([], { relativeTo: this.route, queryParams: { tab: q.get('tab') ?? 'billing' }, replaceUrl: true });
+    }
+    effect(() => {
+      const want = this.pendingTab();
+      if (want && this.tabs().some((t) => t.id === want)) {
+        this.activeTab.set(want);
+        this.pendingTab.set(null);
+      }
+    });
   }
 
   // ---- Announcement visibility ----
@@ -508,6 +655,7 @@ export class Settings {
         this.superAdminInvoiceUnapproved.set(s.superAdminCanInvoiceUnapproved ?? false);
         this.adminInvoiceUnapproved.set(s.adminCanInvoiceUnapproved ?? false);
         this.managerInvoiceUnapproved.set(s.managerCanInvoiceUnapproved ?? false);
+        if (s.authorizationLimitPolicy) this.authPolicy.set(s.authorizationLimitPolicy);
       },
       error: (err: Error) => this.schedError.set(err.message || 'Could not load scheduling settings.'),
     });
@@ -551,6 +699,23 @@ export class Settings {
           this.approvalSaving.set(false);
         },
       });
+  }
+
+  saveAuthorizationPolicy(): void {
+    this.authPolicySaving.set(true);
+    this.authPolicyNotice.set('');
+    this.schedError.set('');
+    this.scheduler.updateAuthorizationPolicy(this.authPolicy()).subscribe({
+      next: (s) => {
+        this.authPolicySaving.set(false);
+        if (s?.authorizationLimitPolicy) this.authPolicy.set(s.authorizationLimitPolicy);
+        this.authPolicyNotice.set('Authorization policy saved.');
+      },
+      error: (err: Error) => {
+        this.schedError.set(err.message || 'Could not save the authorization policy.');
+        this.authPolicySaving.set(false);
+      },
+    });
   }
 
   saveDefaults(): void {

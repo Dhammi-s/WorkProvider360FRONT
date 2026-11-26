@@ -6,7 +6,7 @@
    SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
    ============================================================================= */
 
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import {
   NavigationCancel,
   NavigationEnd,
@@ -26,6 +26,10 @@ import { AuthService } from '../../../core/services/auth.service';
 import { BrandingService } from '../../../core/services/branding.service';
 import { ShortcutService } from '../../../core/services/shortcut.service';
 import { UserService } from '../../../core/services/user.service';
+import { AuthorizationService } from '../../../core/services/authorization.service';
+import { BillingService } from '../../../core/services/billing.service';
+import { MessageService } from '../../../core/services/message.service';
+import { MonitoringAuthService } from '../../monitoring/auth/monitoring-auth.service';
 
 interface NavItem {
   label: string;
@@ -39,7 +43,28 @@ interface NavItem {
   analysis?: boolean;
   /** Shown only when the training portal is enabled for the signed-in user. */
   training?: boolean;
+  /** Shown only while a Development Monitoring session is active in this browser. */
+  monitoring?: boolean;
+  /** Hidden when the role's payer authorization access is None. */
+  authorizations?: boolean;
+  /** Hidden when the role's billing access is None. */
+  billing?: boolean;
+  /** Custom messages (ADR-0006): 'send' needs canSend, 'view' needs canView. */
+  messages?: 'send' | 'view';
+  /** A group: shown as one sidebar row whose pages open in a hover flyout
+   *  (desktop) or expand inline (mobile drawer). No path of its own. */
+  children?: NavItem[];
 }
+
+/** Flyout panel next to the sidebar for a hovered / clicked group row. */
+interface Flyout {
+  group: NavItem;
+  top: number;
+  left: number;
+}
+
+/** lg breakpoint (Tailwind): hover flyouts above it, inline accordion below. */
+const DESKTOP_QUERY = '(min-width: 1024px)';
 
 /** Authenticated app shell: role-filtered sidebar + topbar + routed content. */
 @Component({
@@ -55,12 +80,34 @@ export class DashboardLayout {
   private readonly agency = inject(AgencyService);
   private readonly users = inject(UserService);
   private readonly analysis = inject(AnalysisService);
+  private readonly authorizationService = inject(AuthorizationService);
+  private readonly billingService = inject(BillingService);
+  private readonly messageService = inject(MessageService);
+  /** Separate Development Monitoring session (never mixed with the main-app auth). */
+  private readonly monitoringAuth = inject(MonitoringAuthService);
 
   /** AI Analysis tab visibility (SuperAdmin always; Admin/Manager per Settings). */
   readonly analysisAllowed = signal(false);
 
   /** Training tab visibility: the user's own "Enable training portal" flag. */
   readonly trainingAllowed = signal(false);
+
+  /** Authorizations tab visibility: hidden once the access is known to be None. */
+  readonly authorizationsAllowed = computed(() => {
+    const a = this.authorizationService.access();
+    return !a || (a.accessLevel !== 'None' && a.canView);
+  });
+
+  /** Billing tab visibility: hidden once the access is known to be None (or failed). */
+  readonly billingAllowed = computed(() => {
+    const a = this.billingService.access();
+    return !!a && a.accessLevel !== 'None' && a.canView;
+  });
+
+  /** Custom messages: top-bar envelope (canSend), sidebar Messages (canView), red dot on recent failures. */
+  readonly messagesCanSend = this.messageService.canSend;
+  readonly messagesCanView = this.messageService.canView;
+  readonly messagesFailed = this.messageService.hasRecentFailures;
 
   readonly user = this.auth.user;
   readonly logo = this.branding.logo;
@@ -97,6 +144,12 @@ export class DashboardLayout {
         error: () => this.analysisAllowed.set(false),
       });
     }
+    if (role === 'SuperAdmin' || role === 'Admin' || role === 'Manager') {
+      this.authorizationService.loadAccess().subscribe();
+      this.billingService.loadAccess().subscribe();
+    }
+    // Message access (send / view / recent failures) for every staff role; force a fresh read per sign-in.
+    this.messageService.loadAccess(true).subscribe();
     this.users.getMe().subscribe({
       next: (me) => {
         this.avatarUrl.set(me.avatarUrl ?? null);
@@ -116,6 +169,8 @@ export class DashboardLayout {
         event instanceof NavigationError
       ) {
         // Hide only after the minimum display time has elapsed.
+        if (event instanceof NavigationEnd) this.currentUrl.set(event.urlAfterRedirects);
+        this.closeFlyout();
         const elapsed = Date.now() - this.navStartedAt;
         const remaining = Math.max(0, DashboardLayout.MIN_LOADER_MS - elapsed);
         clearTimeout(this.hideTimer);
@@ -124,24 +179,64 @@ export class DashboardLayout {
     });
   }
 
+  /** Sidebar: top-level pages and groups. A group's pages open in a flyout on hover; a group
+   *  left with one visible page (role / access filters) is shown as that page, an empty one is hidden. */
   private readonly allNav: NavItem[] = [
     { label: 'Overview', hint: 'Your workspace at a glance', path: '/dashboard', icon: 'M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10' },
-    { label: 'Team', hint: 'Manage staff, roles and access', path: '/dashboard/users', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
-    { label: 'Applications', hint: 'Review incoming job applications', path: '/dashboard/applications', icon: 'M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2z', roles: ['SuperAdmin', 'Admin'] },
-    { label: 'Offices', hint: 'Branches and office locations', path: '/dashboard/offices', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 9h1m4 0h1M9 13h1m4 0h1M9 17h1m4 0h1', roles: ['SuperAdmin', 'Admin'] },
-    { label: 'Clients', hint: 'Client profiles and care details', path: '/dashboard/clients', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
-    { label: 'Payers', hint: 'Insurance and billing payers', path: '/dashboard/payers', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
-    { label: 'Skills & Services', hint: 'Service types and caregiver skills', path: '/dashboard/service-types', icon: 'M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 16.6 5.7 21l2.3-7.2-6-4.4h7.6L12 2z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
-    { label: 'Scheduler', hint: 'Plan and manage visits', path: '/dashboard/scheduler', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
-    { label: 'Meetings', hint: 'Schedule and join team meetings', path: '/dashboard/meetings', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
-    { label: 'AI Analysis', hint: 'AI-powered insights on your data', path: '/dashboard/analysis', icon: 'M9.5 2a2.5 2.5 0 00-2.45 2A3 3 0 004 7a3 3 0 00.5 5.5A3 3 0 007 17a2.5 2.5 0 005 0V4.5A2.5 2.5 0 009.5 2zM14.5 2a2.5 2.5 0 012.45 2A3 3 0 0120 7a3 3 0 01-.5 5.5A3 3 0 0117 17a2.5 2.5 0 01-5 0', roles: ['SuperAdmin', 'Admin', 'Manager'], analysis: true },
+    {
+      label: 'People', hint: 'Team, applications and offices', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z',
+      children: [
+        { label: 'Team', hint: 'Manage staff, roles and access', path: '/dashboard/users', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        { label: 'Applications', hint: 'Review incoming job applications', path: '/dashboard/applications', icon: 'M9 12h6m-6 4h6m2 4H7a2 2 0 01-2-2V6a2 2 0 012-2h5l5 5v9a2 2 0 01-2 2z', roles: ['SuperAdmin', 'Admin'] },
+        { label: 'Offices', hint: 'Branches and office locations', path: '/dashboard/offices', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 9h1m4 0h1M9 13h1m4 0h1M9 17h1m4 0h1', roles: ['SuperAdmin', 'Admin'] },
+      ],
+    },
+    {
+      label: 'Clients & Care', hint: 'Clients, payers, authorizations and services', icon: 'M4.3 12.7a4.5 4.5 0 016.4-6.4L12 7.6l1.3-1.3a4.5 4.5 0 116.4 6.4L12 20.3l-7.7-7.6z',
+      children: [
+        { label: 'Clients', hint: 'Client profiles and care details', path: '/dashboard/clients', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        { label: 'Payers', hint: 'Insurance and billing payers', path: '/dashboard/payers', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        { label: 'Authorizations', hint: 'Payer coverage, periods and authorized hours', path: '/dashboard/authorizations', icon: 'M9 12l2 2 4-4m5.6-3.1A12 12 0 0112 2.9 12 12 0 003.4 7.9 12 12 0 003 12c0 5.2 3.4 9.6 8 11 4.6-1.4 8-5.8 8-11 0-1.4-.2-2.8-.6-4.1z', roles: ['SuperAdmin', 'Admin', 'Manager'], authorizations: true },
+        { label: 'Skills & Services', hint: 'Service types and caregiver skills', path: '/dashboard/service-types', icon: 'M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 16.6 5.7 21l2.3-7.2-6-4.4h7.6L12 2z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+      ],
+    },
+    {
+      label: 'Scheduling', hint: 'Visits, recurring schedules and open shifts', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+      children: [
+        { label: 'Scheduler', hint: 'Plan and manage visits', path: '/dashboard/scheduler', icon: 'M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
+        { label: 'Master Schedules', hint: 'Recurring visit patterns and publishing', path: '/dashboard/master-schedules', icon: 'M4 4v5h.6m14.8 2A8 8 0 004.6 9M20 20v-5h-.6M4.6 13a8 8 0 0014.8 2', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        { label: 'Open Shifts', hint: 'Unassigned visits offered to caregivers', path: '/dashboard/open-shifts', icon: 'M12 8v4l3 3M3 12a9 9 0 1018 0 9 9 0 00-18 0zM16 3.5l2 2', roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },
+        { label: 'Missed Clock-ins', hint: 'Visits with a missed clock-in or clock-out', path: '/dashboard/visit-exceptions', icon: 'M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        { label: 'Live Map', hint: 'Track caregivers in real time', path: '/dashboard/live-map', icon: 'M9 20l-5.4 1.8a1 1 0 01-1.3-1V5.5a1 1 0 01.7-1L9 3m0 17l6-2m-6 2V3m6 15l5.4 1.8a1 1 0 001.3-1V4.5a1 1 0 00-.7-1L15 1.7m0 16.3V3.7m0 0L9 3M12 11a2 2 0 100-4 2 2 0 000 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+      ],
+    },
+    {
+      label: 'Billing & Finance', hint: 'Billing, accounting and point of sale', icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z',
+      children: [
+        { label: 'Billing', hint: 'Invoices, payments, AR, claims and eligibility', path: '/dashboard/billing', icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z', roles: ['SuperAdmin', 'Admin', 'Manager'], billing: true },
+        { label: 'Accounting', hint: 'Ledgers, invoices and payments', path: '/dashboard/accounting', icon: 'M12 8c-1.7 0-3 .9-3 2s1.3 2 3 2 3 .9 3 2-1.3 2-3 2m0-8V6m0 12v-2M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z', roles: ['SuperAdmin'] },
+        { label: 'Point of Sale', hint: 'Sell products and services', path: '/dashboard/pos', icon: 'M3 3h2l.4 2M7 13h10l3-8H6.4M7 13L5.4 5M7 13l-2 4h12M9 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z', roles: ['SuperAdmin', 'Admin'] },
+      ],
+    },
+    {
+      label: 'Communication', hint: 'Meetings, messages, announcements and email history', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z',
+      children: [
+        { label: 'Meetings', hint: 'Schedule and join team meetings', path: '/dashboard/meetings', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+        { label: 'Messages', hint: 'Custom emails sent from the app and their delivery', path: '/dashboard/messages', icon: 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z', roles: ['SuperAdmin', 'Admin', 'Manager', 'User'], messages: 'view' },
+        { label: 'Announcements', hint: 'Broadcast news to your team', path: '/dashboard/announcements', icon: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 11-5.8-1.6' },
+        { label: 'Email Logs', hint: 'History of emails sent', path: '/dashboard/logs', icon: 'M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2M4 6l8 6 8-6', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+      ],
+    },
+    {
+      label: 'Insights', hint: 'Reports, AI analysis and compliance', icon: 'M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z',
+      children: [
+        { label: 'Reports', hint: 'Operational and financial reports', path: '/dashboard/reports', icon: 'M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z' },
+        { label: 'AI Analysis', hint: 'AI-powered insights on your data', path: '/dashboard/analysis', icon: 'M9.5 2a2.5 2.5 0 00-2.45 2A3 3 0 004 7a3 3 0 00.5 5.5A3 3 0 007 17a2.5 2.5 0 005 0V4.5A2.5 2.5 0 009.5 2zM14.5 2a2.5 2.5 0 012.45 2A3 3 0 0120 7a3 3 0 01-.5 5.5A3 3 0 0117 17a2.5 2.5 0 01-5 0', roles: ['SuperAdmin', 'Admin', 'Manager'], analysis: true },
+        { label: 'Compliance', hint: 'EVV, regulatory reports and submissions', path: '/dashboard/compliance', icon: 'M9 12l2 2 4-4m5.6-3.1A12 12 0 0112 2.9 12 12 0 003.4 7.9 12 12 0 003 12c0 5.2 3.4 9.6 8 11 4.6-1.4 8-5.8 8-11 0-1.4-.2-2.8-.6-4.1z', roles: ['SuperAdmin', 'Admin'] },
+      ],
+    },
     { label: 'Training', hint: 'Open your training portal', path: '/training-sso', icon: 'M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.42A12.08 12.08 0 0119 12.9c0 2.5-3.13 4.6-7 4.6s-7-2.1-7-4.6c0-.8.17-1.58.84-2.32L12 14zm-7-3.5V17', training: true },
-    { label: 'Reports', hint: 'Operational and financial reports', path: '/dashboard/reports', icon: 'M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z' },
-    { label: 'Live Map', hint: 'Track caregivers in real time', path: '/dashboard/live-map', icon: 'M9 20l-5.4 1.8a1 1 0 01-1.3-1V5.5a1 1 0 01.7-1L9 3m0 17l6-2m-6 2V3m6 15l5.4 1.8a1 1 0 001.3-1V4.5a1 1 0 00-.7-1L15 1.7m0 16.3V3.7m0 0L9 3M12 11a2 2 0 100-4 2 2 0 000 4z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
-    { label: 'Announcements', hint: 'Broadcast news to your team', path: '/dashboard/announcements', icon: 'M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 11-5.8-1.6' },
-    { label: 'Accounting', hint: 'Ledgers, invoices and payments', path: '/dashboard/accounting', icon: 'M12 8c-1.7 0-3 .9-3 2s1.3 2 3 2 3 .9 3 2-1.3 2-3 2m0-8V6m0 12v-2M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z', roles: ['SuperAdmin'] },
-    { label: 'Point of Sale', hint: 'Sell products and services', path: '/dashboard/pos', icon: 'M3 3h2l.4 2M7 13h10l3-8H6.4M7 13L5.4 5M7 13l-2 4h12M9 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z', roles: ['SuperAdmin', 'Admin'] },
-    { label: 'Email Logs', hint: 'History of emails sent', path: '/dashboard/logs', icon: 'M4 6h16M4 6a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2M4 6l8 6 8-6', roles: ['SuperAdmin', 'Admin', 'Manager'] },
+    { label: 'Development Monitoring', hint: 'API performance, logs and errors across tenants', path: '/monitoring', icon: 'M13 10V3L4 14h7v7l9-11h-7z', monitoring: true },
     { label: 'My Profile', hint: 'Your account and preferences', path: '/dashboard/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
   ];
 
@@ -149,6 +244,7 @@ export class DashboardLayout {
   // not in the sidebar.
   private readonly allTopNav: NavItem[] = [
     { label: 'Security', path: '/dashboard/security', icon: 'M12 3l7 3v5c0 4.4-3 7.3-7 8.5-4-1.2-7-4.1-7-8.5V6l7-3zM9.5 11.8l1.8 1.8 3.2-3.6', roles: ['SuperAdmin'] },
+    { label: 'Send message', path: '/dashboard/messages/compose', icon: 'M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM3 7l9 6 9-6', messages: 'send' },
     { label: 'Settings', path: '/dashboard/settings', icon: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z', roles: ['SuperAdmin', 'Admin', 'Manager'] },
     { label: 'Help Center', path: '/dashboard/help', icon: 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.8 9.3a2.3 2.3 0 114 1.6c-.7.8-1.8 1.1-1.8 2.3M12 17h.01' },
     { label: 'Support', path: '/dashboard/support', icon: 'M20 15a2 2 0 01-2 2H8l-4 3V6a2 2 0 012-2h12a2 2 0 012 2v9zM9 9h6M9 12.5h4' },
@@ -159,17 +255,169 @@ export class DashboardLayout {
     const role = this.auth.roleName();
     const analysisOk = this.analysisAllowed();
     const trainingOk = this.trainingAllowed();
-    return this.allNav.filter(
-      (item) =>
-        (!item.roles || (role && item.roles.includes(role))) &&
-        (!item.analysis || analysisOk) &&
-        (!item.training || trainingOk),
-    );
+    const monitoringOk = this.monitoringAuth.isAuthenticated();
+    const authorizationsOk = this.authorizationsAllowed();
+    const billingOk = this.billingAllowed();
+    const messagesOk = this.messagesCanView();
+    const visible = (item: NavItem) =>
+      (!item.roles || (role && item.roles.includes(role))) &&
+      (!item.analysis || analysisOk) &&
+      (!item.authorizations || authorizationsOk) &&
+      (!item.billing || billingOk) &&
+      (!item.messages || messagesOk) &&
+      (!item.monitoring || monitoringOk) &&
+      (!item.training || trainingOk);
+
+    const result: NavItem[] = [];
+    for (const item of this.allNav) {
+      if (!item.children) {
+        if (visible(item)) result.push(item);
+        continue;
+      }
+      const children = item.children.filter(visible);
+      if (children.length === 1) result.push(children[0]); // no flyout for a single page
+      else if (children.length > 1) result.push({ ...item, children });
+    }
+    return result;
   });
+
+  // ------------------------------------------------------------------ groups (flyout / accordion)
+
+  /** Current URL, to highlight the group that holds the active page. */
+  private readonly currentUrl = signal(this.router.url);
+
+  /** Desktop (lg+): groups open as a hover flyout; below lg (drawer): inline accordion. */
+  private readonly desktop = signal(
+    typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(DESKTOP_QUERY).matches,
+  );
+
+  /** Open flyout (desktop). Fixed-positioned so the sidebar's scroll area never clips it. */
+  readonly flyout = signal<Flyout | null>(null);
+
+  /** Expanded group labels in the mobile drawer (the active page's group starts open). */
+  readonly expanded = signal<ReadonlySet<string>>(new Set());
+
+  /** True when the flyout was opened by a click / Enter: it then stays until a click elsewhere,
+   *  Escape or navigation (a hover-opened one closes when the pointer leaves). */
+  private flyoutPinned = false;
+  private flyoutCloseTimer?: ReturnType<typeof setTimeout>;
+  private flyoutOpenTimer?: ReturnType<typeof setTimeout>;
+
+  /** True when the current page belongs to this group. */
+  groupActive(group: NavItem): boolean {
+    const url = this.currentUrl().split(/[?#]/)[0];
+    return !!group.children?.some((c) => !!c.path && (url === c.path || url.startsWith(c.path + '/')));
+  }
+
+  isExpanded(group: NavItem): boolean {
+    return this.expanded().has(group.label) || (this.groupActive(group) && !this.collapsedByUser.has(group.label));
+  }
+
+  /** Groups the user closed by hand in the drawer (so an active group can be folded too). */
+  private readonly collapsedByUser = new Set<string>();
+
+  /** Pointer enters a group row (desktop). */
+  hoverGroup(event: Event, group: NavItem): void {
+    if (!this.desktop()) return;
+    clearTimeout(this.flyoutCloseTimer);
+    clearTimeout(this.flyoutOpenTimer);
+    const current = this.flyout();
+    if (current?.group.label === group.label) return;
+    if (current && this.flyoutPinned) return; // a clicked-open panel stays put
+    const row = event.currentTarget as HTMLElement;
+    // With another group's panel open, switch only when the pointer rests on this row:
+    // moving diagonally toward the open panel crosses the rows below and must not switch it.
+    this.flyoutOpenTimer = setTimeout(() => this.showFlyout(row, group, false), current ? 250 : 60);
+  }
+
+  /** Pointer leaves a group row. */
+  leaveGroup(): void {
+    clearTimeout(this.flyoutOpenTimer);
+    this.scheduleFlyoutClose();
+  }
+
+  /** Leaving the row or the panel: close after a delay so the pointer can reach the panel. */
+  scheduleFlyoutClose(): void {
+    if (this.flyoutPinned) return;
+    clearTimeout(this.flyoutCloseTimer);
+    this.flyoutCloseTimer = setTimeout(() => this.flyout.set(null), 350);
+  }
+
+  /** Pointer is on the panel: keep it, and cancel a pending switch to another group. */
+  keepFlyoutOpen(): void {
+    clearTimeout(this.flyoutCloseTimer);
+    clearTimeout(this.flyoutOpenTimer);
+  }
+
+  closeFlyout(): void {
+    clearTimeout(this.flyoutCloseTimer);
+    clearTimeout(this.flyoutOpenTimer);
+    this.flyoutPinned = false;
+    this.flyout.set(null);
+  }
+
+  private showFlyout(row: HTMLElement, group: NavItem, pinned: boolean): void {
+    this.hideTip();
+    const rect = row.getBoundingClientRect();
+    const rail = row.closest('aside')?.getBoundingClientRect() ?? rect;
+    // Rough panel height (header + one row per page) to keep it on screen.
+    const estimated = 48 + (group.children?.length ?? 0) * 50;
+    const maxTop = Math.max(8, window.innerHeight - estimated - 12);
+    this.flyoutPinned = pinned;
+    this.flyout.set({ group, top: Math.min(Math.max(8, rect.top - 10), maxTop), left: rail.right + 6 });
+  }
+
+  /** Click / Enter on a group row: pin its flyout open (desktop) or toggle the inline list (drawer). */
+  toggleGroup(event: MouseEvent, group: NavItem): void {
+    event.stopPropagation();
+    if (!this.desktop()) {
+      const open = this.isExpanded(group);
+      const next = new Set(this.expanded());
+      if (open) {
+        next.delete(group.label);
+        this.collapsedByUser.add(group.label);
+      } else {
+        next.add(group.label);
+        this.collapsedByUser.delete(group.label);
+      }
+      this.expanded.set(next);
+      return;
+    }
+    if (this.flyout()?.group.label === group.label && this.flyoutPinned) {
+      this.closeFlyout(); // second click closes
+      return;
+    }
+    clearTimeout(this.flyoutOpenTimer);
+    clearTimeout(this.flyoutCloseTimer);
+    this.showFlyout(event.currentTarget as HTMLElement, group, true);
+    // Keyboard activation (detail 0): move focus into the panel so Tab / Enter work.
+    if (event.detail === 0) {
+      setTimeout(() => (document.querySelector('.wp-flyout a') as HTMLElement | null)?.focus());
+    }
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.flyout()) this.closeFlyout();
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.flyout()) this.closeFlyout();
+  }
+
+  @HostListener('window:resize')
+  onResize(): void {
+    this.desktop.set(typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(DESKTOP_QUERY).matches);
+    this.closeFlyout();
+  }
 
   readonly topNav = computed<NavItem[]>(() => {
     const role = this.auth.roleName();
-    return this.allTopNav.filter((item) => !item.roles || (role && item.roles.includes(role)));
+    const canSend = this.messagesCanSend();
+    return this.allTopNav.filter(
+      (item) => (!item.roles || (role && item.roles.includes(role))) && (item.messages !== 'send' || canSend),
+    );
   });
 
   readonly initials = computed(() => {

@@ -72,8 +72,8 @@
                 @if (canManage()) {
                   <td class="px-4 py-3 text-right whitespace-nowrap">
                     <button type="button" (click)="startEdit(p)" [disabled]="busy()" class="text-xs font-semibold text-brand-700 hover:underline">Edit</button>
-                    <button type="button" (click)="confirmDeactivate.set(p)" [disabled]="busy() || p.paymentDistribution === 'Remainder'"
-                      [title]="p.paymentDistribution === 'Remainder' ? 'Set another payer to Remainder first' : ''"
+                    <button type="button" (click)="confirmDeactivate.set(p)" [disabled]="busy() || remainderLocked(p)"
+                      [title]="remainderLocked(p) ? 'Set another payer to Remainder first' : ''"
                       class="ml-3 text-xs font-semibold text-red-600 hover:underline disabled:cursor-not-allowed disabled:opacity-40">Deactivate</button>
                   </td>
                 }
@@ -194,12 +194,24 @@
         <div>
           <label class="wp-label">How this payer pays *</label>
           <select class="wp-input" [ngModel]="f.paymentDistribution" (ngModelChange)="patch({ paymentDistribution: $event })"
-            [disabled]="mode() === 'edit' && editing()?.paymentDistribution === 'Remainder'">
-            @for (d of distributions; track d.value) { <option [value]="d.value">{{ d.label }}</option> }
+            [disabled]="mode() === 'edit' && remainderLocked(editing())">
+            @for (d of distributions; track d.value) {
+              <option [value]="d.value"
+                [disabled]="remainderToAuthorizationOnly() && d.value !== 'Remainder' && d.value !== 'Authorization'">{{ d.label }}</option>
+            }
           </select>
           <p class="mt-1 text-[11px] text-slate-400">
-            @if (mode() === 'edit' && editing()?.paymentDistribution === 'Remainder') {
-              This payer pays the remainder. To change it, set another payer to Remainder first.
+            @if (mode() === 'edit' && remainderLocked(editing())) {
+              This payer pays the remainder. To change it, set another payer to Remainder first
+              (or make the client's other payers Authorization payers).
+            } @else if (remainderToAuthorizationOnly()) {
+              @if (f.paymentDistribution === 'Authorization') {
+                This payer will pay only the hours its authorizations allow. With no Remainder payer left,
+                the client pays the hours no authorization covers (private pay).
+              } @else {
+                This payer pays the remainder. You can switch it to Authorization to add payer authorizations
+                for this client.
+              }
             } @else {
               {{ distributionHint() }}
               @if (f.paymentDistribution === 'Remainder' && active().length > 0) { The current Remainder payer becomes Split 0%. }
@@ -283,6 +295,13 @@
           @if (busy()) { Saving… } @else { {{ mode() === 'edit' ? 'Save' : 'Link payer' }} }
         </button>
       </div>
+    </div>
+  }
+
+  <!-- Authorizations of this client (payers linked with the "Authorization" distribution) -->
+  @if (mode() === 'list') {
+    <div class="pt-2">
+      <app-authorizations [fixedClientId]="clientId()" />
     </div>
   }
 

@@ -1,0 +1,267 @@
+<!-- WorkProvider360 - Multi-tenant SaaS platform. Do NOT change without discussing with the software engineer. -->
+<section>
+  <a routerLink="/dashboard/messages" class="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-brand-700">
+    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.7 5.3a1 1 0 010 1.4L9.4 10l3.3 3.3a1 1 0 01-1.4 1.4l-4-4a1 1 0 010-1.4l4-4a1 1 0 011.4 0z" clip-rule="evenodd" /></svg>
+    Messages
+  </a>
+
+  @if (!accessLoaded() || (loading() && !message())) {
+    <div class="wp-card mt-4 flex items-center justify-center py-16 text-slate-400">
+      <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+    </div>
+  } @else if (!access()?.canView) {
+    <div class="wp-card mt-4 py-16 text-center">
+      <p class="text-sm font-semibold text-slate-700">You don't have access to messages.</p>
+      <p class="mt-1 text-sm text-slate-400">Ask a Super Admin to enable message access for your role in Settings → Messages.</p>
+    </div>
+  } @else if (notFound()) {
+    <div class="wp-card mt-4 py-16 text-center">
+      <p class="text-sm font-semibold text-slate-700">Message not found.</p>
+      <p class="mt-1 text-sm text-slate-400">It may not exist, or it was sent by someone whose messages you cannot see.</p>
+    </div>
+  } @else if (error() && !message()) {
+    <div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error() }}</div>
+  } @else if (message(); as m) {
+    <!-- Header -->
+    <div class="mt-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <div class="min-w-0">
+        <div class="flex flex-wrap items-center gap-3">
+          @if (isPush()) {
+            <span class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200">
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" /></svg>
+              Push
+            </span>
+          }
+          <h1 class="break-words text-2xl font-extrabold tracking-tight text-slate-900">{{ m.subject }}</h1>
+          <span class="rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset" [class]="statusClass(m.status)">{{ statusLabel(m.status) }}</span>
+          @if (live()) {
+            <span class="inline-flex items-center gap-1.5 text-xs text-slate-400">
+              <span class="h-2 w-2 animate-pulse rounded-full bg-sky-500"></span> updating…
+            </span>
+          }
+        </div>
+        <p class="mt-1 text-sm text-slate-500">
+          From <span class="font-semibold text-slate-700">{{ m.senderName }}</span>
+          @if (m.senderEmail) { <span class="ml-1 text-slate-400">&lt;{{ m.senderEmail }}&gt;</span> }
+          · {{ utc(m.createdOn) | date: 'MMM d, y, h:mm a' }}
+        </p>
+      </div>
+      <div class="flex shrink-0 flex-wrap gap-2">
+        @if (m.canRetry && access()?.canSend) {
+          <button type="button" (click)="confirmRetry.set(true)" class="wp-btn-ghost !py-2 !text-red-700 ring-red-200" [disabled]="retrying()">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>
+            Retry failed ({{ m.failedCount }})
+          </button>
+        }
+        @if (access()?.canSend) {
+          <button type="button" (click)="duplicate()" class="wp-btn-ghost !py-2">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+            Duplicate
+          </button>
+        }
+        <button type="button" (click)="load()" class="wp-btn-ghost !py-2" aria-label="Refresh" title="Refresh">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>
+        </button>
+      </div>
+    </div>
+
+    @if (m.status === 'Deferred') {
+      <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
+        The agency's daily sending limit was reached. The remaining recipients will be sent
+        @if (m.nextAttemptOn) { from {{ utc(m.nextAttemptOn) | date: 'MMM d, h:mm a' }}. } @else { tomorrow. }
+      </div>
+    }
+
+    @if (isPush()) {
+    <!-- Push counts: Sent (to a phone) / In app only / Failed / Pending -->
+    <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">People</p>
+        <p class="mt-1 text-2xl font-extrabold text-slate-900">{{ m.recipientCount }}</p>
+        @if (m.sendCopyToSender) { <p class="text-xs text-slate-400">incl. sender's devices</p> }
+      </div>
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Sent</p>
+        <p class="mt-1 text-2xl font-extrabold text-emerald-600">{{ pushedCount() }}</p>
+        <p class="text-xs text-slate-400">to a phone@if (m.completedOn) { · done {{ utc(m.completedOn) | date: 'MMM d, h:mm a' }} }</p>
+      </div>
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">In app only</p>
+        <p class="mt-1 text-2xl font-extrabold text-indigo-600">{{ m.inAppOnlyCount ?? 0 }}</p>
+        <p class="text-xs text-slate-400">bell only, no phone</p>
+      </div>
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Failed</p>
+        <p class="mt-1 text-2xl font-extrabold" [class]="m.failedCount ? 'text-red-600' : 'text-slate-300'">{{ m.failedCount }}</p>
+      </div>
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Pending</p>
+        <p class="mt-1 text-2xl font-extrabold text-slate-700">{{ m.pendingCount }}</p>
+        @if (live() || m.pendingCount) {
+          <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <div class="h-full rounded-full bg-brand-500 transition-all" [style.width.%]="progress()"></div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Push content: plain text interpolation only (never innerHTML / iframe). -->
+    <div class="wp-card mt-5 !p-5">
+      <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Title</h2>
+      <p class="mt-1 break-words text-base font-bold text-slate-900">{{ m.subject }}</p>
+      <h2 class="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Message</h2>
+      <p class="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">{{ m.bodyHtml }}</p>
+      <p class="mt-4 text-xs text-slate-400">Shown as written; personal placeholders were filled in for each person. Everyone also has it in their notification bell.</p>
+    </div>
+    } @else {
+    <!-- Counts -->
+    <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Recipients</p>
+        <p class="mt-1 text-2xl font-extrabold text-slate-900">{{ m.recipientCount }}</p>
+        <p class="text-xs text-slate-400">To {{ m.toCount }} · CC {{ m.ccCount }} · BCC {{ m.bccCount }}</p>
+      </div>
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Sent</p>
+        <p class="mt-1 text-2xl font-extrabold text-emerald-600">{{ m.sentCount }}</p>
+        @if (m.completedOn) {
+          <p class="text-xs text-slate-400">Done {{ utc(m.completedOn) | date: 'MMM d, h:mm a' }}</p>
+        }
+      </div>
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Failed</p>
+        <p class="mt-1 text-2xl font-extrabold" [class]="m.failedCount ? 'text-red-600' : 'text-slate-300'">{{ m.failedCount }}</p>
+      </div>
+      <div class="wp-card !p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Pending</p>
+        <p class="mt-1 text-2xl font-extrabold text-slate-700">{{ m.pendingCount }}</p>
+        @if (live() || m.pendingCount) {
+          <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <div class="h-full rounded-full bg-brand-500 transition-all" [style.width.%]="progress()"></div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <!-- Body -->
+      <div class="wp-card min-w-0 !p-0">
+        <div class="border-b border-slate-100 px-5 py-3 text-sm text-slate-500">
+          <span class="font-semibold text-slate-600">Reply to:</span> {{ replyToLabel(m) }}
+          @if (m.sendCopyToSender) { <span class="ml-2 text-slate-400">· copy sent to the sender</span> }
+        </div>
+        <div class="p-4">
+          <iframe sandbox="" title="Message body" class="h-[55vh] w-full rounded-xl border border-slate-200 bg-white" [srcdoc]="bodyDoc()"></iframe>
+          @if (inlineCount()) {
+            <p class="mt-2 text-xs text-slate-400">{{ inlineCount() }} embedded image{{ inlineCount() === 1 ? '' : 's' }} sent inline (not shown here).</p>
+          }
+        </div>
+      </div>
+
+      <!-- Attachments -->
+      <div class="wp-card self-start !p-5">
+        <h2 class="text-sm font-bold text-slate-900">Attachments</h2>
+        @if (!files().length) {
+          <p class="mt-2 text-sm text-slate-400">No attachments.</p>
+        } @else {
+          <ul class="mt-3 space-y-2">
+            @for (a of files(); track a.attachmentId) {
+              <li class="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[10px] font-bold uppercase text-slate-600">{{ a.fileName.split('.').pop() }}</span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold text-slate-700" [title]="a.fileName">{{ a.fileName }}</span>
+                  <span class="block text-xs text-slate-400">{{ formatBytes(a.sizeBytes) }}@if (a.isPurged) { · removed after retention }</span>
+                </span>
+                @if (!a.isPurged) {
+                  <button type="button" (click)="download(a)" [disabled]="downloading() === a.attachmentId"
+                    class="rounded-lg p-1.5 text-brand-600 hover:bg-brand-50 disabled:opacity-50" [attr.aria-label]="'Download ' + a.fileName" title="Download">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                  </button>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </div>
+    }
+
+    <!-- Recipients -->
+    <div class="wp-card mt-5 overflow-hidden !p-0">
+      <div class="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <h2 class="text-base font-bold text-slate-900">Recipients</h2>
+        <select class="wp-input !w-auto !py-1.5 text-sm" aria-label="Filter recipients by status"
+          [ngModel]="recipientStatus()" (ngModelChange)="setRecipientStatus($event)">
+          <option value="">All statuses</option>
+          @for (s of recipientStatuses(); track s) {
+            <option [value]="s">{{ statusLabel(s) }}</option>
+          }
+        </select>
+      </div>
+      @if (!m.recipients.length) {
+        <p class="px-5 py-10 text-center text-sm text-slate-400">No recipients{{ recipientStatus() ? ' with this status' : '' }}.</p>
+      } @else {
+        <div class="overflow-x-auto" [class.opacity-60]="loading()">
+          <table class="min-w-full divide-y divide-slate-100 text-sm">
+            <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <tr>
+                <th class="px-5 py-3">Field</th>
+                <th class="px-5 py-3">Recipient</th>
+                <th class="px-5 py-3">Via</th>
+                <th class="px-5 py-3">Status</th>
+                @if (isPush()) {
+                  <th class="px-5 py-3 text-right" title="Phones that accepted / rejected the push">Devices</th>
+                }
+                <th class="px-5 py-3">Sent</th>
+                <th class="px-5 py-3">Error</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (r of m.recipients; track r.recipientId) {
+                <tr>
+                  <td class="whitespace-nowrap px-5 py-3 text-xs font-semibold text-slate-500">{{ fieldLabel(r.field) }}</td>
+                  <td class="px-5 py-3">
+                    <p class="font-semibold text-slate-800">{{ r.displayName || r.email }}</p>
+                    @if (r.displayName && r.email) { <p class="text-xs text-slate-400">{{ r.email }}</p> }
+                  </td>
+                  <td class="px-5 py-3 text-xs text-slate-500">
+                    {{ r.groupLabel || (r.sourceType === 'External' ? 'Typed address' : r.sourceType === 'Client' ? 'Client' : 'Staff') }}
+                  </td>
+                  <td class="whitespace-nowrap px-5 py-3">
+                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset" [class]="statusClass(r.status)">{{ statusLabel(r.status) }}</span>
+                    @if (r.attempts > 1) { <span class="ml-1 text-xs text-slate-400">×{{ r.attempts }}</span> }
+                  </td>
+                  @if (isPush()) {
+                    <td class="whitespace-nowrap px-5 py-3 text-right text-xs">
+                      @if (r.devicesSent == null && r.devicesFailed == null) {
+                        <span class="text-slate-300">—</span>
+                      } @else {
+                        <span class="font-semibold text-emerald-700" title="Devices sent">{{ r.devicesSent ?? 0 }} sent</span>
+                        @if (r.devicesFailed) {
+                          <span class="text-slate-300"> · </span><span class="font-semibold text-red-600" title="Devices failed">{{ r.devicesFailed }} failed</span>
+                        }
+                      }
+                    </td>
+                  }
+                  <td class="whitespace-nowrap px-5 py-3 text-slate-500">{{ r.sentOn ? (utc(r.sentOn) | date: 'MMM d, h:mm a') : '—' }}</td>
+                  <td class="max-w-[320px] px-5 py-3 text-xs text-red-600">{{ r.error || '' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+      <app-paginator [total]="m.recipientTotal" [page]="recipientPage()" [pageSize]="recipientPageSize()" [pageSizeOptions]="[25, 50, 100]"
+        (pageChange)="goRecipientPage($event)" (pageSizeChange)="setRecipientPageSize($event)" />
+    </div>
+  }
+</section>
+
+@if (confirmRetry()) {
+  <app-confirm-dialog
+    title="Retry failed recipients?"
+    [message]="'The ' + (message()?.failedCount ?? 0) + ' failed recipient(s) will be queued and sent again.'"
+    confirmLabel="Retry"
+    (confirmed)="retry()"
+    (cancelled)="confirmRetry.set(false)" />
+}

@@ -37,7 +37,7 @@ export function payerTypeLabel(t: string | null | undefined): string {
 }
 
 /** How a payer pays its part of a client's bill. */
-export type PaymentDistribution = 'Remainder' | 'Split' | 'PerDiem' | 'Visit' | 'Weekly' | 'Monthly';
+export type PaymentDistribution = 'Remainder' | 'Split' | 'PerDiem' | 'Visit' | 'Weekly' | 'Monthly' | 'Authorization';
 
 export const PAYMENT_DISTRIBUTIONS: { value: PaymentDistribution; label: string; hint: string }[] = [
   { value: 'Remainder', label: 'Remainder', hint: 'Pays whatever is left after the other payers. Exactly one payer pays the remainder.' },
@@ -46,6 +46,11 @@ export const PAYMENT_DISTRIBUTIONS: { value: PaymentDistribution; label: string;
   { value: 'Visit', label: 'Per visit', hint: 'Pays up to a fixed amount per visit.' },
   { value: 'Weekly', label: 'Weekly', hint: 'Pays up to a fixed amount per week.' },
   { value: 'Monthly', label: 'Monthly', hint: 'Pays up to a fixed amount per month.' },
+  {
+    value: 'Authorization',
+    label: 'Authorization',
+    hint: 'Pays only the hours its authorizations allow; the rest goes to the Remainder payer or the client.',
+  },
 ];
 
 export const WEEK_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -262,6 +267,8 @@ export function distributionLabel(p: {
       return `Weekly${money(p.paymentAmount)}${p.weekStartDay != null ? ` (from ${WEEK_DAYS[p.weekStartDay]})` : ''}`;
     case 'Monthly':
       return `Monthly${money(p.paymentAmount)}${p.monthStartDay != null ? ` (from day ${p.monthStartDay})` : ''}`;
+    case 'Authorization':
+      return 'Authorization';
     default:
       return 'Remainder';
   }

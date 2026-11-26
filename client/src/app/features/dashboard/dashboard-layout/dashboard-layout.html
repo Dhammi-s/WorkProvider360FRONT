@@ -41,9 +41,52 @@
       <span class="whitespace-nowrap text-lg font-extrabold tracking-tight" [class.lg:hidden]="collapsed()">WorkProvider<span class="text-accent-400">360</span></span>
     </div>
 
-    <nav class="wp-scroll mt-8 min-h-0 flex-1 space-y-1 overflow-y-auto px-4" [class.lg:px-2]="collapsed()" (scroll)="hideTip()">
+    <nav class="wp-scroll mt-8 min-h-0 flex-1 space-y-1 overflow-y-auto px-4" [class.lg:px-2]="collapsed()" (scroll)="hideTip(); closeFlyout()">
       @for (item of nav(); track item.label) {
-        @if (item.soon) {
+        @if (item.children) {
+          <!-- Group: hover opens its pages in a flyout (desktop); tap expands them inline (drawer) -->
+          <div>
+            <button
+              type="button"
+              (mouseenter)="hoverGroup($event, item)"
+              (mouseleave)="leaveGroup()"
+              (click)="toggleGroup($event, item)"
+              [attr.aria-label]="item.label"
+              [attr.aria-haspopup]="'menu'"
+              [attr.aria-expanded]="flyout()?.group?.label === item.label || isExpanded(item)"
+              class="wp-nav-item group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-white/70 hover:text-white"
+              [class.wp-nav-active]="groupActive(item)"
+              [class.wp-nav-open]="flyout()?.group?.label === item.label"
+              [class.lg:justify-center]="collapsed()"
+            >
+              <svg class="wp-nav-icon h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="item.icon" /></svg>
+              <span class="whitespace-nowrap" [class.lg:hidden]="collapsed()">{{ item.label }}</span>
+              <svg
+                class="ml-auto h-4 w-4 shrink-0 text-white/40 transition-transform duration-200 lg:-rotate-90"
+                [class.rotate-180]="isExpanded(item)"
+                [class.lg:hidden]="collapsed()"
+                viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
+              ><path fill-rule="evenodd" d="M5.3 7.3a1 1 0 011.4 0L10 10.6l3.3-3.3a1 1 0 111.4 1.4l-4 4a1 1 0 01-1.4 0l-4-4a1 1 0 010-1.4z" clip-rule="evenodd" /></svg>
+            </button>
+
+            <!-- Drawer (below lg): pages listed inline under the group -->
+            @if (isExpanded(item)) {
+              <div class="mt-1 space-y-1 border-l border-white/10 pl-3 ml-5 lg:hidden">
+                @for (child of item.children; track child.label) {
+                  <a
+                    [routerLink]="child.path"
+                    routerLinkActive="wp-nav-active"
+                    (click)="closeSidebar()"
+                    class="wp-nav-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/70 hover:text-white"
+                  >
+                    <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="child.icon" /></svg>
+                    <span class="whitespace-nowrap">{{ child.label }}</span>
+                  </a>
+                }
+              </div>
+            }
+          </div>
+        } @else if (item.soon) {
           <span
             class="wp-nav-item flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/40"
             [class.lg:justify-center]="collapsed()"
@@ -102,6 +145,41 @@
     </div>
   }
 
+  <!-- Group flyout (desktop): the group's pages, next to the sidebar -->
+  @if (flyout(); as f) {
+    <div
+      class="wp-flyout"
+      role="menu"
+      [attr.aria-label]="f.group.label"
+      [style.top.px]="f.top"
+      [style.left.px]="f.left"
+      (mouseenter)="keepFlyoutOpen()"
+      (mouseleave)="scheduleFlyoutClose()"
+      (click)="$event.stopPropagation()"
+    >
+      <p class="px-3 pb-2 pt-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">{{ f.group.label }}</p>
+      @for (child of f.group.children; track child.label) {
+        <a
+          [routerLink]="child.path"
+          routerLinkActive="wp-flyout-active"
+          role="menuitem"
+          (click)="closeFlyout(); closeSidebar()"
+          class="wp-flyout-item"
+        >
+          <span class="wp-flyout-icon">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path [attr.d]="child.icon" /></svg>
+          </span>
+          <span class="min-w-0">
+            <span class="block text-sm font-semibold text-white">{{ child.label }}</span>
+            @if (child.hint) {
+              <span class="block truncate text-xs text-slate-400">{{ child.hint }}</span>
+            }
+          </span>
+        </a>
+      }
+    </div>
+  }
+
   <!-- Main column -->
   <div class="flex min-w-0 flex-1 flex-col">
     <!-- Topbar -->
@@ -147,9 +225,12 @@
             routerLinkActive="bg-brand-50 !text-brand-700"
             [title]="item.label"
             [attr.aria-label]="item.label"
-            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-900 transition hover:bg-slate-100"
+            class="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-900 transition hover:bg-slate-100"
           >
             <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path [attr.d]="item.icon" /></svg>
+            @if (item.messages === 'send' && messagesFailed()) {
+              <span class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" title="Some recent messages have failed recipients"></span>
+            }
           </a>
         }
         <app-notification-bell />

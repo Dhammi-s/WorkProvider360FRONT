@@ -213,6 +213,67 @@
   .wp-tip { display: none; }
 }
 
+/* Sidebar group flyout: a group's pages, shown next to the sidebar on hover / click (desktop). */
+.wp-nav-open {
+  color: #fff !important;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+.wp-flyout {
+  position: fixed;
+  z-index: 60;
+  width: 272px;
+  padding: 10px 6px 6px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 40px -10px rgba(15, 23, 42, 0.6), 0 2px 8px rgba(15, 23, 42, 0.25);
+  animation: wp-flyout-in 0.16s ease-out;
+}
+/* Invisible bridge over the gap to the sidebar, so moving the pointer across never closes it. */
+.wp-flyout::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -24px;
+  width: 24px;
+}
+.wp-flyout-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  transition: background-color 0.15s ease;
+}
+.wp-flyout-item:hover,
+.wp-flyout-item:focus-visible {
+  outline: none;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.wp-flyout-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.75);
+  background-color: rgba(255, 255, 255, 0.06);
+}
+.wp-flyout-active {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+}
+.wp-flyout-active .wp-flyout-icon {
+  color: #fff;
+  background: linear-gradient(135deg, #34d399, #818cf8);
+}
+@keyframes wp-flyout-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
 /* =============================================================================
    Client portal — premium animated UI (global; no component-style budget cost)
    ============================================================================= */
@@ -329,4 +390,21 @@
   .wp-anim-up, .wp-anim-in, .wp-anim-pop, .wp-anim-menu, .wp-portal-hero, .wp-train-hero,
   .wp-blob, .wp-avatar-ring, .wp-skeleton::after, .wp-tskeleton::after { animation: none !important; }
   .wp-anim-up, .wp-anim-pop { opacity: 1 !important; transform: none !important; }
+}
+
+/* Development Monitoring: shared table / badge / form helpers */
+@layer components {
+  .mon-card { @apply rounded-2xl border border-slate-100 bg-white shadow-card; }
+  .mon-table { @apply w-full text-left text-sm; }
+  .mon-th { @apply whitespace-nowrap bg-slate-50 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500; }
+  .mon-td { @apply px-4 py-2.5 align-middle text-slate-700; }
+  .mon-row { @apply border-t border-slate-100 transition hover:bg-slate-50/70; }
+  .mon-badge { @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ring-transparent; }
+  .mon-field { @apply rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30; }
+  .mon-btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50; }
+  .mon-btn-primary { @apply mon-btn bg-brand-600 text-white hover:bg-brand-700; }
+  .mon-btn-ghost { @apply mon-btn border border-slate-200 bg-white text-slate-700 hover:bg-slate-50; }
+  .mon-btn-danger { @apply mon-btn bg-red-600 text-white hover:bg-red-700; }
+  .mon-tab { @apply rounded-lg px-4 py-2 text-sm font-semibold text-slate-500 transition hover:text-slate-800; }
+  .mon-tab-active { @apply bg-white text-brand-700 shadow-sm; }
 }

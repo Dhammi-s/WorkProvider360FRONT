@@ -1,0 +1,145 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     ============================================================================= -->
+<div class="fixed inset-0 z-[60] flex justify-end" role="dialog" aria-modal="true">
+  <div class="fixed inset-0 bg-slate-900/40" (click)="closed.emit()"></div>
+  <div class="relative z-10 flex h-full w-full max-w-xl flex-col bg-white shadow-2xl">
+    <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-6 py-4">
+      <div class="min-w-0">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Authorization usage</p>
+        <h2 class="mt-0.5 truncate text-lg font-bold text-slate-900">{{ detail()?.authorization?.authorizationName || 'Loading…' }}</h2>
+      </div>
+      <button type="button" (click)="closed.emit()" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close">
+        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto px-6 py-5">
+      @if (loading()) {
+        <p class="py-10 text-center text-sm text-slate-400">Loading…</p>
+      } @else if (error()) {
+        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error() }}</div>
+      } @else if (detail(); as d) {
+        @let a = d.authorization;
+        <!-- Header fields -->
+        <div class="flex items-center gap-2">
+          <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusClass(a.displayStatus)">{{ statusLabel(a.displayStatus) }}</span>
+          @if (a.displayStatus === 'Active' || a.displayStatus === 'ExpiringSoon') {
+            <span class="text-xs text-slate-400">{{ a.daysLeft }} day{{ a.daysLeft === 1 ? '' : 's' }} left</span>
+          }
+        </div>
+        <dl class="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+          <div><dt class="text-xs text-slate-400">Client</dt><dd class="font-medium text-slate-800">{{ a.clientName }}</dd></div>
+          <div><dt class="text-xs text-slate-400">Payer</dt><dd class="font-medium text-slate-800">{{ a.payerName }}</dd></div>
+          <div><dt class="text-xs text-slate-400">Service type</dt><dd class="font-medium text-slate-800">{{ a.serviceTypeName }}</dd></div>
+          <div><dt class="text-xs text-slate-400">Authorization number</dt><dd class="font-medium text-slate-800">{{ a.authorizationNumber || '—' }}</dd></div>
+          <div><dt class="text-xs text-slate-400">Period</dt><dd class="font-medium text-slate-800">{{ fmtDate(a.startDate) }} – {{ fmtDate(a.endDate) }}</dd></div>
+          <div><dt class="text-xs text-slate-400">Allowed days</dt><dd class="font-medium text-slate-800">{{ daysLabel(a.allowedDays) }}</dd></div>
+          <div><dt class="text-xs text-slate-400">Daily / weekly limit</dt><dd class="font-medium text-slate-800">{{ fmtLimit(a.maxHoursPerDay, a.limitUnit) }} / {{ fmtLimit(a.maxHoursPerWeek, a.limitUnit) }}</dd></div>
+          <div><dt class="text-xs text-slate-400">Monthly / total limit</dt><dd class="font-medium text-slate-800">{{ fmtLimit(a.maxHoursPerMonth, a.limitUnit) }} / {{ fmtLimit(a.totalAuthorizedHours, a.limitUnit) }}</dd></div>
+          <div><dt class="text-xs text-slate-400">Limit unit</dt><dd class="font-medium text-slate-800">{{ a.limitUnit === 'Visits' ? 'Visits' : 'Hours' }}</dd></div>
+          @if (a.statusNote) {
+            <div><dt class="text-xs text-slate-400">Status note</dt><dd class="font-medium text-amber-700">{{ a.statusNote }}</dd></div>
+          }
+          @if (a.notes) {
+            <div class="col-span-2"><dt class="text-xs text-slate-400">Notes</dt><dd class="whitespace-pre-line text-slate-700">{{ a.notes }}</dd></div>
+          }
+        </dl>
+
+        <!-- Usage bars -->
+        <h3 class="mt-6 text-xs font-bold uppercase tracking-wide text-slate-400">Usage</h3>
+        <div class="mt-2 space-y-3">
+          @for (u of d.usage; track $index) {
+            <div class="rounded-xl border border-slate-100 p-3">
+              <div class="flex items-baseline justify-between gap-2">
+                <div>
+                  <span class="text-sm font-semibold text-slate-800">{{ u.label }}</span>
+                  @if (windowLabel(u)) { <span class="ml-1 text-xs text-slate-400">{{ windowLabel(u) }}</span> }
+                </div>
+                <span class="text-sm text-slate-700">
+                  {{ amount(u.usedHours) }}
+                  @if (u.limitHours != null) { <span class="text-slate-400">/ {{ amount(u.limitHours) }}</span> }
+                  @else { <span class="text-slate-400">· No limit</span> }
+                </span>
+              </div>
+              @if (u.limitHours != null) {
+                <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div class="h-full rounded-full" [class]="barClass(u)" [style.width.%]="percent(u)"></div>
+                </div>
+                <p class="mt-1 text-xs text-slate-400">{{ amount(u.remainingHours) }} remaining</p>
+              } @else {
+                <div class="mt-2 h-2 rounded-full bg-slate-100"></div>
+                <p class="mt-1 text-xs text-slate-400">No limit</p>
+              }
+            </div>
+          } @empty {
+            <p class="text-sm text-slate-400">No usage windows.</p>
+          }
+        </div>
+
+        <!-- Status history -->
+        <h3 class="mt-6 text-xs font-bold uppercase tracking-wide text-slate-400">Status history</h3>
+        <div class="mt-2">
+          @if (historyLoading()) {
+            <p class="text-sm text-slate-400">Loading…</p>
+          } @else {
+            <ol class="space-y-2">
+              @for (h of history(); track h.historyId) {
+                <li class="rounded-xl border border-slate-100 px-3 py-2 text-sm">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="font-semibold text-slate-800">
+                      @if (h.statusFrom) { {{ statusName(h.statusFrom) }} → } @else { Created as }
+                      {{ statusName(h.statusTo) }}
+                    </span>
+                    <span class="whitespace-nowrap text-xs text-slate-400">{{ h.changedOn | date: 'MMM d, y, h:mm a' }}</span>
+                  </div>
+                  @if (h.note) { <p class="mt-0.5 text-slate-600">{{ h.note }}</p> }
+                  @if (h.changedByName) { <p class="mt-0.5 text-xs text-slate-400">by {{ h.changedByName }}</p> }
+                </li>
+              } @empty {
+                <li class="text-sm text-slate-400">No status changes recorded.</li>
+              }
+            </ol>
+          }
+        </div>
+
+        <!-- Visits -->
+        <h3 class="mt-6 text-xs font-bold uppercase tracking-wide text-slate-400">Visits using this authorization ({{ visitTotal() }})</h3>
+        <div class="mt-2 overflow-hidden rounded-xl border border-slate-200">
+          @if (visitsLoading()) {
+            <p class="px-4 py-6 text-center text-sm text-slate-400">Loading visits…</p>
+          } @else if (visits().length === 0) {
+            <p class="px-4 py-6 text-center text-sm text-slate-400">No visits use this authorization yet.</p>
+          } @else {
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
+                <tr><th class="px-3 py-2">Date</th><th class="px-3 py-2">Caregiver</th><th class="px-3 py-2 text-right">Hours</th><th class="px-3 py-2"></th></tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                @for (v of visits(); track v.scheduleId + '-' + $index) {
+                  <tr>
+                    <td class="px-3 py-2">
+                      <div class="whitespace-nowrap text-slate-800">{{ fmtDate(v.serviceDate) }}</div>
+                      <div class="text-xs text-slate-400">{{ timeOf(v.startUtc) }} – {{ timeOf(v.endUtc) }} · {{ v.status }}</div>
+                    </td>
+                    <td class="px-3 py-2 text-slate-600">
+                      {{ v.caregiverName || '—' }}
+                      @if (v.basis) { <div class="text-xs text-slate-400">{{ v.basis }}</div> }
+                    </td>
+                    <td class="px-3 py-2 text-right whitespace-nowrap text-slate-800">{{ v.hours.toFixed(2) }} h</td>
+                    <td class="px-3 py-2 text-right">
+                      @if (v.isInvoiced) { <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">Invoiced</span> }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+            <app-paginator [total]="visitTotal()" [page]="visitPage()" [pageSize]="visitPageSize()" [pageSizeOptions]="[10, 20, 50]"
+              (pageChange)="onVisitPage($event)" (pageSizeChange)="onVisitPageSize($event)" />
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>

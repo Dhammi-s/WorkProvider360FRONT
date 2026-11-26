@@ -1,0 +1,60 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     Date         : 2026-07-31
+     NOTE TO DEVELOPERS: Do NOT change functionality without full knowledge of the
+     SaaS architecture. PLEASE FIRST DISCUSS WITH SOFTWARE ENGINEER JASMEET SINGH.
+     ============================================================================= -->
+
+<div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-card">
+  <h2 class="text-base font-bold text-slate-900">Email banner</h2>
+  <p class="mt-1 text-sm text-slate-500">
+    This banner is shown at the top of every email your agency sends (credentials, invoices, reminders and more).
+    Use a wide image (about 4:1, e.g. 1200 × 300). Stored for your agency only.
+  </p>
+
+  <app-alert type="success" [message]="notice()" />
+  <app-alert type="error" [message]="error()" />
+
+  <div class="mt-5">
+    <span class="text-xs text-slate-400">Current banner</span>
+    <div class="mt-1 max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-white">
+      @if (currentBanner()) {
+        <img [src]="currentBanner()" alt="Email banner" class="block w-full" />
+      } @else {
+        <p class="px-4 py-6 text-center text-sm text-slate-400">No banner set — emails are sent without one.</p>
+      }
+    </div>
+  </div>
+
+  <div class="mt-5 flex flex-wrap items-center gap-3">
+    <label class="wp-btn-ghost cursor-pointer">
+      Choose image…
+      <input type="file" accept="image/png,image/jpeg,image/webp" class="hidden" (change)="onFileSelected($event)" />
+    </label>
+    @if (currentBanner()) {
+      <button type="button" (click)="remove()" [disabled]="saving()" class="wp-btn-ghost text-red-600">Remove banner</button>
+    }
+  </div>
+
+  @if (fileEvent()) {
+    <div class="mt-4 max-w-xl overflow-hidden rounded-xl border border-slate-200">
+      <image-cropper
+        [imageChangedEvent]="fileEvent()"
+        [maintainAspectRatio]="true"
+        [aspectRatio]="4"
+        [resizeToWidth]="1200"
+        format="png"
+        [output]="'base64'"
+        (imageCropped)="onCropped($event)"
+        (loadImageFailed)="onLoadFailed()"
+      />
+    </div>
+    <div class="mt-4 flex items-center gap-3">
+      <button type="button" (click)="save()" [disabled]="saving() || !cropped()" class="wp-btn-primary">
+        @if (saving()) { Saving… } @else { Save banner }
+      </button>
+      <button type="button" (click)="cancel()" class="wp-btn-ghost">Cancel</button>
+    </div>
+  }
+</div>

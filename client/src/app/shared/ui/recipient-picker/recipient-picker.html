@@ -1,0 +1,138 @@
+<!-- WorkProvider360 - Multi-tenant SaaS platform. Do NOT change without discussing with the software engineer. -->
+<div class="relative">
+  <div
+    class="flex min-h-[46px] w-full cursor-text flex-wrap items-center gap-1.5 rounded-xl border bg-slate-50 px-2.5 py-1.5 transition focus-within:border-brand-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-brand-500/30"
+    [class]="invalid() ? 'border-red-300' : 'border-slate-200'"
+    (click)="focusInput()"
+  >
+    @for (chip of chips(); track $index) {
+      <span
+        class="inline-flex max-w-full items-center gap-1.5 rounded-full py-1 pl-1.5 pr-1 text-xs font-semibold ring-1 ring-inset"
+        [class]="chip.type === 'Group' ? 'bg-brand-50 text-brand-700 ring-brand-200'
+          : chip.type === 'External' ? 'bg-amber-50 text-amber-800 ring-amber-200'
+          : chip.type === 'Client' ? 'bg-portal-50 text-portal-800 ring-portal-200'
+          : 'bg-white text-slate-700 ring-slate-200'"
+        [class.line-through]="chip.type === 'External' && !allowTyped()"
+        [class.opacity-60]="chip.type === 'External' && !allowTyped()"
+        [title]="chip.type === 'External' ? (allowTyped() ? 'External address' : 'Typed addresses are skipped here') : (chip.email || chip.label || '')"
+      >
+        @switch (chip.type) {
+          @case ('Group') {
+            <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z" /></svg>
+          }
+          @case ('External') {
+            <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v12H4zM4 6l8 6 8-6" /></svg>
+          }
+          @default {
+            @if (chip.avatarUrl) {
+              <img [src]="chip.avatarUrl" alt="" class="h-4 w-4 shrink-0 rounded-full object-cover" />
+            } @else {
+              <span class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-600">{{ initials(chip.label) }}</span>
+            }
+          }
+        }
+        <span class="truncate">{{ chip.label || chip.email }}</span>
+        @if (chip.type === 'Group' && chip.memberCount != null) {
+          <span class="font-normal opacity-70">({{ chip.memberCount }})</span>
+        }
+        @if (chip.type === 'Client') {
+          <span class="font-normal opacity-70">client</span>
+        }
+        <button
+          type="button"
+          (click)="$event.stopPropagation(); remove($index)"
+          class="ml-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full opacity-60 hover:bg-black/10 hover:opacity-100"
+          [attr.aria-label]="'Remove ' + (chip.label || chip.email)"
+        >
+          <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+        </button>
+      </span>
+    }
+    <input
+      #input
+      type="text"
+      class="min-w-[160px] flex-1 border-0 bg-transparent px-1 py-1 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0"
+      [attr.id]="inputId()"
+      [attr.aria-label]="ariaLabel()"
+      role="combobox"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="open()"
+      autocomplete="off"
+      [placeholder]="chips().length ? '' : placeholder()"
+      (input)="onInput($any($event.target).value)"
+      (keydown)="onKeydown($event)"
+      (focus)="onFocus()"
+      (blur)="onBlur()"
+    />
+  </div>
+
+  @if (hint()) {
+    <p class="mt-1 text-xs text-amber-700">{{ hint() }}</p>
+  }
+
+  @if (open()) {
+    <div
+      class="wp-scroll-light absolute left-0 right-0 z-30 mt-1 max-h-80 overflow-y-auto rounded-xl border border-slate-100 bg-white py-1 shadow-2xl"
+      role="listbox"
+      (mousedown)="$event.preventDefault()"
+    >
+      @if (typedEmail(); as email) {
+        <button type="button" (click)="addTyped()"
+          class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50"
+          [class.opacity-50]="!allowExternal()">
+          <svg class="h-4 w-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+          <span>Add <span class="font-semibold">{{ email }}</span></span>
+          @if (!allowExternal()) {
+            <span class="ml-auto text-xs text-slate-400">not allowed</span>
+          } @else {
+            <span class="ml-auto text-xs text-slate-400">Enter</span>
+          }
+        </button>
+      }
+      @for (section of sections(); track section.title) {
+        <p class="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">{{ section.title }}</p>
+        @for (item of section.options; track item.index) {
+          <button
+            type="button"
+            role="option"
+            [attr.aria-selected]="item.index === active()"
+            (click)="select(item.option)"
+            (mouseenter)="active.set(item.index)"
+            class="flex w-full items-center gap-3 px-3 py-2 text-left"
+            [class]="item.index === active() ? 'bg-brand-50' : ''"
+          >
+            @if (item.option.type === 'Group') {
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z" /></svg>
+              </span>
+            } @else if (item.option.avatarUrl) {
+              <img [src]="item.option.avatarUrl" alt="" class="h-8 w-8 shrink-0 rounded-full object-cover" />
+            } @else {
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                [class]="item.option.type === 'Client' ? 'bg-portal-100 text-portal-800' : 'bg-slate-100 text-slate-600'">{{ initials(item.option.label) }}</span>
+            }
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm font-semibold text-slate-800">{{ item.option.label }}</span>
+              <span class="block truncate text-xs text-slate-500">
+                @if (item.option.type === 'Group') {
+                  {{ item.option.memberCount ?? 0 }} {{ item.option.memberCount === 1 ? 'person' : 'people' }}
+                } @else {
+                  {{ item.option.email }}@if (item.option.subLabel) { · {{ item.option.subLabel }} }
+                }
+              </span>
+            </span>
+          </button>
+        }
+      }
+      @if (!loading() && !sections().length && !typedEmail()) {
+        <p class="px-3 py-3 text-sm text-slate-400">
+          @if (query().trim()) { No matches. } @else { Start typing a name{{ allowTyped() ? ', group or email' : ' or group' }}. }
+          @if (allowExternal() && allowTyped()) { You can also type a full email address. }
+        </p>
+      }
+      @if (loading() && !sections().length) {
+        <p class="px-3 py-3 text-sm text-slate-400">Searching…</p>
+      }
+    </div>
+  }
+</div>

@@ -1,0 +1,165 @@
+<!-- WorkProvider360 - Multi-tenant SaaS platform. Do NOT change without discussing with the software engineer. -->
+<div class="wp-card">
+  <div class="flex items-start justify-between gap-4">
+    <div>
+      <h3 class="text-base font-bold text-slate-900">Message Settings</h3>
+      <p class="mt-1 text-sm text-slate-500">Who can send custom emails and push notifications from the top-bar envelope, which addresses and reply-to choices are allowed, and the sending limits.</p>
+    </div>
+    @if (!canEdit()) {
+      <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">Read only</span>
+    }
+  </div>
+
+  @if (loading()) {
+    <p class="mt-4 text-sm text-slate-400">Loading…</p>
+  } @else if (loadError()) {
+    <div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {{ loadError() }}
+      <button type="button" (click)="load()" class="ml-2 font-semibold underline">Try again</button>
+    </div>
+  } @else if (form(); as f) {
+    <fieldset [disabled]="!canEdit() || saving()" class="contents">
+      <!-- Access -->
+      <div class="mt-6 space-y-4">
+        <h4 class="text-sm font-bold text-slate-800">Role Access Levels</h4>
+        <p class="-mt-2 text-xs text-slate-500">Super Admins can always send and see every message. Write = compose, send and see sent messages; Read = see sent messages only. Admins and Managers work within their own office.</p>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label class="wp-label" for="ms-admin">Admin Access</label>
+            <select id="ms-admin" class="wp-input" [ngModel]="f.adminAccess" (ngModelChange)="patch({ adminAccess: $event })">
+              @for (l of levels; track l) { <option [value]="l">{{ l }}</option> }
+            </select>
+          </div>
+          <div>
+            <label class="wp-label" for="ms-manager">Manager Access</label>
+            <select id="ms-manager" class="wp-input" [ngModel]="f.managerAccess" (ngModelChange)="patch({ managerAccess: $event })">
+              @for (l of levels; track l) { <option [value]="l">{{ l }}</option> }
+            </select>
+          </div>
+        </div>
+        <label class="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+          <div>
+            <p class="text-sm font-semibold text-slate-800">Users can send</p>
+            <p class="text-xs text-slate-500">Team members may email the staff of their own office (not clients) and see their own sent messages.</p>
+          </div>
+          <input type="checkbox" class="h-5 w-5 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            [ngModel]="f.userCanSend" (ngModelChange)="patch({ userCanSend: $event })" />
+        </label>
+      </div>
+
+      <!-- Addresses -->
+      <div class="mt-6 space-y-3">
+        <h4 class="text-sm font-bold text-slate-800">Addresses &amp; Reply-To</h4>
+        <label class="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+          <div>
+            <p class="text-sm font-semibold text-slate-800">Allow external addresses</p>
+            <p class="text-xs text-slate-500">Senders may type any email address, not only staff and clients of the agency. Also needed for a custom reply-to address.</p>
+          </div>
+          <input type="checkbox" class="h-5 w-5 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            [ngModel]="f.allowExternalAddresses" (ngModelChange)="patch({ allowExternalAddresses: $event })" />
+        </label>
+        <p class="pt-1 text-xs text-slate-500">Reply-To choices offered to senders (“No reply” is always available):</p>
+        <label class="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+          <div>
+            <p class="text-sm font-semibold text-slate-800">My email</p>
+            <p class="text-xs text-slate-500">Replies go to the sender's own address.</p>
+          </div>
+          <input type="checkbox" class="h-5 w-5 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            [ngModel]="f.allowReplyToSender" (ngModelChange)="patch({ allowReplyToSender: $event })" />
+        </label>
+        <label class="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+          <div>
+            <p class="text-sm font-semibold text-slate-800">Agency email</p>
+            <p class="text-xs text-slate-500">Replies go to the agency notification email (Settings → Application Form).</p>
+          </div>
+          <input type="checkbox" class="h-5 w-5 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            [ngModel]="f.allowReplyToAgency" (ngModelChange)="patch({ allowReplyToAgency: $event })" />
+        </label>
+        <label class="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+          <div>
+            <p class="text-sm font-semibold text-slate-800">Custom address</p>
+            <p class="text-xs text-slate-500">The sender types a reply-to address (only when external addresses are allowed).</p>
+          </div>
+          <input type="checkbox" class="h-5 w-5 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            [ngModel]="f.allowCustomReplyTo" (ngModelChange)="patch({ allowCustomReplyTo: $event })" />
+        </label>
+      </div>
+
+      <!-- Limits -->
+      <div class="mt-6 space-y-3">
+        <h4 class="text-sm font-bold text-slate-800">Limits</h4>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label class="wp-label" for="ms-max">Max recipients per message</label>
+            <input id="ms-max" type="number" class="wp-input" [min]="limits.maxRecipientsPerMessage.min" [max]="limits.maxRecipientsPerMessage.max" step="1"
+              [ngModel]="f.maxRecipientsPerMessage" (ngModelChange)="patch({ maxRecipientsPerMessage: $event })" />
+            <p class="mt-1 text-xs text-slate-400">After groups are expanded and duplicates removed (1–5,000).</p>
+          </div>
+          <div>
+            <label class="wp-label" for="ms-daily">Daily send limit (emails)</label>
+            <input id="ms-daily" type="number" class="wp-input" [min]="limits.dailySendLimit.min" [max]="limits.dailySendLimit.max" step="1"
+              [ngModel]="f.dailySendLimit" (ngModelChange)="patch({ dailySendLimit: $event })" />
+            <p class="mt-1 text-xs text-slate-400">For the whole agency per day; the rest waits for the next day (“Deferred”).</p>
+          </div>
+          <div>
+            <label class="wp-label" for="ms-rate">Send rate (emails per second)</label>
+            <input id="ms-rate" type="number" class="wp-input" [min]="limits.sendRatePerSecond.min" [max]="limits.sendRatePerSecond.max" step="1"
+              [ngModel]="f.sendRatePerSecond" (ngModelChange)="patch({ sendRatePerSecond: $event })" />
+            <p class="mt-1 text-xs text-slate-400">Throttle that protects the email provider's reputation (1–50).</p>
+          </div>
+          <div>
+            <label class="wp-label" for="ms-retention">Attachment retention (days)</label>
+            <input id="ms-retention" type="number" class="wp-input" [min]="limits.attachmentRetentionDays.min" [max]="limits.attachmentRetentionDays.max" step="1"
+              [ngModel]="f.attachmentRetentionDays" (ngModelChange)="patch({ attachmentRetentionDays: $event })" />
+            <p class="mt-1 text-xs text-slate-400">Files are deleted after this; the message and recipient list are kept.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Push notifications (ADR-0007) -->
+      <div class="mt-6 space-y-3">
+        <h4 class="text-sm font-bold text-slate-800">Push Notifications</h4>
+        <label class="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">
+          <div>
+            <p class="text-sm font-semibold text-slate-800">Allow push notifications</p>
+            <p class="text-xs text-slate-500">Senders can switch to “Push notification” on the Send Custom Message page. Uses the same role access as email. The push switch and the “Custom push notifications” event in Settings → SMS &amp; Push must also be on.</p>
+          </div>
+          <input type="checkbox" class="h-5 w-5 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            [ngModel]="f.pushEnabled" (ngModelChange)="patch({ pushEnabled: $event })" />
+        </label>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label class="wp-label" for="ms-push-rate">Push send rate (per second)</label>
+            <input id="ms-push-rate" type="number" class="wp-input" [min]="limits.pushRatePerSecond.min" [max]="limits.pushRatePerSecond.max" step="1"
+              [ngModel]="f.pushRatePerSecond" (ngModelChange)="patch({ pushRatePerSecond: $event })" />
+            <p class="mt-1 text-xs text-slate-400">People notified per second (1–100). Pushes have no daily limit; the max recipients per message still applies.</p>
+          </div>
+        </div>
+      </div>
+    </fieldset>
+
+    @if (canEdit() && errors().length) {
+      <ul class="mt-4 list-disc space-y-0.5 rounded-xl border border-red-200 bg-red-50 py-3 pl-8 pr-4 text-sm text-red-700">
+        @for (e of errors(); track e) { <li>{{ e }}</li> }
+      </ul>
+    }
+
+    <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
+      <p class="text-xs text-slate-400">
+        @if (settings()?.updatedOn) { Last changed {{ utc(settings()!.updatedOn) | date: 'medium' }} }
+      </p>
+      @if (canEdit()) {
+        <div class="flex gap-2">
+          @if (dirty()) {
+            <button type="button" (click)="reset()" class="wp-btn-ghost" [disabled]="saving()">Discard</button>
+          }
+          <button type="button" (click)="save()" class="wp-btn-primary" [disabled]="saving() || !dirty() || errors().length > 0">
+            @if (saving()) {
+              <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+            } @else { Save Message Settings }
+          </button>
+        </div>
+      }
+    </div>
+  }
+</div>

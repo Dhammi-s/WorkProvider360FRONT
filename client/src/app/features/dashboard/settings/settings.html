@@ -63,6 +63,12 @@
             <div class="mt-4">
               <app-logo-uploader />
             </div>
+            <div class="mt-4">
+              <app-agency-time-zone />
+            </div>
+            <div class="mt-4">
+              <app-email-banner-uploader />
+            </div>
           }
         }
 
@@ -246,6 +252,52 @@
               <p class="mt-4 text-xs text-slate-400">Only a SuperAdmin can change approval and invoicing settings.</p>
             }
           </div>
+
+          @if (schedAccess()?.isSuperAdmin) {
+            <div class="wp-card mt-6">
+              <h2 class="text-base font-bold text-slate-900">Payer authorizations</h2>
+              <p class="mt-1 text-sm text-slate-500">
+                Payers linked with the "Authorization" payment distribution pay only the hours their authorizations allow.
+                Choose what happens when a visit needs more hours than an authorization covers.
+              </p>
+              <app-alert type="success" [message]="authPolicyNotice()" />
+              <div class="mt-4 max-w-sm">
+                <label class="wp-label">When a visit exceeds a payer authorization</label>
+                <select class="wp-input" [ngModel]="authPolicy()" (ngModelChange)="authPolicy.set($event)">
+                  @for (p of authorizationPolicies; track p.value) { <option [value]="p.value">{{ p.label }}</option> }
+                </select>
+                <p class="mt-1 text-[11px] text-slate-400">
+                  @switch (authPolicy()) {
+                    @case ('Allow') { The visit is saved; the extra hours go to the next payer or the client without a warning. }
+                    @case ('Warn') { The visit is saved and the schedule form shows the warnings. }
+                    @case ('Block') { The visit is rejected until it fits the authorization or an authorization is added. }
+                  }
+                </p>
+              </div>
+              <div class="mt-5 flex justify-end">
+                <button type="button" (click)="saveAuthorizationPolicy()" [disabled]="authPolicySaving()" class="wp-btn-primary">
+                  @if (authPolicySaving()) { Saving… } @else { Save authorization policy }
+                </button>
+              </div>
+            </div>
+
+            <app-scheduling-automation />
+          }
+        }
+
+        <!-- ===================== Billing ===================== -->
+        @if (activeTab() === 'billing' && showBilling()) {
+          <app-billing-settings [canEdit]="isSuperAdmin()" [stripeReturn]="stripeReturn()" [qboReturn]="qboReturn()" />
+        }
+
+        <!-- ===================== Care attributes ===================== -->
+        @if (activeTab() === 'care-attributes') {
+          <app-care-attributes-settings [canEdit]="canEditCareAttributes()" />
+        }
+
+        <!-- ===================== Messages ===================== -->
+        @if (activeTab() === 'messages' && showMessages()) {
+          <app-message-settings [canEdit]="canEditMessages()" />
         }
 
         <!-- ===================== Meetings ===================== -->
@@ -387,6 +439,8 @@
                 <div><label class="wp-label">Manager — clients</label><select class="wp-input" [disabled]="!canEditClients()" [ngModel]="cs.managerClientAccess" (ngModelChange)="setClientField('managerClientAccess', $event)">@for (l of levels; track l) { <option [value]="l">{{ l }}</option> }</select></div>
                 <div><label class="wp-label">Admin — service types</label><select class="wp-input" [disabled]="!canEditClients()" [ngModel]="cs.adminServiceTypeAccess" (ngModelChange)="setClientField('adminServiceTypeAccess', $event)">@for (l of levels; track l) { <option [value]="l">{{ l }}</option> }</select></div>
                 <div><label class="wp-label">Manager — service types</label><select class="wp-input" [disabled]="!canEditClients()" [ngModel]="cs.managerServiceTypeAccess" (ngModelChange)="setClientField('managerServiceTypeAccess', $event)">@for (l of levels; track l) { <option [value]="l">{{ l }}</option> }</select></div>
+                <div><label class="wp-label">Admin — Payer authorizations</label><select class="wp-input" [disabled]="!canEditClients()" [ngModel]="cs.adminAuthorizationAccess" (ngModelChange)="setClientField('adminAuthorizationAccess', $event)">@for (l of levels; track l) { <option [value]="l">{{ l }}</option> }</select></div>
+                <div><label class="wp-label">Manager — Payer authorizations</label><select class="wp-input" [disabled]="!canEditClients()" [ngModel]="cs.managerAuthorizationAccess" (ngModelChange)="setClientField('managerAuthorizationAccess', $event)">@for (l of levels; track l) { <option [value]="l">{{ l }}</option> }</select></div>
               </div>
               <div class="mt-4 space-y-2 border-t border-slate-100 pt-4">
                 <label class="flex items-center justify-between"><span class="text-sm text-slate-700">Auto clock-in at visit start</span><input type="checkbox" [disabled]="!canEditClients()" [ngModel]="cs.autoClockInEnabled" (ngModelChange)="setClientField('autoClockInEnabled', $event)" class="h-4 w-4" /></label>
@@ -502,6 +556,103 @@
                   @if (questionBusy()) { Adding… } @else { Add question }
                 </button>
               </div>
+            </div>
+          </div>
+        }
+
+        <!-- ===================== SMS & Push ===================== -->
+        @if (activeTab() === 'sms') {
+          <div class="wp-card">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h2 class="text-base font-bold text-slate-900">SMS &amp; push notifications</h2>
+                <p class="mt-1 text-sm text-slate-500">
+                  Wherever WorkProvider360 sends an email, it can also send a push notification to the person's
+                  signed-in mobile device. Turn push on or off for the whole workspace, then choose exactly which events send one.
+                </p>
+              </div>
+              <span class="group relative shrink-0">
+                <span class="flex h-6 w-6 cursor-help items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-500">?</span>
+                <span class="pointer-events-none absolute right-0 top-7 z-20 hidden w-64 rounded-lg bg-slate-900 px-3 py-2 text-xs font-normal leading-relaxed text-white shadow-lg group-hover:block">
+                  Push only reaches people who have signed in to the mobile app and allowed notifications. Everyone else still gets the email as usual.
+                </span>
+              </span>
+            </div>
+
+            @if (!pushServerConfigured()) {
+              <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                Push is not connected on the server yet — the Firebase service-account key is missing, so no push will be delivered.
+                You can still choose your settings here.
+              </div>
+            }
+
+            <app-alert type="success" [message]="pushNotice()" />
+            <app-alert type="error" [message]="pushError()" />
+
+            <!-- Master switch -->
+            <label class="mt-5 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <span>
+                <span class="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  Enable push notifications
+                  <span class="group relative">
+                    <span class="flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600">i</span>
+                    <span class="pointer-events-none absolute left-0 top-5 z-20 hidden w-60 rounded-lg bg-slate-900 px-3 py-2 text-xs font-normal leading-relaxed text-white shadow-lg group-hover:block">
+                      Master switch. When off, no push is sent for any event below, whatever its own toggle says.
+                    </span>
+                  </span>
+                </span>
+                <span class="mt-0.5 block text-xs text-slate-500">
+                  {{ pushEnabled() ? pushEnabledCount() + ' of ' + pushEvents().length + ' events will send a push' : 'Push is off for this workspace' }}
+                </span>
+              </span>
+              <input type="checkbox" [ngModel]="pushEnabled()" (ngModelChange)="pushEnabled.set($event)"
+                     class="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+            </label>
+
+            <!-- Events by category -->
+            <div class="mt-5 space-y-5" [class.opacity-50]="!pushEnabled()">
+              @for (g of pushGroups(); track g.category) {
+                <div>
+                  <div class="mb-2 flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400">{{ g.category }}</h3>
+                    <span class="flex gap-3 text-xs">
+                      <button type="button" class="font-medium text-brand-600 hover:underline" [disabled]="!pushEnabled()" (click)="toggleCategory(g.category, true)">All on</button>
+                      <button type="button" class="font-medium text-slate-500 hover:underline" [disabled]="!pushEnabled()" (click)="toggleCategory(g.category, false)">All off</button>
+                    </span>
+                  </div>
+                  <div class="divide-y divide-slate-100 rounded-xl border border-slate-200">
+                    @for (e of g.events; track e.key) {
+                      <label class="flex items-center justify-between gap-4 px-4 py-3">
+                        <span class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                          {{ e.label }}
+                          <span class="group relative">
+                            <span class="flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">i</span>
+                            <span class="pointer-events-none absolute left-0 top-5 z-20 hidden w-72 rounded-lg bg-slate-900 px-3 py-2 text-xs font-normal leading-relaxed text-white shadow-lg group-hover:block">
+                              {{ e.description }}
+                            </span>
+                          </span>
+                        </span>
+                        <input type="checkbox" [ngModel]="e.enabled" (ngModelChange)="setPushEvent(e.key, $event)" [disabled]="!pushEnabled()"
+                               class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" [attr.aria-label]="e.label + ' push notification'" />
+                      </label>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+
+            <p class="mt-4 text-xs text-slate-400">
+              For security, emails that contain passwords or reset links (and emails to people who don't have an account yet) never send a push.
+            </p>
+
+            <div class="mt-5 flex flex-wrap justify-end gap-2">
+              <button type="button" (click)="sendTestPush()" [disabled]="pushTesting() || !pushServerConfigured()" class="wp-btn-secondary"
+                      title="Sends a test notification to the devices you are signed in on in the mobile app">
+                @if (pushTesting()) { Sending… } @else { Send test push to me }
+              </button>
+              <button type="button" (click)="savePushSettings()" [disabled]="pushSaving()" class="wp-btn-primary">
+                @if (pushSaving()) { Saving… } @else { Save settings }
+              </button>
             </div>
           </div>
         }

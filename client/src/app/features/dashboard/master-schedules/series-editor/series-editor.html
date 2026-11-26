@@ -1,0 +1,296 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     ============================================================================= -->
+<div class="fixed inset-0 z-[60] flex flex-col bg-slate-50" role="dialog" aria-modal="true">
+  <!-- Header -->
+  <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
+    <div>
+      <h2 class="text-xl font-extrabold tracking-tight text-slate-900">{{ isEdit() ? 'Edit master schedule' : 'New master schedule' }}</h2>
+      <p class="mt-0.5 text-sm text-slate-500">A weekly, bi-weekly or monthly pattern of visits for one client.</p>
+    </div>
+    <button type="button" (click)="closed.emit()" [disabled]="saving()" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100" aria-label="Close">
+      <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+    </button>
+  </div>
+
+  <div class="flex-1 overflow-y-auto">
+    @if (loading()) {
+      <p class="py-16 text-center text-sm text-slate-400">Loading…</p>
+    } @else {
+    <div class="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div class="space-y-5">
+        @if (error()) {
+          <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error() }}</div>
+        }
+
+        <!-- 01 Client & service -->
+        <div class="wp-card">
+          <div class="flex items-center gap-3">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-700">01</span>
+            <h3 class="text-base font-bold text-slate-900">Client &amp; service</h3>
+          </div>
+          <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="relative">
+              <label class="wp-label">Client *</label>
+              @if (isEdit()) {
+                <input class="wp-input bg-slate-50" [value]="clientName()" disabled />
+              } @else {
+                <input class="wp-input" placeholder="Search clients…" autocomplete="off" [ngModel]="clientQuery()" (ngModelChange)="onClientQuery($event)" />
+                @if (clientPickerOpen()) {
+                  <div class="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-slate-100 bg-white shadow-card">
+                    @for (c of clientOptions(); track c.clientId) {
+                      <button type="button" (click)="selectClient(c)" class="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50">
+                        {{ c.fullName }} <span class="text-slate-400">{{ c.city ? '· ' + c.city : '' }}</span>
+                      </button>
+                    } @empty {
+                      <p class="px-3 py-2 text-sm text-slate-400">No matching active clients.</p>
+                    }
+                  </div>
+                }
+              }
+              @if (showError('client')) { <p class="mt-1 text-xs text-red-600">{{ showError('client') }}</p> }
+            </div>
+            <div>
+              <label class="wp-label">Service type</label>
+              <select class="wp-input" [ngModel]="serviceTypeId()" (ngModelChange)="serviceTypeId.set($event)">
+                <option [ngValue]="null">— None —</option>
+                @for (t of serviceTypes(); track t.serviceTypeId) { <option [ngValue]="t.serviceTypeId">{{ t.name }}</option> }
+              </select>
+            </div>
+            <div>
+              <label class="wp-label">Title *</label>
+              <input class="wp-input" maxlength="200" placeholder="e.g. Morning care" [ngModel]="title()" (ngModelChange)="title.set($event)" />
+              @if (showError('title')) { <p class="mt-1 text-xs text-red-600">{{ showError('title') }}</p> }
+            </div>
+            <div>
+              <label class="wp-label">Default caregiver</label>
+              <select class="wp-input" [ngModel]="assignedUserId()" (ngModelChange)="assignedUserId.set($event)">
+                <option [ngValue]="null">Open shift (offer to caregivers)</option>
+                @for (u of caregivers(); track u.userId) { <option [ngValue]="u.userId">{{ u.fullName }}</option> }
+              </select>
+              <p class="mt-1 text-[11px] text-slate-400">Slots can override it. "Open shift" publishes visits without a caregiver.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 02 Pattern & period -->
+        <div class="wp-card">
+          <div class="flex items-center gap-3">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-700">02</span>
+            <h3 class="text-base font-bold text-slate-900">Pattern &amp; period</h3>
+          </div>
+          <div class="mt-4">
+            <label class="wp-label">Repeats</label>
+            <div class="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 text-sm font-semibold">
+              @for (p of patterns; track p.value) {
+                <button type="button" (click)="pattern.set(p.value)" class="rounded-lg px-4 py-1.5 transition"
+                  [class]="pattern() === p.value ? 'bg-brand-600 text-white' : 'text-slate-500 hover:text-slate-800'">{{ p.label }}</button>
+              }
+            </div>
+            @if (pattern() === 'BiWeekly') {
+              <p class="mt-1 text-[11px] text-slate-400">Week 1 is the week of the start date; week 2 the one after, then it alternates.</p>
+            }
+          </div>
+          <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label class="wp-label">Start date *</label>
+              <input type="date" class="wp-input" [ngModel]="startDate()" (ngModelChange)="startDate.set($event ?? '')" />
+              @if (showError('start')) { <p class="mt-1 text-xs text-red-600">{{ showError('start') }}</p> }
+            </div>
+            <div>
+              <label class="wp-label">End date <span class="font-normal text-slate-400">(optional)</span></label>
+              <input type="date" class="wp-input" [min]="startDate()" [ngModel]="endDate()" (ngModelChange)="endDate.set($event ?? '')" />
+              @if (showError('end')) { <p class="mt-1 text-xs text-red-600">{{ showError('end') }}</p> }
+            </div>
+            <div>
+              <label class="wp-label">Auto-publish</label>
+              <select class="wp-input" [ngModel]="autoWeeks()" (ngModelChange)="autoWeeks.set($event)">
+                @for (w of weekOptions; track w) { <option [ngValue]="w">{{ w === 0 ? 'Off (publish manually)' : w + ' week' + (w === 1 ? '' : 's') + ' ahead' }}</option> }
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 03 Slots -->
+        <div class="wp-card">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-700">03</span>
+              <div>
+                <h3 class="text-base font-bold text-slate-900">Visits (slots)</h3>
+                <p class="text-xs text-slate-500">{{ slots().length }} of {{ maxSlots }} slots. Slots cannot run past midnight.</p>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              @if (pattern() === 'Weekly') {
+                <button type="button" (click)="addWeekdays([1, 2, 3, 4, 5])" class="wp-btn-ghost !py-1.5 !px-3 text-xs">+ Mon–Fri</button>
+              }
+              <button type="button" (click)="addSlot()" [disabled]="slots().length >= maxSlots" class="wp-btn-ghost !py-1.5 !px-3 text-xs">+ Add slot</button>
+            </div>
+          </div>
+          @if (showError('slots')) { <p class="mt-2 text-xs text-red-600">{{ showError('slots') }}</p> }
+
+          <div class="mt-4 space-y-2">
+            @for (r of slots(); track r.key) {
+              <div class="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-3">
+                @if (pattern() === 'BiWeekly') {
+                  <div>
+                    <label class="wp-label !text-[11px]">Week</label>
+                    <select class="wp-input !py-1.5 !w-auto" [ngModel]="r.weekNo" (ngModelChange)="updateSlot(r.key, 'weekNo', $event)">
+                      <option [ngValue]="1">Week 1</option>
+                      <option [ngValue]="2">Week 2</option>
+                    </select>
+                  </div>
+                }
+                @if (pattern() === 'Monthly') {
+                  <div>
+                    <label class="wp-label !text-[11px]">Monthly by</label>
+                    <select class="wp-input !py-1.5 !w-auto" [ngModel]="r.monthlyMode" (ngModelChange)="updateSlot(r.key, 'monthlyMode', $event)">
+                      <option value="date">Date</option>
+                      <option value="weekday">Weekday</option>
+                    </select>
+                  </div>
+                  @if (r.monthlyMode === 'date') {
+                    <div>
+                      <label class="wp-label !text-[11px]">Day of month</label>
+                      <select class="wp-input !py-1.5 !w-auto" [ngModel]="r.monthDay" (ngModelChange)="updateSlot(r.key, 'monthDay', $event)">
+                        @for (d of monthDays; track d) { <option [ngValue]="d">{{ d }}</option> }
+                      </select>
+                    </div>
+                  } @else {
+                    <div>
+                      <label class="wp-label !text-[11px]">Which</label>
+                      <select class="wp-input !py-1.5 !w-auto" [ngModel]="r.monthWeekNo" (ngModelChange)="updateSlot(r.key, 'monthWeekNo', $event)">
+                        @for (n of monthWeeks; track n.value) { <option [ngValue]="n.value">{{ n.label }}</option> }
+                      </select>
+                    </div>
+                  }
+                }
+                @if (pattern() !== 'Monthly' || r.monthlyMode === 'weekday') {
+                  <div>
+                    <label class="wp-label !text-[11px]">Day</label>
+                    <select class="wp-input !py-1.5 !w-auto" [ngModel]="r.dayOfWeek" (ngModelChange)="updateSlot(r.key, 'dayOfWeek', $event)">
+                      @for (d of days; track d.value) { <option [ngValue]="d.value">{{ d.long }}</option> }
+                    </select>
+                  </div>
+                }
+                <div>
+                  <label class="wp-label !text-[11px]">Start</label>
+                  <input type="time" class="wp-input !py-1.5 !w-auto" [ngModel]="r.startTime" (ngModelChange)="updateSlot(r.key, 'startTime', $event)" />
+                </div>
+                <div>
+                  <label class="wp-label !text-[11px]">End</label>
+                  <input type="time" class="wp-input !py-1.5 !w-auto" [ngModel]="r.endTime" (ngModelChange)="updateSlot(r.key, 'endTime', $event)" />
+                </div>
+                <div class="min-w-[180px] flex-1">
+                  <label class="wp-label !text-[11px]">Caregiver</label>
+                  <select class="wp-input !py-1.5" [ngModel]="r.assignedUserId" (ngModelChange)="updateSlot(r.key, 'assignedUserId', $event)">
+                    <option [ngValue]="null">Series default</option>
+                    @for (u of caregivers(); track u.userId) { <option [ngValue]="u.userId">{{ u.fullName }}</option> }
+                  </select>
+                </div>
+                <button type="button" (click)="removeSlot(r.key)" class="mb-1 rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Remove slot" aria-label="Remove slot">
+                  <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+                </button>
+                @if (r.endTime && r.startTime && r.endTime <= r.startTime) {
+                  <p class="w-full text-xs text-red-600">End must be after start.</p>
+                }
+              </div>
+            } @empty {
+              <p class="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">No slots yet. Add the visits this schedule repeats.</p>
+            }
+          </div>
+        </div>
+
+        <!-- 04 Rates & notes -->
+        <div class="wp-card">
+          <div class="flex items-center gap-3">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-700">04</span>
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Rates &amp; notes</h3>
+              <p class="text-xs text-slate-500">Leave the rates empty to use the client's, its payers' or the agency defaults.</p>
+            </div>
+          </div>
+          <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label class="wp-label">Bill rate / hour <span class="font-normal text-slate-400">(optional)</span></label>
+              <input type="number" min="0" step="0.5" class="wp-input" placeholder="Default" [ngModel]="billRate()" (ngModelChange)="billRate.set($event == null ? '' : $event)" />
+              @if (showError('billRate')) { <p class="mt-1 text-xs text-red-600">{{ showError('billRate') }}</p> }
+            </div>
+            <div>
+              <label class="wp-label">Pay rate / hour <span class="font-normal text-slate-400">(optional)</span></label>
+              <input type="number" min="0" step="0.5" class="wp-input" placeholder="Default" [ngModel]="payRate()" (ngModelChange)="payRate.set($event == null ? '' : $event)" />
+              @if (showError('payRate')) { <p class="mt-1 text-xs text-red-600">{{ showError('payRate') }}</p> }
+            </div>
+          </div>
+          <textarea rows="3" maxlength="2000" class="wp-input mt-4" placeholder="Notes for the team (optional)" [ngModel]="notes()" (ngModelChange)="notes.set($event)"></textarea>
+        </div>
+
+        @if (isEdit()) {
+          <div class="wp-card">
+            <label class="flex items-start gap-3">
+              <input type="checkbox" [ngModel]="applyToPublished()" (ngModelChange)="applyToPublished.set($event)" class="mt-1 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+              <span>
+                <span class="text-sm font-semibold text-slate-800">Apply to published visits</span>
+                <span class="block text-xs text-slate-500">Moves or re-assigns visits already published from this schedule that have not started. Visits edited by hand are left alone.</span>
+              </span>
+            </label>
+            @if (applyToPublished()) {
+              <div class="mt-3 max-w-xs pl-7">
+                <label class="wp-label">From</label>
+                <input type="date" class="wp-input" [ngModel]="applyFrom()" (ngModelChange)="applyFrom.set($event ?? '')" />
+                @if (showError('applyFrom')) { <p class="mt-1 text-xs text-red-600">{{ showError('applyFrom') }}</p> }
+              </div>
+            }
+            @if (existing(); as ex) {
+              <p class="mt-3 text-xs text-slate-400">
+                {{ ex.publishedVisitCount ?? 0 }} visit(s) published{{ ex.lastPublishedThrough ? ', through ' + fmtDate(ex.lastPublishedThrough) : '' }}.
+              </p>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Summary -->
+      <aside>
+        <div class="wp-card lg:sticky lg:top-6">
+          <h3 class="text-base font-bold text-slate-900">Summary</h3>
+          @let s = summary();
+          <dl class="mt-4 divide-y divide-slate-100 text-sm">
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Client</dt><dd class="text-right font-medium text-slate-800">{{ s.client }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Caregiver</dt><dd class="text-right font-medium text-slate-800">{{ s.caregiver }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Pattern</dt><dd class="text-right font-medium text-slate-800">{{ s.pattern }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Period</dt><dd class="text-right font-medium text-slate-800">{{ s.period }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-slate-500">Auto-publish</dt><dd class="text-right font-medium text-slate-800">{{ s.autoPublish }}</dd></div>
+            <div class="py-2">
+              <dt class="text-slate-500">Slots</dt>
+              <dd class="mt-1 flex flex-wrap gap-1">
+                @for (l of s.slots; track $index) { <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">{{ l }}</span> }
+                @if (!s.slots.length) { <span class="text-xs text-slate-400">—</span> }
+              </dd>
+            </div>
+            <div class="flex justify-between gap-3 py-2">
+              <dt class="text-slate-500">Hours per {{ pattern() === 'Monthly' ? 'month' : pattern() === 'BiWeekly' ? '2 weeks' : 'week' }}</dt>
+              <dd class="text-right font-medium text-slate-800">{{ s.hoursPerCycle.toFixed(2) }} h</dd>
+            </div>
+          </dl>
+          <div class="mt-4 flex gap-2 rounded-xl bg-portal-50 px-3 py-2.5 text-xs text-portal-800">
+            <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+            <span>Saving does not create visits. Use Publish (or auto-publish) to put them on the scheduler.</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+    }
+  </div>
+
+  <div class="border-t border-slate-200 bg-white px-4 py-3 sm:px-8">
+    <div class="mx-auto flex max-w-6xl justify-end gap-2">
+      <button type="button" (click)="closed.emit()" [disabled]="saving()" class="wp-btn-ghost">Cancel</button>
+      <button type="button" (click)="save()" [disabled]="saving() || loading()" class="wp-btn-primary">
+        @if (saving()) { Saving… } @else { {{ isEdit() ? 'Save' : 'Create master schedule' }} }
+      </button>
+    </div>
+  </div>
+</div>

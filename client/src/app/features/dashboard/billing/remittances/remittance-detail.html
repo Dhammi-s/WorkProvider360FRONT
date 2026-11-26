@@ -1,0 +1,280 @@
+<!-- =============================================================================
+     WorkProvider360 - Multi-tenant SaaS platform
+     Developed by : Jasmeet Singh  (Full Stack Software Engineer)
+     ============================================================================= -->
+<div class="fixed inset-0 z-[60] flex flex-col bg-slate-50" role="dialog" aria-modal="true">
+  <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
+    <div class="min-w-0">
+      <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Remittance (835)</p>
+      @if (detail(); as d) {
+        <h2 class="truncate text-xl font-extrabold tracking-tight text-slate-900">
+          {{ d.remittance.agencyPayerName || d.remittance.payerName }} · {{ money(d.remittance.paymentAmount) }}
+        </h2>
+      } @else {
+        <h2 class="text-xl font-extrabold tracking-tight text-slate-900">Loading…</h2>
+      }
+    </div>
+    <button type="button" (click)="closed.emit()" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100" aria-label="Close">
+      <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" /></svg>
+    </button>
+  </div>
+
+  <div class="flex-1 overflow-y-auto">
+    <div class="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-8">
+      @if (loading() && !detail()) {
+        <p class="py-16 text-center text-sm text-slate-400">Loading…</p>
+      } @else if (error()) {
+        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error() }}</div>
+      } @else if (detail(); as d) {
+        @let r = d.remittance;
+        <!-- Header -->
+        <div class="wp-card">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <dl class="grid flex-1 grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
+              <div><dt class="text-xs text-slate-400">Status</dt><dd class="mt-0.5"><span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusClass(r.status)">{{ r.status }}</span></dd></div>
+              <div><dt class="text-xs text-slate-400">Trace number</dt><dd class="mt-0.5 font-mono text-xs text-slate-800">{{ r.traceNumber || '—' }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Payment date</dt><dd class="mt-0.5 text-slate-800">{{ fmtDate(r.paymentDate) }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Method</dt><dd class="mt-0.5 text-slate-800">{{ r.paymentMethod || '—' }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Payer (835)</dt><dd class="mt-0.5 text-slate-800">{{ r.payerName }}{{ r.payerIdentifier ? ' · ' + r.payerIdentifier : '' }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Agency payer</dt><dd class="mt-0.5 text-slate-800">{{ r.agencyPayerName || 'Not linked' }}</dd></div>
+              <div><dt class="text-xs text-slate-400">Payee NPI</dt><dd class="mt-0.5 font-mono text-xs text-slate-800">{{ r.payeeNpi || '—' }}</dd></div>
+              <div>
+                <dt class="text-xs text-slate-400">Payment</dt>
+                <dd class="mt-0.5 text-slate-800">
+                  @if (r.paymentId) {
+                    #{{ r.paymentId }} · applied {{ money(r.paymentAppliedAmount) }} · unapplied {{ money(r.paymentUnappliedAmount) }}
+                  } @else { Not posted }
+                </dd>
+              </div>
+            </dl>
+            @if (canManage()) {
+              <div class="flex flex-wrap gap-2">
+                <button type="button" (click)="rematch()" [disabled]="busy()" class="wp-btn-ghost ring-1 ring-inset ring-slate-200">Re-match</button>
+                <button type="button" (click)="post()" [disabled]="busy() || postable().length === 0" class="wp-btn-primary">
+                  {{ busy() ? 'Working…' : selected().size ? 'Post selected (' + selected().size + ')' : 'Post all matched (' + postable().length + ')' }}
+                </button>
+              </div>
+            }
+          </div>
+          @if (unmatchedCount()) {
+            <p class="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{{ unmatchedCount() }} claim{{ unmatchedCount() === 1 ? ' is' : 's are' }} not matched to a claim of ours. Match them by hand, then post.</p>
+          }
+        </div>
+
+        <!-- Post result -->
+        @if (postResult(); as pr) {
+          <div class="wp-card border border-emerald-200">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h3 class="text-base font-bold text-slate-900">Posted {{ pr.postedClaimCount }} claim{{ pr.postedClaimCount === 1 ? '' : 's' }}</h3>
+                <p class="mt-1 text-sm text-slate-600">
+                  Payment #{{ pr.result.paymentId }} · {{ money(pr.result.paymentAmount) }} · applied {{ money(pr.result.appliedAmount) }} · unapplied {{ money(pr.result.unappliedAmount) }}
+                  · {{ pr.result.adjustmentCount }} adjustment{{ pr.result.adjustmentCount === 1 ? '' : 's' }}
+                  @if (pr.result.patientResponsibilityLineCount) { · {{ pr.result.patientResponsibilityLineCount }} patient-responsibility line(s) added }
+                </p>
+              </div>
+              <button type="button" (click)="postResult.set(null)" class="text-xs font-semibold text-slate-400 hover:text-slate-700">Dismiss</button>
+            </div>
+            @for (w of pr.warnings; track $index) { <p class="mt-2 rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-800">{{ w }}</p> }
+            @if (pr.invoices.length) {
+              <ul class="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-100 text-sm">
+                @for (i of pr.invoices; track i.invoiceId) {
+                  <li class="flex items-center justify-between px-3 py-2">
+                    <button type="button" (click)="invoiceOpen.set(i.invoiceId)" class="wp-link">{{ i.invoiceNumber || 'Draft #' + i.invoiceId }}</button>
+                    <span class="text-slate-600">{{ i.isPatientResponsibilityDraft ? 'Patient responsibility draft · ' : '' }}{{ i.status }} · balance {{ money(i.balance) }}</span>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+
+        <!-- Claims -->
+        <div class="wp-card overflow-hidden !p-0">
+          <div class="border-b border-slate-100 px-5 py-4">
+            <h3 class="text-base font-bold text-slate-900">Claims ({{ d.claims.length }})</h3>
+          </div>
+          <div class="divide-y divide-slate-100">
+            @for (c of d.claims; track c.remittanceClaimId) {
+              <div>
+                <div class="flex flex-wrap items-center gap-3 px-5 py-3 hover:bg-slate-50/60">
+                  @if (canManage()) {
+                    <input type="checkbox" [disabled]="c.isPosted || c.matchStatus === 'Unmatched'" [checked]="selected().has(c.remittanceClaimId)"
+                      (change)="toggleSelect(c.remittanceClaimId)" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" title="Select to post" />
+                  }
+                  <button type="button" (click)="toggleExpand(c.remittanceClaimId)" class="flex min-w-0 flex-1 items-center gap-3 text-left">
+                    <svg class="h-4 w-4 shrink-0 text-slate-400 transition" [class.rotate-90]="expanded().has(c.remittanceClaimId)" viewBox="0 0 20 20" fill="currentColor"><path d="M7.3 5.3a1 1 0 011.4 0l4 4a1 1 0 010 1.4l-4 4a1 1 0 01-1.4-1.4L10.6 10 7.3 6.7a1 1 0 010-1.4z" /></svg>
+                    <span class="min-w-0">
+                      <span class="font-mono text-xs font-semibold text-slate-800">{{ c.claimNumber || '—' }}</span>
+                      <span class="ml-2 text-sm text-slate-700">{{ c.patientName || c.clientName || '' }}</span>
+                      @if (c.memberId) { <span class="ml-1 text-xs text-slate-400">· {{ c.memberId }}</span> }
+                    </span>
+                  </button>
+                  <span class="text-xs text-slate-500">CLP {{ c.statusCode }}</span>
+                  <span class="text-sm text-slate-600">charge {{ money(c.chargeAmount) }}</span>
+                  <span class="text-sm font-semibold text-slate-900">paid {{ money(c.paidAmount) }}</span>
+                  @if (c.patientResponsibility) { <span class="text-sm text-amber-700">PR {{ money(c.patientResponsibility) }}</span> }
+                  <span class="rounded-full px-2.5 py-1 text-xs font-semibold"
+                    [class]="c.matchStatus === 'Unmatched' ? 'bg-red-50 text-red-700' : c.matchStatus === 'Manual' ? 'bg-sky-50 text-sky-700' : 'bg-emerald-50 text-emerald-700'">{{ c.matchStatus }}</span>
+                  @if (c.isPosted) { <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Posted</span> }
+                </div>
+
+                @if (expanded().has(c.remittanceClaimId)) {
+                  <div class="space-y-3 bg-slate-50/50 px-5 pb-4 pt-1">
+                    <div class="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+                      @if (c.matchedClaimNumber) {
+                        <span class="text-slate-600">Our claim <span class="font-mono text-xs font-semibold text-slate-800">{{ c.matchedClaimNumber }}</span>
+                          @if (c.matchedClaimStatus) { <span class="ml-1 rounded-full px-2 py-0.5 text-[11px] font-semibold" [class]="claimStatusClass(c.matchedClaimStatus)">{{ claimStatusLabel(c.matchedClaimStatus) }}</span> }
+                        </span>
+                      }
+                      @if (c.invoiceId) {
+                        <button type="button" (click)="invoiceOpen.set(c.invoiceId)" class="wp-link text-sm">Invoice {{ c.invoiceNumber || '#' + c.invoiceId }}</button>
+                      }
+                      @if (c.payerClaimControlNumber) { <span class="text-slate-500">Payer ICN <span class="font-mono text-xs">{{ c.payerClaimControlNumber }}</span></span> }
+                      @if (canManage() && !c.isPosted) {
+                        <button type="button" (click)="openMatch(c)" class="text-sm font-semibold text-brand-700 hover:underline">{{ c.matchStatus === 'Unmatched' ? 'Match manually…' : 'Change match…' }}</button>
+                      }
+                    </div>
+
+                    @if (claimAdjustments(c).length) {
+                      <div class="flex flex-wrap gap-2">
+                        @for (a of claimAdjustments(c); track a.remittanceAdjustmentId) {
+                          <span class="rounded-lg bg-white px-2 py-1 text-xs ring-1 ring-inset ring-slate-200" [title]="casGroup(a.groupCode) + (a.reasonDescription ? ' — ' + a.reasonDescription : '')">
+                            <span class="font-mono font-semibold">{{ a.groupCode }}-{{ a.reasonCode }}</span> {{ money(a.amount) }}
+                            @if (a.reasonDescription) { <span class="text-slate-500">· {{ a.reasonDescription }}</span> }
+                          </span>
+                        }
+                      </div>
+                    }
+
+                    <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                      <table class="min-w-full divide-y divide-slate-100 text-sm">
+                        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          <tr>
+                            <th class="px-3 py-2">Date</th><th class="px-3 py-2">Code</th><th class="px-3 py-2 text-right">Units</th>
+                            <th class="px-3 py-2 text-right">Charge</th><th class="px-3 py-2 text-right">Paid</th><th class="px-3 py-2">Adjustments (CARC)</th><th class="px-3 py-2">Matched line</th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                          @for (l of linesOf(c); track l.remittanceLineId) {
+                            <tr class="align-top">
+                              <td class="px-3 py-2 whitespace-nowrap text-slate-600">{{ fmtDate(l.serviceDate) }}</td>
+                              <td class="px-3 py-2 whitespace-nowrap font-mono text-xs text-slate-700">{{ l.procedureCode }}{{ l.modifiers ? ' ' + l.modifiers : '' }}</td>
+                              <td class="px-3 py-2 text-right text-slate-600">{{ l.units ?? '—' }}</td>
+                              <td class="px-3 py-2 text-right text-slate-700">{{ money(l.chargeAmount) }}</td>
+                              <td class="px-3 py-2 text-right font-semibold text-slate-900">{{ money(l.paidAmount) }}</td>
+                              <td class="px-3 py-2">
+                                @for (a of lineAdjustments(l); track a.remittanceAdjustmentId) {
+                                  <div class="text-xs" [title]="casGroup(a.groupCode)">
+                                    <span class="font-mono font-semibold text-slate-700">{{ a.groupCode }}-{{ a.reasonCode }}</span>
+                                    <span class="text-slate-700"> {{ money(a.amount) }}</span>
+                                    <span class="text-slate-500"> · {{ a.reasonDescription || casGroup(a.groupCode) }}</span>
+                                  </div>
+                                } @empty { <span class="text-xs text-slate-400">—</span> }
+                              </td>
+                              <td class="px-3 py-2 text-xs">
+                                @if (l.matchedClaimLineId) {
+                                  <span class="font-mono text-slate-600">{{ l.matchedLineControlNumber || '#' + l.matchedClaimLineId }}</span>
+                                  @if (l.invoiceLineBalance != null) { <div class="text-slate-400">line balance {{ money(l.invoiceLineBalance) }}</div> }
+                                } @else { <span class="text-red-600">Not matched</span> }
+                              </td>
+                            </tr>
+                          } @empty {
+                            <tr><td colspan="7" class="px-3 py-3 text-center text-xs text-slate-400">No service lines (claim-level payment).</td></tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @empty {
+              <p class="px-5 py-8 text-center text-sm text-slate-400">No claims in this remittance.</p>
+            }
+          </div>
+        </div>
+
+        <!-- PLB -->
+        @if (plb(); as p) {
+          <div class="wp-card">
+            <h3 class="text-base font-bold text-slate-900">Provider-level adjustments (PLB)</h3>
+            <p class="mt-1 text-xs text-slate-500">Kept as unapplied credit on the ERA payment with a note.</p>
+            <pre class="mt-3 max-h-64 overflow-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">{{ p.pretty }}</pre>
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>
+
+<!-- Manual match -->
+@if (match(); as m) {
+  <div class="fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-slate-900/50" (click)="match.set(null)"></div>
+    <div class="relative z-10 flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl">
+      <div class="border-b border-slate-100 px-6 py-4">
+        <h3 class="text-lg font-bold text-slate-900">Match remittance claim {{ m.claim.claimNumber || '' }}</h3>
+        <p class="text-sm text-slate-500">{{ m.claim.patientName }} · charge {{ money(m.claim.chargeAmount) }} · paid {{ money(m.claim.paidAmount) }}</p>
+      </div>
+      <div class="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+        @if (m.error) { <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{{ m.error }}</div> }
+        <div class="flex gap-2">
+          <input class="wp-input !py-2" placeholder="Search our claims (number, client, invoice)…" [ngModel]="m.query" (ngModelChange)="patchMatch({ query: $event })" (keyup.enter)="searchClaims()" />
+          <button type="button" (click)="searchClaims()" class="wp-btn-ghost ring-1 ring-inset ring-slate-200">Search</button>
+        </div>
+        @if (m.searching) {
+          <p class="text-sm text-slate-400">Searching…</p>
+        } @else {
+          <div class="max-h-56 overflow-y-auto rounded-xl border border-slate-200">
+            @for (c of m.results; track c.claimId) {
+              <button type="button" (click)="pickClaim(c)" class="flex w-full items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-slate-50"
+                [class.bg-brand-50]="m.picked?.claimId === c.claimId">
+                <span><span class="font-mono text-xs font-semibold">{{ c.claimNumber }}</span> <span class="text-slate-600">{{ c.clientName }} · {{ c.payerName }} · {{ fmtDate(c.serviceFrom) }}</span></span>
+                <span class="whitespace-nowrap text-slate-700">{{ money(c.totalCharge) }}</span>
+              </button>
+            } @empty {
+              <p class="px-3 py-4 text-center text-sm text-slate-400">No claims found.</p>
+            }
+          </div>
+        }
+
+        @if (m.picked && m.lines.length) {
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wide text-slate-400">Line matches</h4>
+            <table class="mt-2 min-w-full divide-y divide-slate-100 text-sm">
+              <thead class="text-left text-xs text-slate-400"><tr><th class="py-1 pr-3">Remittance line</th><th class="py-1">Our claim line</th></tr></thead>
+              <tbody class="divide-y divide-slate-100">
+                @for (rl of m.lines; track rl.remittanceLineId) {
+                  <tr>
+                    <td class="py-2 pr-3 text-slate-700">{{ fmtDate(rl.serviceDate) }} · <span class="font-mono text-xs">{{ rl.procedureCode }}</span> · paid {{ money(rl.paidAmount) }}</td>
+                    <td class="py-2">
+                      <select class="wp-input !py-1.5 text-sm" [ngModel]="m.lineMap[rl.remittanceLineId] ?? null" (ngModelChange)="setLineMap(rl.remittanceLineId, $event)">
+                        <option [ngValue]="null">— Not matched —</option>
+                        @for (cl of m.claimLines; track cl.claimLineId) {
+                          <option [ngValue]="cl.claimLineId">#{{ cl.lineNumber }} {{ fmtDate(cl.serviceDate) }} · {{ code(cl.procedureCode, cl.modifier1, cl.modifier2, cl.modifier3, cl.modifier4) }} · {{ money(cl.charge) }}</option>
+                        }
+                      </select>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-6 py-4">
+        @if (m.claim.matchStatus !== 'Unmatched') {
+          <button type="button" (click)="saveMatch(true)" [disabled]="m.saving" class="text-sm font-semibold text-red-600 hover:underline">Clear match</button>
+        } @else { <span></span> }
+        <div class="flex gap-2">
+          <button type="button" (click)="match.set(null)" class="wp-btn-ghost">Cancel</button>
+          <button type="button" (click)="saveMatch()" [disabled]="m.saving || !m.picked" class="wp-btn-primary">{{ m.saving ? 'Saving…' : 'Save match' }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@if (invoiceOpen(); as iid) {
+  <app-invoice-drawer [invoiceId]="iid" (closed)="invoiceOpen.set(null)" (changed)="load()" />
+}

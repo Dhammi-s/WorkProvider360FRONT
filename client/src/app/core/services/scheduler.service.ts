@@ -13,6 +13,12 @@ import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
 import { UserDto } from '../models/user.model';
 import {
+  AllocationPreview,
+  AllocationPreviewRequest,
+  AllocationShare,
+  AuthorizationLimitPolicy,
+} from '../models/authorization.model';
+import {
   ClockRequest,
   CreateScheduleNoteRequest,
   CreateScheduleRequest,
@@ -35,6 +41,16 @@ import {
   UpdateSchedulingDefaults,
   UpdateSchedulingApproval,
   UpdateScheduleRequest,
+  UpdateSchedulingAutomation,
+  OpenShift,
+  ShiftOffer,
+  OfferResponseRequest,
+  CaregiverSuggestion,
+  SuggestionRequest,
+  FillProposal,
+  FillApplyResult,
+  PendingConfirmation,
+  RemindResult,
 } from '../models/scheduler.model';
 
 @Injectable({ providedIn: 'root' })
@@ -71,6 +87,27 @@ export class SchedulerService {
     return this.http
       .put<ApiResponse<SchedulingSettings>>(`${this.baseUrl}/settings/approval`, request)
       .pipe(map((r) => this.unwrap(r)));
+  }
+
+  /** SuperAdmin: what happens when a visit exceeds a payer authorization. */
+  updateAuthorizationPolicy(policy: AuthorizationLimitPolicy): Observable<SchedulingSettings> {
+    return this.http
+      .put<ApiResponse<SchedulingSettings>>(`${this.baseUrl}/settings/authorization-policy`, { policy })
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  /** How a proposed visit would split between the client's payers / authorizations. */
+  previewAllocation(request: AllocationPreviewRequest): Observable<AllocationPreview> {
+    return this.http
+      .post<ApiResponse<AllocationPreview>>(`${this.baseUrl}/authorization-preview`, request)
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  /** A saved visit's split between payers / authorizations. */
+  allocations(scheduleId: number): Observable<AllocationShare[]> {
+    return this.http
+      .get<ApiResponse<AllocationShare[]>>(`${this.baseUrl}/${scheduleId}/allocations`)
+      .pipe(map((r) => r.data ?? []));
   }
 
   /** Approve / un-approve a schedule. */
@@ -172,12 +209,20 @@ export class SchedulerService {
       .pipe(map((r) => r.data ?? []));
   }
 
-  conflicts(userId: number, startUtc: string, endUtc: string, excludeScheduleId?: number): Observable<ScheduleConflict[]> {
+  /** Overlaps for a caregiver; with clientId also Unavailable and Compatibility rows. */
+  conflicts(
+    userId: number,
+    startUtc: string,
+    endUtc: string,
+    excludeScheduleId?: number,
+    clientId?: number | null,
+  ): Observable<ScheduleConflict[]> {
     let params = new HttpParams()
       .set("userId", userId)
       .set("startUtc", startUtc)
       .set("endUtc", endUtc);
     if (excludeScheduleId != null) params = params.set("excludeScheduleId", excludeScheduleId);
+    if (clientId != null) params = params.set("clientId", clientId);
     return this.http
       .get<ApiResponse<ScheduleConflict[]>>(`${this.baseUrl}/conflicts`, { params })
       .pipe(map((r) => r.data ?? []));
@@ -220,6 +265,86 @@ export class SchedulerService {
     if (userId != null) params = params.set('userId', String(userId));
     return this.http
       .get<ApiResponse<ScheduleReport>>(`${this.baseUrl}/reports`, { params })
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  // ---- Scheduling suite: automation settings ----
+  /** SuperAdmin: missed clock grace, open-shift mode, reminders, compatibility policy, expiry notices. */
+  updateAutomation(request: UpdateSchedulingAutomation): Observable<SchedulingSettings> {
+    return this.http
+      .put<ApiResponse<SchedulingSettings>>(`${this.baseUrl}/settings/automation`, request)
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  // ---- Open shifts / offers ----
+  /** Managers: open shifts with interest counts; caregivers: shifts offered to them. */
+  openShifts(from?: string, to?: string): Observable<OpenShift[]> {
+    let params = new HttpParams();
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return this.http
+      .get<ApiResponse<OpenShift[]>>(`${this.baseUrl}/open-shifts`, { params })
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  /** Offers of an open shift with match scores. */
+  offers(scheduleId: number): Observable<ShiftOffer[]> {
+    return this.http
+      .get<ApiResponse<ShiftOffer[]>>(`${this.baseUrl}/${scheduleId}/offers`)
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  /** (Re)broadcast; null userIds = every eligible caregiver. */
+  broadcast(scheduleId: number, userIds: number[] | null = null): Observable<ShiftOffer[]> {
+    return this.http
+      .post<ApiResponse<ShiftOffer[]>>(`${this.baseUrl}/${scheduleId}/offers`, { userIds })
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  /** Caregiver: Interested / Decline on their own offer. */
+  respondToOffer(scheduleId: number, request: OfferResponseRequest): Observable<ShiftOffer> {
+    return this.http
+      .post<ApiResponse<ShiftOffer>>(`${this.baseUrl}/${scheduleId}/offer-response`, request)
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  assign(scheduleId: number, userId: number): Observable<Schedule> {
+    return this.http
+      .post<ApiResponse<Schedule>>(`${this.baseUrl}/${scheduleId}/assign`, { userId })
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  /** Ranked caregivers for a proposed visit (best first, excluded last). */
+  suggestions(request: SuggestionRequest): Observable<CaregiverSuggestion[]> {
+    return this.http
+      .post<ApiResponse<CaregiverSuggestion[]>>(`${this.baseUrl}/suggestions`, request)
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  fillPreview(from: string, to: string): Observable<FillProposal[]> {
+    return this.http
+      .post<ApiResponse<FillProposal[]>>(`${this.baseUrl}/open-shifts/fill-preview`, { from, to })
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  fillApply(assignments: { scheduleId: number; userId: number }[]): Observable<FillApplyResult> {
+    return this.http
+      .post<ApiResponse<FillApplyResult>>(`${this.baseUrl}/open-shifts/fill-apply`, { assignments })
+      .pipe(map((r) => this.unwrap(r)));
+  }
+
+  // ---- Pending confirmation ----
+  pendingConfirmation(days = 7): Observable<PendingConfirmation[]> {
+    return this.http
+      .get<ApiResponse<PendingConfirmation[]>>(`${this.baseUrl}/pending-confirmation`, {
+        params: { days: String(days) },
+      })
+      .pipe(map((r) => r.data ?? []));
+  }
+
+  remind(scheduleIds: number[]): Observable<RemindResult> {
+    return this.http
+      .post<ApiResponse<RemindResult>>(`${this.baseUrl}/pending-confirmation/remind`, { scheduleIds })
       .pipe(map((r) => this.unwrap(r)));
   }
 

@@ -74,6 +74,13 @@ export const routes: Routes = [
     title: 'About · WorkProvider360',
   },
   {
+    // Public: where Stripe Checkout (and the "Pay online" email link) returns:
+    // /pay/result?status=success|cancelled|paid&invoice={number}
+    path: 'pay/result',
+    loadComponent: () => import('./features/pay-result/pay-result').then((m) => m.PayResult),
+    title: 'Payment · WorkProvider360',
+  },
+  {
     path: 'setup',
     loadComponent: () => import('./features/auth/setup/setup').then((m) => m.Setup),
     title: 'Workspace setup · WorkProvider360',
@@ -149,6 +156,14 @@ export const routes: Routes = [
         title: 'Payer · WorkProvider360',
       },
       {
+        path: 'authorizations',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () =>
+          import('./features/dashboard/authorizations/authorizations').then((m) => m.Authorizations),
+        title: 'Authorizations · WorkProvider360',
+      },
+      {
         path: 'clients/:id',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
@@ -187,6 +202,14 @@ export const routes: Routes = [
         title: 'Accounting · WorkProvider360',
       },
       {
+        // Billing & revenue cycle; the page itself hides when the billing access is None.
+        path: 'billing',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () => import('./features/dashboard/billing/billing').then((m) => m.Billing),
+        title: 'Billing · WorkProvider360',
+      },
+      {
         path: 'security',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin'] },
@@ -201,6 +224,13 @@ export const routes: Routes = [
         title: 'Point of Sale · WorkProvider360',
       },
       {
+        path: 'compliance',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin'] },
+        loadComponent: () => import('./features/dashboard/compliance/compliance').then((m) => m.Compliance),
+        title: 'Compliance · WorkProvider360',
+      },
+      {
         path: 'scheduler',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },
@@ -208,11 +238,58 @@ export const routes: Routes = [
         title: 'Scheduler · WorkProvider360',
       },
       {
+        path: 'master-schedules',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () =>
+          import('./features/dashboard/master-schedules/master-schedules').then((m) => m.MasterSchedules),
+        title: 'Master schedules · WorkProvider360',
+      },
+      {
+        path: 'open-shifts',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },
+        loadComponent: () => import('./features/dashboard/open-shifts/open-shifts').then((m) => m.OpenShifts),
+        title: 'Open shifts · WorkProvider360',
+      },
+      {
+        path: 'visit-exceptions',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager'] },
+        loadComponent: () =>
+          import('./features/dashboard/visit-exceptions/visit-exceptions').then((m) => m.VisitExceptions),
+        title: 'Missed clock-ins · WorkProvider360',
+      },
+      {
         path: 'meetings',
         canActivate: [roleGuard],
         data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User', 'Client'] },
         loadComponent: () => import('./features/dashboard/meetings/meetings').then((m) => m.Meetings),
         title: 'Meetings · WorkProvider360',
+      },
+      {
+        // Send custom message (ADR-0006); the pages also check the message access (canView / canSend).
+        path: 'messages',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },
+        loadComponent: () => import('./features/dashboard/messages/messages').then((m) => m.Messages),
+        title: 'Messages · WorkProvider360',
+      },
+      {
+        path: 'messages/compose',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },
+        loadComponent: () =>
+          import('./features/dashboard/messages/compose/compose').then((m) => m.MessageCompose),
+        title: 'Send message · WorkProvider360',
+      },
+      {
+        path: 'messages/:id',
+        canActivate: [roleGuard],
+        data: { roles: ['SuperAdmin', 'Admin', 'Manager', 'User'] },
+        loadComponent: () =>
+          import('./features/dashboard/messages/message-detail/message-detail').then((m) => m.MessageDetail),
+        title: 'Message · WorkProvider360',
       },
       {
         path: 'reports',
@@ -379,6 +456,12 @@ export const routes: Routes = [
         title: 'Training settings · WorkProvider360',
       },
     ],
+  },
+
+  {
+    // Development Monitoring: its own session (in-memory token + HttpOnly cookie), never the main one.
+    path: 'monitoring',
+    loadChildren: () => import('./features/monitoring/monitoring.routes').then((m) => m.MONITORING_ROUTES),
   },
 
   { path: '**', redirectTo: 'login' },
